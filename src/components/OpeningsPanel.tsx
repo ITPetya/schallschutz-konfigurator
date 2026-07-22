@@ -24,6 +24,7 @@ export function OpeningsPanel({ size, openings, onUpdate, onRemove, onOpenAdd }:
     <div className="space-y-4">
       <button
         type="button"
+        data-tour="add-opening"
         onClick={onOpenAdd}
         aria-label="Durchbruch hinzufügen"
         className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-xl font-bold text-white hover:bg-brand-dark"

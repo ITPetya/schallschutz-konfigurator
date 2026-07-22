@@ -16,7 +16,7 @@ export function KonstrukteurProjectsPage() {
   const projects = user.role === "admin" ? listAllProjects() : listProjectsForKonstrukteur(user.id);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div data-tour="konstrukteur-projects-page" className="mx-auto max-w-3xl px-6 py-8">
       <h1 className="mb-6 font-heading text-xl font-bold uppercase tracking-wide text-brand-dark">
         Zugeteilte Projekte
       </h1>

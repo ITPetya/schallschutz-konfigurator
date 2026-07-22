@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Scene } from "../components/Scene";
 import { OpeningsPanel } from "../components/OpeningsPanel";
 import { OpeningsSummary } from "../components/OpeningsSummary";
@@ -14,6 +14,8 @@ import type { ProjectConfig } from "../projects/types";
 import { createProject } from "../projects/mockProjectStore";
 import { useAuth } from "../auth/AuthContext";
 import { useAuthPopover } from "../layout/AuthPopoverContext";
+import { useTour } from "../tour/TourContext";
+import { hasSeenTour } from "../tour/tourStore";
 
 interface KonfiguratorPageProps {
   // "readonly" ersetzt die editierbare Seitenleiste durch eine reine
@@ -56,6 +58,16 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   const { open: openAuthPopover } = useAuthPopover();
   const [saveName, setSaveName] = useState("");
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+
+  const { start: startTour } = useTour();
+  useEffect(() => {
+    // Automatisch nur beim allerersten Aufruf des unangemeldeten Konfigurators
+    // (Jonas' Vorgabe 2026-07-22) - danach nur noch ueber den "?"-Button.
+    if (mode === "edit" && !user && !hasSeenTour("configurator-guest")) {
+      startTour("configurator-guest");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleAdd(opening: Opening) {
     setOpenings((prev) => [...prev, opening]);
@@ -138,7 +150,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             </>
           ) : (
             <>
-              <AccordionSection title="Grundeinstellungen" defaultOpen>
+              <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
                 <ContainerSizeControls
                   size={size}
                   wallThickness={wallThickness}
@@ -147,7 +159,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                 />
               </AccordionSection>
 
-              <AccordionSection title="Darstellung">
+              <AccordionSection title="Darstellung" tourId="tour-darstellung">
                 <DisplaySettingsPanel
                   viewStyle={viewStyle}
                   onViewStyleChange={setViewStyle}
@@ -160,7 +172,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                 />
               </AccordionSection>
 
-              <AccordionSection title="Einbauten" defaultOpen>
+              <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
                 <OpeningsPanel
                   size={size}
                   openings={openings}
@@ -170,7 +182,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                 />
               </AccordionSection>
 
-              <div className="mt-4 border-t border-slate-200 pt-4">
+              <div data-tour="save-project" className="mt-4 border-t border-slate-200 pt-4">
                 <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Projekt speichern</p>
                 {user ? (
                   <div className="space-y-2">

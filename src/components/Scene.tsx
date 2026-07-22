@@ -135,7 +135,7 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
       {/* Schnittansicht-Werkzeug (Jonas' Vorgabe 2026-07-22) - reines HTML-
           Overlay, unten links (damit es sich nicht mit dem ViewCube unten
           rechts ueberschneidet). */}
-      <div className="absolute bottom-4 left-4 w-64 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
+      <div data-tour="section-view" className="absolute bottom-4 left-4 w-64 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
         <label className="flex items-center gap-2 font-medium text-brand-dark">
           <input
             type="checkbox"

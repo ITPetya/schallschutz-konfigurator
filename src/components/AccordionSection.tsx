@@ -4,16 +4,20 @@ interface AccordionSectionProps {
   title: string;
   defaultOpen?: boolean;
   children: ReactNode;
+  // Fuer die interaktive Tour (Jonas' Vorgabe 2026-07-22) - landet als
+  // data-tour auf dem AEUSSEREN Container, damit die Tour den Abschnitt auch
+  // im geschlossenen Zustand anvisieren kann.
+  tourId?: string;
 }
 
 // Ein- und ausklappbarer Abschnitt fuer die Seitenleiste (Jonas' Vorgabe
 // 2026-07-22: "Grundeinstellungen"/"Darstellung"/"Einbauten" sollen alle
 // ein- und ausklappbar sein).
-export function AccordionSection({ title, defaultOpen = false, children }: AccordionSectionProps) {
+export function AccordionSection({ title, defaultOpen = false, children, tourId }: AccordionSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-b border-slate-200 py-3">
+    <div data-tour={tourId} className="border-b border-slate-200 py-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

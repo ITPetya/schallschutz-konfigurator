@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AuthPopoverProvider } from "./layout/AuthPopoverContext";
+import { TourProvider } from "./tour/TourContext";
 import { AppShell } from "./layout/AppShell";
 import { RequireRole } from "./layout/RequireRole";
 import { StartPage } from "./pages/StartPage";
@@ -20,53 +21,55 @@ function App() {
     <AuthProvider>
       <AuthPopoverProvider>
         <BrowserRouter>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<StartPage />} />
-              <Route path="/konfigurator" element={<KonfiguratorPage />} />
-              <Route path="/projekte" element={<KundeProjectsPage />} />
-              <Route
-                path="/konstrukteur/projekte"
-                element={
-                  <RequireRole roles={["konstrukteur"]}>
-                    <KonstrukteurProjectsPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="/konstrukteur/viewer/:id"
-                element={
-                  <RequireRole roles={["konstrukteur"]}>
-                    <KonstrukteurViewerPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="/admin/projekte"
-                element={
-                  <RequireRole roles={["admin"]}>
-                    <AdminProjectsPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="/admin/mitarbeiter"
-                element={
-                  <RequireRole roles={["admin"]}>
-                    <AdminEmployeesPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="/admin/standards"
-                element={
-                  <RequireRole roles={["admin"]}>
-                    <AdminStandardsPage />
-                  </RequireRole>
-                }
-              />
-            </Route>
-          </Routes>
+          <TourProvider>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<StartPage />} />
+                <Route path="/konfigurator" element={<KonfiguratorPage />} />
+                <Route path="/projekte" element={<KundeProjectsPage />} />
+                <Route
+                  path="/konstrukteur/projekte"
+                  element={
+                    <RequireRole roles={["konstrukteur"]}>
+                      <KonstrukteurProjectsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/konstrukteur/viewer/:id"
+                  element={
+                    <RequireRole roles={["konstrukteur"]}>
+                      <KonstrukteurViewerPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/admin/projekte"
+                  element={
+                    <RequireRole roles={["admin"]}>
+                      <AdminProjectsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/admin/mitarbeiter"
+                  element={
+                    <RequireRole roles={["admin"]}>
+                      <AdminEmployeesPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/admin/standards"
+                  element={
+                    <RequireRole roles={["admin"]}>
+                      <AdminStandardsPage />
+                    </RequireRole>
+                  }
+                />
+              </Route>
+            </Routes>
+          </TourProvider>
         </BrowserRouter>
       </AuthPopoverProvider>
     </AuthProvider>

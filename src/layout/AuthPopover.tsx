@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useAuthPopover } from "./AuthPopoverContext";
+import { useTour } from "../tour/TourContext";
+import { hasSeenTour } from "../tour/tourStore";
+import { firstLoginTourIdForRole } from "../tour/tourDefinitions";
 
 const inputClass =
   "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none";
@@ -11,6 +14,7 @@ const inputClass =
 export function AuthPopover() {
   const { user, login, logout, register } = useAuth();
   const { isOpen, close } = useAuthPopover();
+  const { start: startTour } = useTour();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -26,23 +30,34 @@ export function AuthPopover() {
     setError(null);
   }
 
+  // Startet die "erste Anmeldung"-Tour fuer die jeweilige Rolle automatisch,
+  // aber nur einmal pro Browser (Jonas' Vorgabe 2026-07-22) - der manuelle
+  // "?"-Button in AppShell funktioniert unabhaengig davon jederzeit.
+  function maybeStartFirstLoginTour(role: "kunde" | "konstrukteur" | "admin") {
+    const tourId = firstLoginTourIdForRole(role);
+    if (!hasSeenTour(tourId)) startTour(tourId);
+  }
+
   function handleLogin() {
-    if (!login(email, password)) {
+    const loggedIn = login(email, password);
+    if (!loggedIn) {
       setError("E-Mail oder Passwort ist falsch.");
       return;
     }
     resetFields();
     close();
+    maybeStartFirstLoginTour(loggedIn.role);
   }
 
   function handleRegister() {
-    const err = register(email, name, password);
-    if (err) {
-      setError(err);
+    const result = register(email, name, password);
+    if (typeof result === "string") {
+      setError(result);
       return;
     }
     resetFields();
     close();
+    maybeStartFirstLoginTour(result.role);
   }
 
   return (

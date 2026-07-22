@@ -4,9 +4,13 @@ import * as store from "./mockAuthStore";
 
 interface AuthContextValue {
   user: User | null;
-  login: (email: string, password: string) => boolean;
+  // Gibt den eingeloggten User zurueck (statt nur true/false) - der Aufrufer
+  // (AuthPopover) braucht die Rolle SOFORT, um die passende "erste Anmeldung"-
+  // Tour zu starten, ohne auf den naechsten Render zu warten (Jonas' Vorgabe
+  // 2026-07-22: Tutorials).
+  login: (email: string, password: string) => User | null;
   logout: () => void;
-  register: (email: string, name: string, password: string) => string | null; // Fehlermeldung oder null bei Erfolg
+  register: (email: string, name: string, password: string) => User | string; // User bei Erfolg, sonst Fehlermeldung
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -16,11 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function login(email: string, password: string) {
     const result = store.login(email, password);
-    if (result) {
-      setUser(result);
-      return true;
-    }
-    return false;
+    if (result) setUser(result);
+    return result;
   }
 
   function logout() {
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = store.register(email, name, password);
     if ("error" in result) return result.error;
     setUser(result);
-    return null;
+    return result;
   }
 
   return <AuthContext.Provider value={{ user, login, logout, register }}>{children}</AuthContext.Provider>;
