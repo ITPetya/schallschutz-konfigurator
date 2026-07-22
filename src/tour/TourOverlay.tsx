@@ -4,11 +4,15 @@ import { useTour } from "./TourContext";
 const PAD = 6;
 const MAX_ATTEMPTS = 30; // 30 * 100ms = 3s, dann wird der Schritt uebersprungen
 
-// Bewusst KEIN abdunkelndes Vollbild-Overlay (Jonas' Vorgabe: interaktive
-// Tour) - nur ein Rahmen um das Zielelement + eine Sprechblase daneben, die
-// App bleibt waehrenddessen normal bedienbar. Findet das Zielelement per
-// data-tour-Selektor per Polling (nicht per einmaligem querySelector), da es
-// z. B. nach einem Routenwechsel oder AppShell-Menü-Oeffnen erst mit
+// Abgedunkeltes Umfeld ("Spotlight") um das Zielelement + eine Sprechblase
+// daneben (Jonas' Fehlerbericht 2026-07-23: "Das Tutorial soll sich mehr vom
+// Drumherum abheben, das erkennt man nicht so wirklich" - eine reine
+// Umrandung ohne Abdunkelung ging im normalen UI unter). Die Abdunkelung
+// haengt als riesiger box-shadow direkt am Rahmen-Div, NICHT an einem
+// eigenen Vollbild-Backdrop, UND bleibt pointer-events:none - die App ist
+// waehrend der Tour weiterhin normal bedienbar, nur optisch fokussiert.
+// Findet das Zielelement per data-tour-Selektor per Polling (nicht per
+// einmaligem querySelector), da es z. B. nach einem Routenwechsel erst mit
 // Verzoegerung im DOM auftaucht.
 export function TourOverlay() {
   const { currentStep, stepIndex, stepCount, next, prev, stop } = useTour();
@@ -64,11 +68,14 @@ export function TourOverlay() {
           left: rect.left - PAD,
           width: rect.width + PAD * 2,
           height: rect.height + PAD * 2,
-          boxShadow: "0 0 0 4px rgba(0,142,180,0.25)",
+          // Ring ums Zielelement + riesiger Schatten ringsherum verdunkelt
+          // den Rest der Seite ("Spotlight") - macht den aktiven Schritt
+          // sofort erkennbar, ohne ein separates Backdrop-Element zu brauchen.
+          boxShadow: "0 0 0 4px rgba(0,142,180,0.35), 0 0 0 9999px rgba(15,23,42,0.6)",
         }}
       />
       <div
-        className="fixed z-[101] w-[300px] rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-xl"
+        className="fixed z-[101] w-[300px] rounded-lg border-t-4 border-brand bg-white p-4 text-sm shadow-2xl"
         style={{ left, top, bottom }}
       >
         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">

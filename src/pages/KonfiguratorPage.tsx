@@ -138,22 +138,18 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   }
 
   return (
+    // Kein eigener Header/Accent-Bar mehr hier (Jonas' Fehlerbericht
+    // 2026-07-23: "zwei horizontale Linien in der Kopfzeile") - AppShell
+    // stellt bereits fuer JEDE Seite eine Kopfzeile, diese hier war eine
+    // zweite, redundante Kopfzeile direkt darunter. Der projectName (im
+    // readonly-Viewer der Dateiname) steht stattdessen als schlichte
+    // Unterueberschrift oben in der Seitenleiste.
     <div className="flex h-full flex-col bg-white text-ink">
-      {!readOnly && <div className="h-1.5 bg-brand-light" />}
-      <header className="flex items-center border-b border-slate-200 px-6 py-3">
-        <h1 className="font-heading text-lg font-bold uppercase tracking-wide text-brand-dark">
-          {projectName ?? (
-            <>
-              Schallschutz-Sondercontainer <span className="text-brand-light">–</span> 3D-Konfigurator
-            </>
-          )}
-        </h1>
-      </header>
-
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 px-4 py-4">
           {readOnly ? (
             <>
+              {projectName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{projectName}</p>}
               <AccordionSection title="Grundeinstellungen" defaultOpen>
                 <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
                   <dt className="text-slate-400">Länge</dt>

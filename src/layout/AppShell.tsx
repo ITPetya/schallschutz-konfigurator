@@ -11,8 +11,11 @@ export function AppShell() {
 
   return (
     <div className="flex h-full flex-col bg-white text-ink">
+      {/* Nur EINE horizontale Linie am oberen Rand (Jonas' Fehlerbericht
+          2026-07-23) - der Header selbst hat bewusst KEINEN eigenen border-b
+          mehr, das war die zweite Linie direkt darunter. */}
       <div className="h-1.5 bg-brand-light" />
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+      <header className="flex items-center justify-between px-4 py-2.5">
         <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark">
           Schallschutz-Sondercontainer
         </Link>
