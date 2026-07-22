@@ -1,10 +1,7 @@
 import { useState } from "react";
-import type { BackgroundStyle } from "../context/DisplaySettingsContext";
 import { RAL_SPECIAL_COLORS, RAL_STANDARD_COLORS, type RalColor } from "../constants/ralColors";
 
 interface DisplaySettingsPanelProps {
-  background: BackgroundStyle;
-  onBackgroundChange: (b: BackgroundStyle) => void;
   insideColor: string;
   onInsideColorChange: (hex: string) => void;
   outsideColor: string;
@@ -21,14 +18,13 @@ const toggleBtn = (active: boolean) =>
   `flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${active ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`;
 
 // "Erweiterte Einstellungen" (Jonas' Vorgabe 2026-07-24, vorher "Darstellung")
-// - der Ansicht-Stil (Realistisch/Schattiert mit Kanten) + Schatten-Toggle
-// sind hier RAUS und leben jetzt als eigenes Panel im Viewer direkt neben
-// "Schnitt" (siehe Scene.tsx) - hier bleibt nur, was Jonas als "Farbe" +
-// die neuen Zusatzfelder beschrieben hat: Hintergrund, Außen-/Innenfarbe
-// (bzw. "innen unlackiert" als Alternative), und zwei Sonderheiten-Notizen.
+// - der Ansicht-Stil (Realistisch/Schattiert mit Kanten), Hintergrund
+// (Studio/Gelände) und Schatten-Toggle sind hier RAUS und leben jetzt als
+// eigenes "Ansicht"-Panel im Viewer direkt neben "Schnitt" (siehe Scene.tsx,
+// Jonas' Vorgabe 2026-07-24: "Gelände und Studio gehört auch zu Ansicht") -
+// hier bleibt nur die Farbe/Sonderheiten: Außen-/Innenfarbe (bzw. "innen
+// unlackiert" als Alternative) und zwei Sonderheiten-Notizen.
 export function DisplaySettingsPanel({
-  background,
-  onBackgroundChange,
   insideColor,
   onInsideColorChange,
   outsideColor,
@@ -42,18 +38,6 @@ export function DisplaySettingsPanel({
 }: DisplaySettingsPanelProps) {
   return (
     <div className="space-y-4 text-sm">
-      <div>
-        <p className="mb-1.5 text-xs font-semibold text-slate-500">Hintergrund</p>
-        <div className="flex gap-1">
-          <button type="button" className={toggleBtn(background === "studio")} onClick={() => onBackgroundChange("studio")}>
-            Studio
-          </button>
-          <button type="button" className={toggleBtn(background === "terrain")} onClick={() => onBackgroundChange("terrain")}>
-            Gelände
-          </button>
-        </div>
-      </div>
-
       <ColorPicker label="Außenfarbe" value={outsideColor} onChange={onOutsideColorChange} />
       <NoteField label="Sonderheiten Außen" value={outsideNotes} onChange={onOutsideNotesChange} />
 

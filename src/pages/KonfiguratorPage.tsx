@@ -80,6 +80,9 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
 
   const [fileName, setFileName] = useState("Container-Konfiguration");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  // Jonas' Vorgabe 2026-07-24: statt window.confirm() ein richtiger Dialog
+  // mit drei Optionen (Ja / Nein / Speichern-und-Ja).
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const { start: startTour } = useTour();
   useEffect(() => {
@@ -135,15 +138,13 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     setOpenings((prev) => prev.filter((o) => o.id !== id));
   }
 
-  // Jonas' Vorgabe 2026-07-24: Button zum Zuruecksetzen der Konfiguration,
-  // unten links im Viewer (siehe Scene.tsx onReset-Prop). Ueberschreibt auch
-  // den Autosave-Entwurf, da der useEffect unten nach dem Reset automatisch
-  // mit den neuen (Default-)Werten erneut feuert - kein manuelles
-  // saveDraft() hier noetig.
-  function handleReset() {
-    if (!window.confirm("Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren.")) {
-      return;
-    }
+  // Jonas' Vorgabe 2026-07-24: Button zum Zuruecksetzen sitzt jetzt fest
+  // unten in der Seitenleiste (nicht mehr im Viewer, siehe <aside> unten)
+  // und oeffnet einen richtigen Dialog mit drei Optionen statt window.confirm().
+  // Ueberschreibt auch den Autosave-Entwurf, da der useEffect oben nach dem
+  // Reset automatisch mit den neuen (Default-)Werten erneut feuert - kein
+  // manuelles saveDraft() hier noetig.
+  function applyReset() {
     const fresh = defaultConfig();
     setSize(fresh.size);
     setWallThickness(fresh.wallThickness);
@@ -156,7 +157,13 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     setInsideUnpainted(fresh.insideUnpainted ?? false);
     setOutsideNotes(fresh.outsideNotes ?? "");
     setInsideNotes(fresh.insideNotes ?? "");
+    setShowResetConfirm(false);
     flashStatus("Konfiguration wurde zurückgesetzt.");
+  }
+
+  async function handleResetAndSave() {
+    await handleDownload();
+    applyReset();
   }
 
   function currentConfig(): ContainerConfig {
@@ -234,7 +241,13 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     // Unterueberschrift oben in der Seitenleiste.
     <div className="flex h-full flex-col bg-white text-ink">
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 px-4 py-4">
+        {/* Jonas' Vorgabe 2026-07-24: "Zurücksetzen" fest unten in der
+            Seitenleiste statt als eigener Viewer-Button - deshalb ist die
+            Seitenleiste jetzt selbst ein flex-col: der Akkordeon-Bereich
+            scrollt (flex-1 overflow-y-auto), der Reset-Button darunter
+            bleibt als eigener, nicht scrollender Footer immer sichtbar. */}
+        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
           {readOnly ? (
             <>
               {projectName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{projectName}</p>}
@@ -297,8 +310,6 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
 
               <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
                 <DisplaySettingsPanel
-                  background={background}
-                  onBackgroundChange={setBackground}
                   insideColor={insideColor}
                   onInsideColorChange={setInsideColor}
                   outsideColor={outsideColor}
@@ -352,6 +363,19 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               </div>
             </>
           )}
+        </div>
+        {!readOnly && (
+          <div className="border-t border-slate-200 p-3">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+            >
+              <ResetIcon />
+              Zurücksetzen
+            </button>
+          </div>
+        )}
         </aside>
 
         {/* min-w-0/min-h-0 sind noetig, nicht nur kosmetisch (Jonas'
@@ -371,8 +395,8 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             outsideColor={outsideColor}
             insideUnpainted={insideUnpainted}
             shadowsEnabled={shadowsEnabled}
-            onReset={readOnly ? undefined : handleReset}
             onViewStyleChange={readOnly ? undefined : setViewStyle}
+            onBackgroundChange={readOnly ? undefined : setBackground}
             onShadowsEnabledChange={readOnly ? undefined : setShadowsEnabled}
           />
           {/* Jonas' Vorgabe 2026-07-24: "+"-Button fuer neue Durchbrueche
@@ -396,6 +420,54 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
           )}
         </main>
       </div>
+
+      {/* Jonas' Vorgabe 2026-07-24: statt window.confirm() ein richtiger
+          Dialog mit drei Optionen - Nein (abbrechen), Ja (nur zuruecksetzen),
+          Speichern & Zuruecksetzen (erst als Datei sichern, dann zuruecksetzen). */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Zurücksetzen</p>
+            <p className="mb-4 text-sm text-slate-600">
+              Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleResetAndSave}
+                className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+              >
+                Speichern &amp; zurücksetzen
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+                >
+                  Nein
+                </button>
+                <button
+                  type="button"
+                  onClick={applyReset}
+                  className="flex-1 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-red-700"
+                >
+                  Ja, zurücksetzen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M3 12a9 9 0 1 1 3 6.7" strokeLinecap="round" />
+      <path d="M3 17v-5h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
