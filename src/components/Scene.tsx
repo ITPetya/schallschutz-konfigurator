@@ -3,14 +3,20 @@ import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
 import { Container } from "./Container";
+import { TerrainBackground } from "./TerrainBackground";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
+import { DisplaySettingsProvider, type BackgroundStyle, type ViewStyle } from "../context/DisplaySettingsContext";
 
 interface SceneProps {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
+  viewStyle: ViewStyle;
+  background: BackgroundStyle;
+  insideColor: string;
+  outsideColor: string;
 }
 
 type SectionAxis = "x" | "y" | "z";
@@ -39,7 +45,7 @@ const SECTION_AXIS_LABELS: Record<SectionAxis, string> = {
 // -X=Norden, +Z=Osten, -Z=Westen, Oben/Unten unveraendert.
 const VIEWCUBE_FACES = ["Süden", "Norden", "Oben", "Unten", "Osten", "Westen"];
 
-export function Scene({ size, wallThickness, openings }: SceneProps) {
+export function Scene({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
   const lengthM = size.length * MM_TO_M;
@@ -71,6 +77,8 @@ export function Scene({ size, wallThickness, openings }: SceneProps) {
     setSectionOffsetMm((axisRangeMm[axis].min + axisRangeMm[axis].max) / 2);
   }
 
+  const isTerrain = background === "terrain";
+
   return (
     <div className="relative h-full w-full">
       <Canvas
@@ -78,7 +86,7 @@ export function Scene({ size, wallThickness, openings }: SceneProps) {
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
       >
-        <color attach="background" args={["#eef2f5"]} />
+        {!isTerrain && <color attach="background" args={["#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight
           position={[10, 12, 6]}
@@ -86,17 +94,24 @@ export function Scene({ size, wallThickness, openings }: SceneProps) {
           castShadow
           shadow-mapSize={[2048, 2048]}
         />
-        <SectionPlaneProvider value={sectionPlane}>
-          <Container size={size} wallThickness={wallThickness} openings={openings} />
-        </SectionPlaneProvider>
-        <Grid
-          args={[40, 40]}
-          cellColor="#cbd5e1"
-          sectionColor="#94a3b8"
-          fadeDistance={30}
-          position={[0, 0, 0]}
-        />
-        <Environment preset="city" />
+        <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor }}>
+          <SectionPlaneProvider value={sectionPlane}>
+            <Container size={size} wallThickness={wallThickness} openings={openings} />
+          </SectionPlaneProvider>
+        </DisplaySettingsProvider>
+
+        {isTerrain ? (
+          <>
+            <TerrainBackground />
+            <Environment preset="park" background={false} />
+          </>
+        ) : (
+          <>
+            <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
+            <Environment preset="studio" />
+          </>
+        )}
+
         <OrbitControls
           makeDefault
           minDistance={2}

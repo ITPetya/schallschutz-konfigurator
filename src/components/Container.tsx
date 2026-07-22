@@ -9,11 +9,6 @@ interface ContainerProps {
   openings: Opening[];
 }
 
-// Neutrales, industrielles Hellgrau statt einer Markenfarbe - reale
-// Sondercontainer (siehe lc.systems-Referenzbilder) sind lackierte
-// Stahlpaneele, keine Marken-Buntfarbe.
-const WALL_COLOR = "#d7dade";
-
 const MM_TO_M = 1 / 1000;
 
 // Container als hohle Schale aus 6 einzeln schneidbaren Panels (vier
@@ -66,7 +61,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={H}
         thickness={t}
         openings={openingsFor("east")}
-        color={WALL_COLOR}
         outwardSign={1}
       />
       <Wall
@@ -76,7 +70,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={H}
         thickness={t}
         openings={openingsFor("west")}
-        color={WALL_COLOR}
         outwardSign={-1}
       />
 
@@ -88,7 +81,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={H}
         thickness={t}
         openings={openingsFor("north")}
-        color={WALL_COLOR}
         outwardSign={-1}
       />
       <Wall
@@ -98,7 +90,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={H}
         thickness={t}
         openings={openingsFor("south")}
-        color={WALL_COLOR}
         outwardSign={1}
       />
 
@@ -110,7 +101,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={W}
         thickness={t}
         openings={openingsFor("top")}
-        color={WALL_COLOR}
         outwardSign={1}
       />
       <Wall
@@ -120,7 +110,6 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelHeight={W}
         thickness={t}
         openings={openingsFor("bottom")}
-        color={WALL_COLOR}
         outwardSign={1}
       />
     </group>

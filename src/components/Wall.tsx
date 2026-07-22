@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
+import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { DoorLeaf } from "./DoorLeaf";
 import { useSectionPlane } from "../context/SectionPlaneContext";
+import { useDisplaySettings } from "../context/DisplaySettingsContext";
 
 interface WallProps {
   position: [number, number, number];
@@ -13,17 +15,49 @@ interface WallProps {
   panelHeight: number;
   thickness: number;
   openings: Opening[];
-  color: string;
   // +1, wenn die lokale +Z-Richtung dieser Wand (vor Rotation) nach AUSSEN
   // zeigt, -1, wenn lokal -Z nach aussen zeigt - haengt davon ab, wie die
-  // Wand in Container.tsx positioniert/rotiert wurde. Wird nur fuer
-  // Durchbrueche mit protrusionDepth gebraucht (z. B. Wetterschutzgitter).
+  // Wand in Container.tsx positioniert/rotiert wurde. Wird sowohl fuer
+  // Durchbrueche mit protrusionDepth (Wetterschutzgitter) als auch fuers
+  // Aufteilen der Wandflaeche in Aussen-/Innenfarbe gebraucht.
   outwardSign: 1 | -1;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
 // siehe three-bvh-csg-Doku.
 const evaluator = new Evaluator();
+
+// Teilt die fertige CSG-Geometrie in zwei Materialgruppen auf: Aussen-
+// (outwardSign-Richtung) und Innenflaeche (Jonas' Vorgabe 2026-07-22:
+// unterschiedliche RAL-Farben innen/aussen). Grobe, aber fuer duenne
+// Wandpaneele treffsichere Naeherung: Dreiecke werden anhand ihrer
+// gemittelten Normalen-Z-Komponente sortiert - Schnittflaechen an den
+// Ausschnitt-Raendern (Normale ~senkrecht zu Z) fallen automatisch in eine
+// der beiden Gruppen, nicht in eine dritte "Kante"-Gruppe (bewusste
+// Vereinfachung, kein Konfigurator fuer Fertigungszeichnungen).
+function splitByOutward(geometry: THREE.BufferGeometry, outwardSign: number): THREE.BufferGeometry {
+  const index = geometry.index;
+  const normal = geometry.attributes.normal;
+  if (!index || !normal) return geometry;
+
+  const outward: number[] = [];
+  const inward: number[] = [];
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i);
+    const b = index.getX(i + 1);
+    const c = index.getX(i + 2);
+    const nz = normal.getZ(a) + normal.getZ(b) + normal.getZ(c);
+    if (nz * outwardSign >= 0) outward.push(a, b, c);
+    else inward.push(a, b, c);
+  }
+
+  const split = geometry.clone();
+  split.setIndex([...outward, ...inward]);
+  split.clearGroups();
+  split.addGroup(0, outward.length, 0);
+  split.addGroup(outward.length, inward.length, 1);
+  return split;
+}
 
 // Rendert eine einzelne Wand als CSG-Ausschnitt: Wand-Quader minus je einem
 // Quader (rechteckige Durchbrueche) oder Zylinder (Rohrdurchführung, rund)
@@ -34,7 +68,9 @@ const evaluator = new Evaluator();
 // protrusionDepth (aktuell nur das Wetterschutzgitter, "baut 12mm nach aussen
 // auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
 // AUFGESETZTEN Block auf der Aussenseite.
-export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, color, outwardSign }: WallProps) {
+export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign }: WallProps) {
+  const { viewStyle, insideColor, outsideColor } = useDisplaySettings();
+
   const geometry = useMemo(() => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
     let result: Brush = new Brush(wallGeom);
@@ -64,8 +100,8 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
     }
 
-    return result.geometry;
-  }, [panelWidth, panelHeight, thickness, openings]);
+    return splitByOutward(result.geometry, outwardSign);
+  }, [panelWidth, panelHeight, thickness, openings, outwardSign]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
@@ -77,16 +113,32 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
   // Fehlerbericht 2026-07-22).
   const clippingPlanes = sectionPlane ? [sectionPlane] : [];
 
+  // "Schattiert mit Kanten" (Inventor-Begriff, Jonas' Vorgabe 2026-07-22):
+  // flacher, matter (kein Hochglanz/Spiegelung) + sichtbare Kantenlinien -
+  // "Realistisch" behaelt die bisherige, etwas glaenzendere PBR-Optik.
+  const shaded = viewStyle === "shaded_edges";
+  const materialProps = shaded
+    ? { roughness: 1, metalness: 0 }
+    : { roughness: 0.6, metalness: 0.4 };
+
   return (
     <group position={position} rotation={rotation}>
       <mesh geometry={geometry} castShadow receiveShadow>
         <meshStandardMaterial
-          color={color}
-          roughness={0.6}
-          metalness={0.4}
+          attach="material-0"
+          color={outsideColor}
           side={THREE.DoubleSide}
           clippingPlanes={clippingPlanes}
+          {...materialProps}
         />
+        <meshStandardMaterial
+          attach="material-1"
+          color={insideColor}
+          side={THREE.DoubleSide}
+          clippingPlanes={clippingPlanes}
+          {...materialProps}
+        />
+        {shaded && <Edges threshold={20} color="#1e293b" />}
       </mesh>
       {protrusions.map((o) => {
         const depth = OPENING_TYPES[o.kind].protrusionDepth!;
@@ -94,7 +146,8 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
         return (
           <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>
             <boxGeometry args={[o.width, o.height, depth]} />
-            <meshStandardMaterial color={color} roughness={0.5} metalness={0.5} clippingPlanes={clippingPlanes} />
+            <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+            {shaded && <Edges threshold={20} color="#1e293b" />}
           </mesh>
         );
       })}
@@ -115,6 +168,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
                 panelHeight={panelHeight}
                 hinge="left"
                 clippingPlanes={clippingPlanes}
+                outwardSign={outwardSign}
               />
               <DoorLeaf
                 u={o.u + leafWidth / 2}
@@ -124,6 +178,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
                 panelHeight={panelHeight}
                 hinge="right"
                 clippingPlanes={clippingPlanes}
+                outwardSign={outwardSign}
               />
             </group>
           );
@@ -138,6 +193,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
             panelHeight={panelHeight}
             hinge={o.hinge ?? "left"}
             clippingPlanes={clippingPlanes}
+            outwardSign={outwardSign}
           />
         );
       })}

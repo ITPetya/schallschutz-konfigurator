@@ -9,10 +9,12 @@ interface ContainerSizeControlsProps {
 
 // Container-Aussenmasse und Wandstaerke sind jetzt frei editierbar (Jonas'
 // Vorgabe 2026-07-22), die drei Standardmasse dienen nur noch als
-// Schnellauswahl-Vorlage zum Uebernehmen. Durchgehend in mm.
+// Schnellauswahl-Vorlage zum Uebernehmen. Durchgehend in mm. Gestapeltes
+// Layout (nicht mehr in einer Zeile) - lebt seit der Umstrukturierung in der
+// 320px breiten Seitenleiste statt im breiten Kopfbereich, siehe App.tsx.
 export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWallThicknessChange }: ContainerSizeControlsProps) {
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="space-y-2 text-sm">
       <select
         defaultValue=""
         onChange={(e) => {
@@ -20,7 +22,7 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
           if (preset) onSizeChange({ length: preset.length, width: preset.width, height: preset.height });
           e.target.value = "";
         }}
-        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-ink shadow-sm"
+        className="w-full rounded-full border border-slate-300 bg-white px-3 py-1.5 text-ink shadow-sm"
       >
         <option value="" disabled>
           Vorlage…
@@ -31,18 +33,19 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
           </option>
         ))}
       </select>
-      <NumberField label="L" value={size.length} onChange={(v) => onSizeChange({ ...size, length: v })} />
-      <NumberField label="B" value={size.width} onChange={(v) => onSizeChange({ ...size, width: v })} />
-      <NumberField label="H" value={size.height} onChange={(v) => onSizeChange({ ...size, height: v })} />
-      <NumberField label="Wand" value={wallThickness} onChange={onWallThicknessChange} />
-      <span className="text-xs text-slate-400">mm</span>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField label="Länge (mm)" value={size.length} onChange={(v) => onSizeChange({ ...size, length: v })} />
+        <NumberField label="Breite (mm)" value={size.width} onChange={(v) => onSizeChange({ ...size, width: v })} />
+        <NumberField label="Höhe (mm)" value={size.height} onChange={(v) => onSizeChange({ ...size, height: v })} />
+        <NumberField label="Wandstärke (mm)" value={wallThickness} onChange={onWallThicknessChange} />
+      </div>
     </div>
   );
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <label className="flex items-center gap-1 text-xs text-slate-500">
+    <label className="flex flex-col gap-0.5 text-xs text-slate-500">
       {label}
       <input
         type="number"
@@ -50,7 +53,7 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
         min={0}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-20 rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none"
+        className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none"
       />
     </label>
   );
