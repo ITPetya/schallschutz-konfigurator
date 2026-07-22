@@ -1,12 +1,14 @@
-import type { Role } from "../auth/types";
 import type { Tour } from "./types";
 
-// Tutorials (Jonas' Vorgabe 2026-07-22): Konfigurator unangemeldet, sowie je
-// einmal "erste Anmeldung" fuer Kunde/Konstrukteur/Admin/Verkaeufer. Zeigt
-// auf echte UI-Elemente ueber data-tour-Attribute, siehe TourOverlay.tsx.
+// Nur noch EIN Tutorial (Jonas' Vorgabe 2026-07-23: kein Login/Rollen mehr,
+// also gibt es auch keine rollenspezifischen "erste Anmeldung"-Touren mehr -
+// nur noch der Konfigurator selbst braucht eine Einfuehrung). Zeigt auf echte
+// UI-Elemente ueber data-tour-Attribute, siehe TourOverlay.tsx.
+export const CONFIGURATOR_TOUR_ID = "configurator";
+
 export const TOURS: Record<string, Tour> = {
-  "configurator-guest": {
-    id: "configurator-guest",
+  [CONFIGURATOR_TOUR_ID]: {
+    id: CONFIGURATOR_TOUR_ID,
     steps: [
       {
         selector: '[data-tour="tour-grundeinstellungen"]',
@@ -41,130 +43,10 @@ export const TOURS: Record<string, Tour> = {
       },
       {
         selector: '[data-tour="save-project"]',
-        title: "Projekt speichern",
-        body: "Der Konfigurator funktioniert komplett ohne Anmeldung. Um eine Konfiguration zu speichern und anzufragen, ist ein kostenloses Konto nötig.",
+        title: "Speichern & Anfragen",
+        body: "„Speichern“ lädt deine Konfiguration als Datei herunter – die kannst du später wieder laden. „Anfragen“ öffnet zusätzlich eine E-Mail, an die du die Datei anhängst.",
         placement: "top",
-      },
-    ],
-  },
-  "kunde-first-login": {
-    id: "kunde-first-login",
-    steps: [
-      {
-        selector: '[data-tour="menu-button"]',
-        title: "Menü",
-        body: "Willkommen! Über dieses Menü erreichst du jederzeit den Konfigurator und deine gespeicherten Projekte.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-konfigurator"]',
-        forceMenuOpen: true,
-        title: "Konfigurator",
-        body: "Hier baust du deine individuelle Containerkonfiguration.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-projekte"]',
-        forceMenuOpen: true,
-        title: "Gespeicherte Projekte",
-        body: "Hier findest du alle Projekte, die du angefragt hast – inklusive Status und ob schon ein Konstrukteur zugewiesen ist.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="save-project"]',
-        route: "/konfigurator",
-        title: "Projekt anfragen",
-        body: "Sobald deine Konfiguration passt, speicherst und beantragst du sie hier unter einem Namen.",
-        placement: "top",
-      },
-    ],
-  },
-  "konstrukteur-first-login": {
-    id: "konstrukteur-first-login",
-    steps: [
-      {
-        selector: '[data-tour="menu-button"]',
-        title: "Menü",
-        body: "Willkommen! Über dieses Menü erreichst du deine zugeteilten Projekte.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-konstrukteur-projekte"]',
-        forceMenuOpen: true,
-        title: "Zugeteilte Projekte",
-        body: "Hier siehst du alle Projekte, die dir vom Admin zugewiesen wurden.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="konstrukteur-projects-page"]',
-        route: "/konstrukteur/projekte",
-        title: "Projektübersicht",
-        body: "Über „Ansehen“ öffnest du zu jedem zugeteilten Projekt eine schreibgeschützte Detailansicht mit allen Maßen und Durchbrüchen statt der Bearbeitungswerkzeuge.",
-        placement: "bottom",
-      },
-    ],
-  },
-  "admin-first-login": {
-    id: "admin-first-login",
-    steps: [
-      {
-        selector: '[data-tour="menu-button"]',
-        title: "Menü",
-        body: "Willkommen! Über dieses Menü erreichst du die Admin-Bereiche.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-admin-projekte"]',
-        forceMenuOpen: true,
-        title: "Alle Projekte",
-        body: "Hier siehst du alle von Kunden angefragten Projekte gesammelt und weist ihnen Konstrukteure zu.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-admin-mitarbeiter"]',
-        forceMenuOpen: true,
-        title: "Mitarbeiter",
-        body: "Hier legst du Konstrukteure oder weitere Admins per E-Mail an oder änderst die Rolle bestehender Nutzer.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-admin-standards"]',
-        forceMenuOpen: true,
-        title: "Standards",
-        body: "Hier bearbeitest du die Standard-Containergrößen, -Türmaße und -RAL-Farben, die im Konfigurator als Vorschläge erscheinen.",
-        placement: "bottom",
-      },
-    ],
-  },
-  "verkaeufer-first-login": {
-    id: "verkaeufer-first-login",
-    steps: [
-      {
-        selector: '[data-tour="menu-button"]',
-        title: "Menü",
-        body: "Willkommen! Über dieses Menü erreichst du alle Kundenprojekte.",
-        placement: "bottom",
-      },
-      {
-        selector: '[data-tour="menu-item-verkaeufer-projekte"]',
-        forceMenuOpen: true,
-        title: "Kundenprojekte",
-        body: "Hier siehst du alle konfigurierten Kundenprojekte – angefragt oder nur gespeichert – inklusive Kontaktdaten. So erkennst du Leads, die seit einer Weile nicht mehr weiterbearbeitet wurden.",
-        placement: "bottom",
       },
     ],
   },
 };
-
-export function firstLoginTourIdForRole(role: Role): string {
-  if (role === "admin") return "admin-first-login";
-  if (role === "konstrukteur") return "konstrukteur-first-login";
-  if (role === "verkaeufer") return "verkaeufer-first-login";
-  return "kunde-first-login";
-}
-
-// Fuer den manuellen "?"-Button: welche Tour passt gerade am besten.
-export function helpTourIdFor(role: Role | undefined): string {
-  if (!role) return "configurator-guest";
-  return firstLoginTourIdForRole(role);
-}

@@ -1,5 +1,4 @@
-import type { ContainerSize } from "../constants/containerSizes";
-import { getContainerPresets } from "../admin/standardsStore";
+import { CONTAINER_SIZE_PRESETS, type ContainerSize } from "../constants/containerSizes";
 
 interface ContainerSizeControlsProps {
   size: ContainerSize;
@@ -14,7 +13,7 @@ interface ContainerSizeControlsProps {
 // Layout (nicht mehr in einer Zeile) - lebt seit der Umstrukturierung in der
 // 320px breiten Seitenleiste statt im breiten Kopfbereich, siehe App.tsx.
 export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWallThicknessChange }: ContainerSizeControlsProps) {
-  const presets = getContainerPresets();
+  const presets = CONTAINER_SIZE_PRESETS;
   return (
     <div className="space-y-2 text-sm">
       <select

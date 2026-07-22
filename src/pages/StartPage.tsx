@@ -1,13 +1,27 @@
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { useAuthPopover } from "../layout/AuthPopoverContext";
+import { decodeConfig } from "../config/configFileCodec";
 
-// Zentrierter Startbildschirm (Jonas' Vorgabe 2026-07-22): "Konfiguration
-// starten" + "Anmelden" mittig, im Stil der lc.systems-Optik.
+// Zentrierter Startbildschirm: "Konfiguration starten" + "Konfiguration
+// laden" (Jonas' Vorgabe 2026-07-23 - kein Login mehr, stattdessen laedt man
+// eine zuvor heruntergeladene .sszkonfig-Datei direkt in den Konfigurator).
 export function StartPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { open: openAuth } = useAuthPopover();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // erlaubt erneutes Auswaehlen derselben Datei
+    if (!file) return;
+    try {
+      const config = await decodeConfig(file);
+      setError(null);
+      navigate("/konfigurator", { state: { config } });
+    } catch {
+      setError("Datei konnte nicht geladen werden – ist es eine gültige Konfigurationsdatei (.sszkonfig)?");
+    }
+  }
 
   return (
     // z-0 (nicht nur "relative") ist noetig, damit dieses Element einen
@@ -43,16 +57,16 @@ export function StartPage() {
         >
           Konfiguration starten
         </button>
-        {!user && (
-          <button
-            type="button"
-            onClick={openAuth}
-            className="rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white"
-          >
-            Anmelden
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white"
+        >
+          Konfiguration laden
+        </button>
+        <input ref={fileInputRef} type="file" accept=".sszkonfig" onChange={handleFileSelected} className="hidden" />
       </div>
+      {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}
     </div>
   );
 }

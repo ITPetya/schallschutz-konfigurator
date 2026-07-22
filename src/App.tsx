@@ -1,87 +1,30 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
-import { AuthPopoverProvider } from "./layout/AuthPopoverContext";
 import { TourProvider } from "./tour/TourContext";
 import { AppShell } from "./layout/AppShell";
-import { RequireRole } from "./layout/RequireRole";
 import { StartPage } from "./pages/StartPage";
 import { KonfiguratorPage } from "./pages/KonfiguratorPage";
-import { KundeProjectsPage } from "./pages/KundeProjectsPage";
-import { KonstrukteurProjectsPage } from "./pages/KonstrukteurProjectsPage";
-import { KonstrukteurViewerPage } from "./pages/KonstrukteurViewerPage";
-import { AdminProjectsPage } from "./pages/AdminProjectsPage";
-import { AdminEmployeesPage } from "./pages/AdminEmployeesPage";
-import { AdminStandardsPage } from "./pages/AdminStandardsPage";
-import { VerkaeuferProjectsPage } from "./pages/VerkaeuferProjectsPage";
+import { InternalPage } from "./pages/InternalPage";
 
-// 3 Rollenbereiche (Jonas' Vorgabe 2026-07-22: Kunde/Konstrukteur/Admin) -
-// reines Mock-Grundgeruest, siehe auth/mockAuthStore.ts und
-// projects/mockProjectStore.ts fuer die localStorage-Einschraenkung.
+// Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
+// Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
+// gespeichert/geladen statt in einer Datenbank (siehe config/configFileCodec.ts).
+// /intern ist eine bewusst NICHT verlinkte, versteckte Seite fuer Mitarbeiter
+// (siehe pages/InternalPage.tsx) - der fruehere Multi-Rollen-Stand
+// (Kunde/Konstrukteur/Admin/Verkaeufer mit Mock-Backend) bleibt vollstaendig
+// im Branch "archiv/rollen-mitarbeiter-backend-2026-07-23" erhalten.
 function App() {
   return (
-    <AuthProvider>
-      <AuthPopoverProvider>
-        <BrowserRouter>
-          <TourProvider>
-            <Routes>
-              <Route element={<AppShell />}>
-                <Route path="/" element={<StartPage />} />
-                <Route path="/konfigurator" element={<KonfiguratorPage />} />
-                <Route path="/projekte" element={<KundeProjectsPage />} />
-                <Route
-                  path="/konstrukteur/projekte"
-                  element={
-                    <RequireRole roles={["konstrukteur"]}>
-                      <KonstrukteurProjectsPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/konstrukteur/viewer/:id"
-                  element={
-                    <RequireRole roles={["konstrukteur"]}>
-                      <KonstrukteurViewerPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/verkauf/projekte"
-                  element={
-                    <RequireRole roles={["verkaeufer"]}>
-                      <VerkaeuferProjectsPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/admin/projekte"
-                  element={
-                    <RequireRole roles={["admin"]}>
-                      <AdminProjectsPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/admin/mitarbeiter"
-                  element={
-                    <RequireRole roles={["admin"]}>
-                      <AdminEmployeesPage />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/admin/standards"
-                  element={
-                    <RequireRole roles={["admin"]}>
-                      <AdminStandardsPage />
-                    </RequireRole>
-                  }
-                />
-              </Route>
-            </Routes>
-          </TourProvider>
-        </BrowserRouter>
-      </AuthPopoverProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <TourProvider>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<StartPage />} />
+            <Route path="/konfigurator" element={<KonfiguratorPage />} />
+            <Route path="/intern" element={<InternalPage />} />
+          </Route>
+        </Routes>
+      </TourProvider>
+    </BrowserRouter>
   );
 }
 

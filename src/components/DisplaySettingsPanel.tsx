@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
-import { RAL_SPECIAL_COLORS, type RalColor } from "../constants/ralColors";
-import { getStandardColors } from "../admin/standardsStore";
+import { RAL_SPECIAL_COLORS, RAL_STANDARD_COLORS, type RalColor } from "../constants/ralColors";
 
 interface DisplaySettingsPanelProps {
   viewStyle: ViewStyle;
@@ -64,7 +63,7 @@ export function DisplaySettingsPanel({
 }
 
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
-  const standardColors = getStandardColors();
+  const standardColors = RAL_STANDARD_COLORS;
   const isStandard = standardColors.some((c) => c.hex === value);
   const [category, setCategory] = useState<"standard" | "special">(isStandard ? "standard" : "special");
   const options = category === "standard" ? standardColors : RAL_SPECIAL_COLORS;
