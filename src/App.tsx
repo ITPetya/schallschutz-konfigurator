@@ -56,7 +56,13 @@ function App() {
           />
         </aside>
 
-        <main className="relative flex-1">
+        {/* min-w-0/min-h-0 sind noetig, nicht nur kosmetisch (Jonas'
+            Fehlerbericht 2026-07-22): ohne das erlaubt Flexbox einem Flex-Kind
+            standardmaessig nicht, unter die intrinsische Groesse seines
+            eigenen Inhalts zu schrumpfen - der Canvas hat kurz nach einem
+            Resize eine intrinsische Groesse, die genau diesen Bug ausloest
+            (Fenster verkleinern nach vorherigem Vergroessern haengt fest). */}
+        <main className="relative min-h-0 min-w-0 flex-1">
           <Scene size={size} openings={openings} />
         </main>
       </div>
