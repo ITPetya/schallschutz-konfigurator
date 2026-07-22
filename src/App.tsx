@@ -1,10 +1,25 @@
 import { useState } from "react";
 import { Scene } from "./components/Scene";
+import { OpeningsPanel } from "./components/OpeningsPanel";
 import { CONTAINER_SIZES, DEFAULT_CONTAINER_SIZE, type ContainerSizeId } from "./constants/containerSizes";
+import type { Opening } from "./types/openings";
 
 function App() {
   const [sizeId, setSizeId] = useState<ContainerSizeId>(DEFAULT_CONTAINER_SIZE);
+  const [openings, setOpenings] = useState<Opening[]>([]);
   const size = CONTAINER_SIZES[sizeId];
+
+  function handleAdd(opening: Opening) {
+    setOpenings((prev) => [...prev, opening]);
+  }
+
+  function handleUpdate(id: string, patch: Partial<Opening>) {
+    setOpenings((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  }
+
+  function handleRemove(id: string) {
+    setOpenings((prev) => prev.filter((o) => o.id !== id));
+  }
 
   return (
     <div className="flex h-full flex-col bg-slate-900 text-slate-100">
@@ -30,15 +45,17 @@ function App() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Durchbrüche
           </h2>
-          <p className="text-sm text-slate-400">
-            Kommt im nächsten Schritt: Standarddurchbrüche (Tür, Lüftungsgitter)
-            und freie, parametrische Durchbrüche (Kabel-/Rohrdurchführung)
-            werden hier platzierbar sein.
-          </p>
+          <OpeningsPanel
+            size={size}
+            openings={openings}
+            onAdd={handleAdd}
+            onUpdate={handleUpdate}
+            onRemove={handleRemove}
+          />
         </aside>
 
         <main className="relative flex-1">
-          <Scene size={size} />
+          <Scene size={size} openings={openings} />
         </main>
       </div>
     </div>

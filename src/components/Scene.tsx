@@ -2,12 +2,14 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment } from "@react-three/drei";
 import { Container } from "./Container";
 import type { ContainerSize } from "../constants/containerSizes";
+import type { Opening } from "../types/openings";
 
 interface SceneProps {
   size: ContainerSize;
+  openings: Opening[];
 }
 
-export function Scene({ size }: SceneProps) {
+export function Scene({ size, openings }: SceneProps) {
   const cameraDistance = Math.max(size.length, size.width) * 1.6 + 4;
 
   return (
@@ -23,7 +25,7 @@ export function Scene({ size }: SceneProps) {
         castShadow
         shadow-mapSize={[2048, 2048]}
       />
-      <Container size={size} />
+      <Container size={size} openings={openings} />
       <Grid
         args={[40, 40]}
         cellColor="#475569"
