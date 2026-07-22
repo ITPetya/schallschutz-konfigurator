@@ -61,7 +61,7 @@ export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlan
             {...materialProps}
           />
         ))}
-        {shaded && <Edges threshold={20} color="#1e293b" />}
+        {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
       </mesh>
 
       {hingeHeights.map((y, i) => (

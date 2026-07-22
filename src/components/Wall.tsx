@@ -138,7 +138,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
           clippingPlanes={clippingPlanes}
           {...materialProps}
         />
-        {shaded && <Edges threshold={20} color="#1e293b" />}
+        {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
       </mesh>
       {protrusions.map((o) => {
         const depth = OPENING_TYPES[o.kind].protrusionDepth!;
@@ -147,7 +147,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
           <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>
             <boxGeometry args={[o.width, o.height, depth]} />
             <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
-            {shaded && <Edges threshold={20} color="#1e293b" />}
+            {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
           </mesh>
         );
       })}
