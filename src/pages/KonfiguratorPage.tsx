@@ -18,6 +18,12 @@ import { loadDraft, saveDraft } from "../config/draftStore";
 import { useTour } from "../tour/TourContext";
 import { hasSeenTour } from "../tour/tourStore";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
+import { PlusIcon } from "../components/icons/PlusIcon";
+import { RotateCcwIcon } from "../components/icons/RotateCcwIcon";
+import { DownloadIcon } from "../components/icons/DownloadIcon";
+import { SendIcon } from "../components/icons/SendIcon";
+import { CheckIcon } from "../components/icons/CheckIcon";
+import { CircleXIcon } from "../components/icons/CircleXIcon";
 
 interface KonfiguratorPageProps {
   // "readonly" ersetzt die editierbare Seitenleiste durch eine reine
@@ -343,15 +349,17 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                   <button
                     type="button"
                     onClick={handleDownload}
-                    className="flex-1 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
                   >
+                    <DownloadIcon size={16} />
                     Speichern
                   </button>
                   <button
                     type="button"
                     onClick={handleRequest}
-                    className="flex-1 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
                   >
+                    <SendIcon size={16} />
                     Anfragen
                   </button>
                 </div>
@@ -371,7 +379,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               onClick={() => setShowResetConfirm(true)}
               className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
             >
-              <ResetIcon />
+              <RotateCcwIcon size={16} />
               Zurücksetzen
             </button>
           </div>
@@ -410,9 +418,9 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               data-tour="add-opening"
               onClick={() => setShowAddPopup(true)}
               aria-label="Durchbruch hinzufügen"
-              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-xl font-bold text-white shadow-md hover:bg-brand-dark"
+              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
             >
-              +
+              <PlusIcon size={20} />
             </button>
           )}
           {!readOnly && showAddPopup && (
@@ -435,23 +443,26 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               <button
                 type="button"
                 onClick={handleResetAndSave}
-                className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
               >
+                <DownloadIcon size={16} />
                 Speichern &amp; zurücksetzen
               </button>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
                 >
+                  <CircleXIcon size={16} />
                   Nein
                 </button>
                 <button
                   type="button"
                   onClick={applyReset}
-                  className="flex-1 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-red-700"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-red-700"
                 >
+                  <CheckIcon size={16} />
                   Ja, zurücksetzen
                 </button>
               </div>
@@ -460,14 +471,5 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
         </div>
       )}
     </div>
-  );
-}
-
-function ResetIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M3 12a9 9 0 1 1 3 6.7" strokeLinecap="round" />
-      <path d="M3 17v-5h5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

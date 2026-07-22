@@ -4,6 +4,7 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { clampVerticalPosition, verticalBounds } from "../utils/openingConstraints";
 import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
 import { NumberInput } from "./NumberInput";
+import { TrashIcon } from "./icons/TrashIcon";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
@@ -47,7 +48,7 @@ export function OpeningsPanel({ size, openings, onUpdate, onRemove }: OpeningsPa
                 className="text-slate-400 hover:text-red-500"
                 aria-label={`${typeDef.label} entfernen`}
               >
-                ✕
+                <TrashIcon size={16} />
               </button>
             </div>
 

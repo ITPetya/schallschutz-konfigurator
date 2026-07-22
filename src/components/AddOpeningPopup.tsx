@@ -5,6 +5,7 @@ import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { verticalBounds } from "../utils/openingConstraints";
 import { panelSpanV } from "../utils/panelGeometry";
+import { XIcon } from "./icons/XIcon";
 
 interface AddOpeningPopupProps {
   size: ContainerSize;
@@ -76,7 +77,7 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
           className="text-slate-400 hover:text-red-500"
           aria-label="Schließen"
         >
-          ✕
+          <XIcon size={16} />
         </button>
       </div>
 
