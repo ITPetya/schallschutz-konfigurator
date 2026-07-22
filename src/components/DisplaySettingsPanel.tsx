@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
-import { RAL_STANDARD_COLORS, RAL_SPECIAL_COLORS, type RalColor } from "../constants/ralColors";
+import { RAL_SPECIAL_COLORS, type RalColor } from "../constants/ralColors";
+import { getStandardColors } from "../admin/standardsStore";
 
 interface DisplaySettingsPanelProps {
   viewStyle: ViewStyle;
@@ -63,10 +64,11 @@ export function DisplaySettingsPanel({
 }
 
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
-  const isStandard = RAL_STANDARD_COLORS.some((c) => c.hex === value);
+  const standardColors = getStandardColors();
+  const isStandard = standardColors.some((c) => c.hex === value);
   const [category, setCategory] = useState<"standard" | "special">(isStandard ? "standard" : "special");
-  const options = category === "standard" ? RAL_STANDARD_COLORS : RAL_SPECIAL_COLORS;
-  const current = [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS].find((c) => c.hex === value);
+  const options = category === "standard" ? standardColors : RAL_SPECIAL_COLORS;
+  const current = [...standardColors, ...RAL_SPECIAL_COLORS].find((c) => c.hex === value);
 
   return (
     <div>
@@ -77,7 +79,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           className={toggleBtn(category === "standard")}
           onClick={() => {
             setCategory("standard");
-            onChange(RAL_STANDARD_COLORS[0].hex);
+            onChange(standardColors[0].hex);
           }}
         >
           Standardfarben

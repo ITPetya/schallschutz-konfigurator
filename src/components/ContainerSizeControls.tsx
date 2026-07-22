@@ -1,4 +1,5 @@
-import { CONTAINER_SIZE_PRESETS, type ContainerSize } from "../constants/containerSizes";
+import type { ContainerSize } from "../constants/containerSizes";
+import { getContainerPresets } from "../admin/standardsStore";
 
 interface ContainerSizeControlsProps {
   size: ContainerSize;
@@ -13,12 +14,13 @@ interface ContainerSizeControlsProps {
 // Layout (nicht mehr in einer Zeile) - lebt seit der Umstrukturierung in der
 // 320px breiten Seitenleiste statt im breiten Kopfbereich, siehe App.tsx.
 export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWallThicknessChange }: ContainerSizeControlsProps) {
+  const presets = getContainerPresets();
   return (
     <div className="space-y-2 text-sm">
       <select
         defaultValue=""
         onChange={(e) => {
-          const preset = CONTAINER_SIZE_PRESETS[Number(e.target.value)];
+          const preset = presets[Number(e.target.value)];
           if (preset) onSizeChange({ length: preset.length, width: preset.width, height: preset.height });
           e.target.value = "";
         }}
@@ -27,7 +29,7 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
         <option value="" disabled>
           Vorlage…
         </option>
-        {CONTAINER_SIZE_PRESETS.map((p, i) => (
+        {presets.map((p, i) => (
           <option key={p.label} value={i}>
             {p.label}
           </option>

@@ -1,0 +1,50 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Platzhalter-Hintergrund fuer die Startseite (Jonas' Vorgabe 2026-07-22:
+       "das Bild ersetze ich spaeter noch durch ein professionelles") - grobe
+       Container-Silhouette, wird ohnehin per CSS geblurrt/mit Milchglas-
+       Overlay ueberzogen, daher bewusst simpel gehalten. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eaf4f8" />
+      <stop offset="100%" stop-color="#cfe6ee" />
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b7c9c2" />
+      <stop offset="100%" stop-color="#9fb3ab" />
+    </linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a5f80" />
+      <stop offset="100%" stop-color="#075471" />
+    </linearGradient>
+    <linearGradient id="front" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0090b8" />
+      <stop offset="100%" stop-color="#00789a" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)" />
+  <rect y="620" width="1600" height="280" fill="url(#ground)" />
+
+  <!-- Container-Koerper: Front-, Seiten- und Dachflaeche in Isometrie -->
+  <g>
+    <polygon points="480,300 1020,300 1180,420 640,420" fill="#0aa7d1" />
+    <polygon points="640,420 1180,420 1180,700 640,700" fill="url(#front)" />
+    <polygon points="1180,420 1180,700 1340,610 1340,340" fill="url(#side)" />
+
+    <!-- Wellblech-Linien auf der Frontflaeche -->
+    <g stroke="#075471" stroke-width="3" opacity="0.35">
+      <line x1="700" y1="420" x2="700" y2="700" />
+      <line x1="760" y1="420" x2="760" y2="700" />
+      <line x1="820" y1="420" x2="820" y2="700" />
+      <line x1="880" y1="420" x2="880" y2="700" />
+      <line x1="940" y1="420" x2="940" y2="700" />
+      <line x1="1000" y1="420" x2="1000" y2="700" />
+      <line x1="1060" y1="420" x2="1060" y2="700" />
+      <line x1="1120" y1="420" x2="1120" y2="700" />
+    </g>
+
+    <!-- Tuer auf der Frontflaeche -->
+    <rect x="960" y="470" width="130" height="230" fill="#e2e8f0" opacity="0.85" />
+    <line x1="1025" y1="470" x2="1025" y2="700" stroke="#075471" stroke-width="3" opacity="0.4" />
+  </g>
+</svg>
