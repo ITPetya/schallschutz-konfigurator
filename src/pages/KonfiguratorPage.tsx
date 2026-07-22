@@ -14,6 +14,7 @@ import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsConte
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
+import { loadDraft, saveDraft } from "../config/draftStore";
 import { useTour } from "../tour/TourContext";
 import { hasSeenTour } from "../tour/tourStore";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
@@ -50,7 +51,13 @@ function defaultConfig(): ContainerConfig {
 export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: KonfiguratorPageProps) {
   const location = useLocation();
   const routeConfig = (location.state as { config?: ContainerConfig } | null)?.config;
-  const seed = initialConfig ?? routeConfig ?? defaultConfig();
+  // Zwischengespeicherter Entwurf (Jonas' Vorgabe 2026-07-23: "falls
+  // irgendwas abstürzt immer ein Zwischenstand noch da") hat Vorrang vor dem
+  // leeren Default, aber NICHT vor einer explizit uebergebenen/geladenen
+  // Konfiguration - und ist nur im editierbaren Modus relevant, nicht im
+  // schreibgeschuetzten internen Viewer.
+  const draftConfig = mode === "edit" ? loadDraft() : null;
+  const seed = initialConfig ?? routeConfig ?? draftConfig ?? defaultConfig();
   const readOnly = mode === "readonly";
 
   const [size, setSize] = useState<ContainerSize>(seed.size);
@@ -75,6 +82,13 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Laufende Zwischensicherung bei jeder Aenderung (Jonas' Vorgabe
+  // 2026-07-23) - unabhaengig vom manuellen "Speichern"-Dateidownload.
+  useEffect(() => {
+    if (mode !== "edit") return;
+    saveDraft({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor });
+  }, [mode, size, wallThickness, openings, viewStyle, background, insideColor, outsideColor]);
 
   function handleAdd(opening: Opening) {
     setOpenings((prev) => [...prev, opening]);
