@@ -70,7 +70,12 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
   const sectionPlane = useSectionPlane();
-  const clippingPlanes = sectionPlane ? [sectionPlane] : undefined;
+  // IMMER ein konkretes Array uebergeben, NIE undefined - r3f/three
+  // uebernehmen eine leere Aenderung auf undefined sonst nicht zuverlaessig
+  // (das Material behaelt die vorherigen clippingPlanes), wodurch das
+  // Abschalten der Schnittansicht sichtbar nichts bewirkt hat (Jonas'
+  // Fehlerbericht 2026-07-22).
+  const clippingPlanes = sectionPlane ? [sectionPlane] : [];
 
   return (
     <group position={position} rotation={rotation}>
@@ -109,6 +114,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
                 height={o.height}
                 panelHeight={panelHeight}
                 hinge="left"
+                clippingPlanes={clippingPlanes}
               />
               <DoorLeaf
                 u={o.u + leafWidth / 2}
@@ -117,6 +123,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
                 height={o.height}
                 panelHeight={panelHeight}
                 hinge="right"
+                clippingPlanes={clippingPlanes}
               />
             </group>
           );
@@ -130,6 +137,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
             height={o.height}
             panelHeight={panelHeight}
             hinge={o.hinge ?? "left"}
+            clippingPlanes={clippingPlanes}
           />
         );
       })}

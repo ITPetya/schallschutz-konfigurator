@@ -1,5 +1,5 @@
+import type * as THREE from "three";
 import type { DoorHinge } from "../types/openings";
-import { useSectionPlane } from "../context/SectionPlaneContext";
 
 interface DoorLeafProps {
   u: number;
@@ -9,6 +9,7 @@ interface DoorLeafProps {
   panelHeight: number;
   hinge: DoorHinge;
   color?: string;
+  clippingPlanes: THREE.Plane[];
 }
 
 const LEAF_THICKNESS = 0.04;
@@ -23,13 +24,16 @@ const HANDLE_COLOR = "#4b5563";
 // LOKALEN Koordinaten der jeweiligen Wall gerendert (dieselbe (u, v -
 // panelHeight/2)-Umrechnung wie der CSG-Ausschnitt selbst), landet also
 // automatisch an der richtigen Stelle/Seite, egal welche Wand.
-export function DoorLeaf({ u, v, width, height, panelHeight, hinge, color = "#e8eaed" }: DoorLeafProps) {
+//
+// clippingPlanes kommt von Wall als Prop (nicht per eigenem useSectionPlane()-
+// Aufruf) - Fund aus Jonas' Fehlerbericht 2026-07-22: die Scharnier-/Griff-
+// Meshes hatten VORHER ueberhaupt kein clippingPlanes gesetzt (nur das
+// Blatt selbst), blieben bei aktiver Schnittansicht also immer sichtbar.
+export function DoorLeaf({ u, v, width, height, panelHeight, hinge, color = "#e8eaed", clippingPlanes }: DoorLeafProps) {
   const localY = v - panelHeight / 2;
   const hingeEdgeU = hinge === "left" ? u - width / 2 : u + width / 2;
   const handleEdgeU = hinge === "left" ? u + width / 2 - width * 0.12 : u - width / 2 + width * 0.12;
   const hingeHeights = [0.15, 0.5, 0.85].map((f) => localY - height / 2 + f * height);
-  const sectionPlane = useSectionPlane();
-  const clippingPlanes = sectionPlane ? [sectionPlane] : undefined;
 
   return (
     <group>
@@ -41,18 +45,18 @@ export function DoorLeaf({ u, v, width, height, panelHeight, hinge, color = "#e8
       {hingeHeights.map((y, i) => (
         <mesh key={i} position={[hingeEdgeU, y, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[0.02, 0.02, 0.08, 12]} />
-          <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} />
+          <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} clippingPlanes={clippingPlanes} />
         </mesh>
       ))}
 
       {/* Griff aussen UND innen - je ein kleiner Block auf beiden Blattseiten. */}
       <mesh position={[handleEdgeU, localY, LEAF_THICKNESS / 2 + 0.02]} castShadow>
         <boxGeometry args={[0.03, 0.12, 0.04]} />
-        <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} />
+        <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} clippingPlanes={clippingPlanes} />
       </mesh>
       <mesh position={[handleEdgeU, localY, -(LEAF_THICKNESS / 2 + 0.02)]} castShadow>
         <boxGeometry args={[0.03, 0.12, 0.04]} />
-        <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} />
+        <meshStandardMaterial color={HANDLE_COLOR} roughness={0.4} metalness={0.7} clippingPlanes={clippingPlanes} />
       </mesh>
     </group>
   );
