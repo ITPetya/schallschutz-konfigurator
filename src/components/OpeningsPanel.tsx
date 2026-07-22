@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { DoorHinge, Opening, OpeningKind, WallId } from "../types/openings";
-import { OPENING_TYPES, WALL_LABELS } from "../constants/openingTypes";
+import type { DoorHinge, Opening, OpeningKind, PanelId } from "../types/openings";
+import { isVerticalWall } from "../types/openings";
+import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { clampVerticalPosition, verticalBounds } from "../utils/openingConstraints";
 
@@ -12,8 +13,23 @@ interface OpeningsPanelProps {
   onRemove: (id: string) => void;
 }
 
-function panelWidthForWall(wall: WallId, size: ContainerSize) {
-  return wall === "front" || wall === "back" ? size.length : size.width;
+// u laeuft immer auf der Achse, auf der Norden/Sueden ("Breite") bzw.
+// Osten/Westen/Oben/Unten ("Laenge") liegen.
+function panelSpanU(panel: PanelId, size: ContainerSize) {
+  return panel === "north" || panel === "south" ? size.width : size.length;
+}
+
+// v-Spanne: bei den vier Seitenwaenden die Containerhoehe (verticalBounds
+// wendet dort zusaetzlich Tuer-Mindestabstaende an); bei Oben/Unten die
+// Containerbreite - dieselbe Funktion liefert ohne minBottomOffset/
+// minTopMargin einfach "0 bis Spanne", genau das ist auch fuer Oben/Unten
+// richtig (kein Boden-/Oberkante-Konzept dort).
+function panelSpanV(panel: PanelId, size: ContainerSize) {
+  return isVerticalWall(panel) ? size.height : size.width;
+}
+
+function positionLabels(panel: PanelId): [string, string] {
+  return isVerticalWall(panel) ? ["Seitlich (m)", "Höhe über Boden (m)"] : ["Position Länge (m)", "Position Breite (m)"];
 }
 
 const inputClass =
@@ -21,26 +37,40 @@ const inputClass =
 const labelClass = "flex flex-col gap-0.5 text-xs text-slate-500";
 
 export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: OpeningsPanelProps) {
-  const [wall, setWall] = useState<WallId>("front");
+  const [panel, setPanel] = useState<PanelId>("east");
   const [kind, setKind] = useState<OpeningKind>("door_single_1918");
   const [hinge, setHinge] = useState<DoorHinge>("left");
 
+  const availableKinds = Object.values(OPENING_TYPES).filter(
+    (t) => !t.verticalOnly || isVerticalWall(panel),
+  );
   const newTypeDef = OPENING_TYPES[kind];
+
+  function handlePanelChange(next: PanelId) {
+    setPanel(next);
+    // Tueren sind auf Oben/Unten nicht erlaubt (logisch, Jonas' Vorgabe
+    // 2026-07-22) - beim Wechsel auf ein horizontales Panel automatisch auf
+    // einen dort gueltigen Typ umschalten, statt einen unmoeglichen
+    // ausgewaehlt zu lassen.
+    if (!isVerticalWall(next) && newTypeDef.verticalOnly) {
+      setKind("vent_weather");
+    }
+  }
 
   function handleAdd() {
     const typeDef = OPENING_TYPES[kind];
     const width = typeDef.fixedWidth ?? typeDef.defaultWidth ?? 0.1;
     const height = typeDef.fixedHeight ?? typeDef.defaultHeight ?? 0.1;
     // Standardvorgabe: Tueren sitzen am erlaubten Mindestabstand vom Boden
-    // (170mm), alles andere mittig auf Wandhoehe - beides danach frei ueber
-    // die Positions-Eingabe anpassbar (innerhalb der erlaubten Grenzen).
-    const bounds = verticalBounds(typeDef, height, size.height);
-    const v = typeDef.minBottomOffset !== undefined ? bounds.min : size.height / 2;
+    // (170mm), alles andere mittig auf der Panel-Spanne - beides danach frei
+    // ueber die Positions-Eingabe anpassbar (innerhalb der erlaubten Grenzen).
+    const bounds = verticalBounds(typeDef, height, panelSpanV(panel, size));
+    const v = typeDef.minBottomOffset !== undefined ? bounds.min : panelSpanV(panel, size) / 2;
 
     onAdd({
       id: crypto.randomUUID(),
       kind,
-      wall,
+      panel,
       u: 0,
       v,
       width,
@@ -53,13 +83,13 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
     <div className="space-y-4">
       <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <select
-          value={wall}
-          onChange={(e) => setWall(e.target.value as WallId)}
+          value={panel}
+          onChange={(e) => handlePanelChange(e.target.value as PanelId)}
           className={inputClass}
         >
-          {(Object.keys(WALL_LABELS) as WallId[]).map((w) => (
-            <option key={w} value={w}>
-              {WALL_LABELS[w]}
+          {(Object.keys(PANEL_LABELS) as PanelId[]).map((p) => (
+            <option key={p} value={p}>
+              {PANEL_LABELS[p]}
             </option>
           ))}
         </select>
@@ -69,7 +99,7 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
           className={inputClass}
         >
           <optgroup label="Standard (feste Maße)">
-            {Object.values(OPENING_TYPES)
+            {availableKinds
               .filter((t) => t.category === "standard")
               .map((t) => (
                 <option key={t.kind} value={t.kind}>
@@ -78,7 +108,7 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
               ))}
           </optgroup>
           <optgroup label="Frei (parametrisch)">
-            {Object.values(OPENING_TYPES)
+            {availableKinds
               .filter((t) => t.category === "free")
               .map((t) => (
                 <option key={t.kind} value={t.kind}>
@@ -112,15 +142,15 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
         )}
         {openings.map((o) => {
           const typeDef = OPENING_TYPES[o.kind];
-          const panelWidth = panelWidthForWall(o.wall, size);
-          const maxU = Math.max(0, panelWidth / 2 - o.width / 2);
-          const vBounds = verticalBounds(typeDef, o.height, size.height);
+          const maxU = Math.max(0, panelSpanU(o.panel, size) / 2 - o.width / 2);
+          const vBounds = verticalBounds(typeDef, o.height, panelSpanV(o.panel, size));
+          const [uLabel, vLabel] = positionLabels(o.panel);
 
           return (
             <div key={o.id} className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-medium text-brand-dark">{typeDef.label}</span>
-                <span className="text-xs text-slate-500">{WALL_LABELS[o.wall]}</span>
+                <span className="text-xs text-slate-500">{PANEL_LABELS[o.panel]}</span>
                 <button
                   type="button"
                   onClick={() => onRemove(o.id)}
@@ -161,7 +191,7 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
 
               <div className="grid grid-cols-2 gap-2">
                 <label className={labelClass}>
-                  Seitlich (m)
+                  {uLabel}
                   <input
                     type="number"
                     step={0.05}
@@ -173,7 +203,7 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
                   />
                 </label>
                 <label className={labelClass}>
-                  Höhe über Boden (m)
+                  {vLabel}
                   <input
                     type="number"
                     step={0.05}

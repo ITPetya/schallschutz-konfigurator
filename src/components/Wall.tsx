@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
 import type { Opening } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
+import { DoorLeaf } from "./DoorLeaf";
+import { useSectionPlane } from "../context/SectionPlaneContext";
 
 interface WallProps {
   position: [number, number, number];
@@ -66,11 +68,20 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
   }, [panelWidth, panelHeight, thickness, openings]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
+  const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
+  const sectionPlane = useSectionPlane();
+  const clippingPlanes = sectionPlane ? [sectionPlane] : undefined;
 
   return (
     <group position={position} rotation={rotation}>
       <mesh geometry={geometry} castShadow receiveShadow>
-        <meshStandardMaterial color={color} roughness={0.6} metalness={0.4} side={THREE.DoubleSide} />
+        <meshStandardMaterial
+          color={color}
+          roughness={0.6}
+          metalness={0.4}
+          side={THREE.DoubleSide}
+          clippingPlanes={clippingPlanes}
+        />
       </mesh>
       {protrusions.map((o) => {
         const depth = OPENING_TYPES[o.kind].protrusionDepth!;
@@ -78,8 +89,48 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
         return (
           <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>
             <boxGeometry args={[o.width, o.height, depth]} />
-            <meshStandardMaterial color={color} roughness={0.5} metalness={0.5} />
+            <meshStandardMaterial color={color} roughness={0.5} metalness={0.5} clippingPlanes={clippingPlanes} />
           </mesh>
+        );
+      })}
+      {doors.map((o) => {
+        // Doppelfluegeltuer: zwei halb so breite Blaetter, je an der
+        // AEUSSEREN Kante angeschlagen (Standard-Konvention), statt einer
+        // DIN-Links/Rechts-Auswahl - passt zu OPENING_TYPES.door_double, das
+        // bewusst kein hasHinge hat.
+        if (o.kind === "door_double") {
+          const leafWidth = o.width / 2;
+          return (
+            <group key={o.id}>
+              <DoorLeaf
+                u={o.u - leafWidth / 2}
+                v={o.v}
+                width={leafWidth}
+                height={o.height}
+                panelHeight={panelHeight}
+                hinge="left"
+              />
+              <DoorLeaf
+                u={o.u + leafWidth / 2}
+                v={o.v}
+                width={leafWidth}
+                height={o.height}
+                panelHeight={panelHeight}
+                hinge="right"
+              />
+            </group>
+          );
+        }
+        return (
+          <DoorLeaf
+            key={o.id}
+            u={o.u}
+            v={o.v}
+            width={o.width}
+            height={o.height}
+            panelHeight={panelHeight}
+            hinge={o.hinge ?? "left"}
+          />
         );
       })}
     </group>

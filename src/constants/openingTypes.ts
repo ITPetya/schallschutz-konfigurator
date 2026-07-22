@@ -1,15 +1,19 @@
-import type { OpeningKind, OpeningTypeDef, WallId } from "../types/openings";
+import type { OpeningKind, OpeningTypeDef, PanelId } from "../types/openings";
 
 // Wandstaerke des Sondercontainers - deutlich dicker als ein normaler
 // Seecontainer (~2mm Stahlblech), weil es ein SCHALLSCHUTZ-Container ist
 // (gedaemmtes Paneel). Reiner Platzhalterwert fuer diese Ausbaustufe.
 export const WALL_THICKNESS = 0.1;
 
-export const WALL_LABELS: Record<WallId, string> = {
-  front: "Vorne",
-  back: "Hinten",
-  left: "Links",
-  right: "Rechts",
+// Himmelsrichtungen (Jonas' Vorgabe 2026-07-22, Norden = kleine Stirnflaeche)
+// + Oben/Unten unveraendert. Alle sechs sind gueltige Durchbruch-Ziele.
+export const PANEL_LABELS: Record<PanelId, string> = {
+  north: "Norden",
+  south: "Süden",
+  east: "Osten",
+  west: "Westen",
+  top: "Oben",
+  bottom: "Unten",
 };
 
 // Alle Masse in Metern. Tuer-Masse (2026-07-22, Jonas' Vorgabe) sind LICHTE
@@ -29,6 +33,8 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     minBottomOffset: 0.17,
     minTopMargin: 0.15,
     hasHinge: true,
+    verticalOnly: true,
+    isDoor: true,
   },
   door_single_2418: {
     kind: "door_single_2418",
@@ -42,6 +48,8 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     minBottomOffset: 0.17,
     minTopMargin: 0.15,
     hasHinge: true,
+    verticalOnly: true,
+    isDoor: true,
   },
   door_double: {
     kind: "door_double",
@@ -54,6 +62,8 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     maxSize: 0,
     minBottomOffset: 0.17,
     minTopMargin: 0.15,
+    verticalOnly: true,
+    isDoor: true,
   },
   vent_weather: {
     kind: "vent_weather",

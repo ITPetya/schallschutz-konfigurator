@@ -1,7 +1,14 @@
-// Eine der vier Seitenwaende - Dach/Boden sind fuer diese erste Ausbaustufe
-// bewusst OHNE Durchbrueche (siehe Projektbrief: "Wände als separate
-// Flächen, damit Durchbrüche pro Wand platziert werden können").
-export type WallId = "front" | "back" | "left" | "right";
+// Himmelsrichtungen fuer die vier Seitenwaende (Jonas' Vorgabe 2026-07-22:
+// Norden ist eine der KLEINEN Stirnflaechen, nicht eine der langen
+// Seitenflaechen). Oben/Unten bleiben wie vom Bauherrn benannt, keine
+// Himmelsrichtung. Alle sechs zusammen sind jetzt gueltige Ziele fuer
+// Durchbrueche - vorher nur die vier Seitenwaende.
+export type WallId = "north" | "south" | "east" | "west";
+export type PanelId = WallId | "top" | "bottom";
+
+export function isVerticalWall(panel: PanelId): panel is WallId {
+  return panel === "north" || panel === "south" || panel === "east" || panel === "west";
+}
 
 export type OpeningKind =
   | "door_single_1918"
@@ -11,11 +18,9 @@ export type OpeningKind =
   | "cable"
   | "pipe";
 
-// DIN Links/Rechts (Tuerbandseite) - betrifft aktuell NUR die Kennzeichnung,
-// da diese Ausbaustufe nur den Wandausschnitt modelliert, kein Tuerblatt mit
-// Anschlagsrichtung. Bewusst trotzdem als eigenes Feld erfasst (nicht als
-// separate "kind"-Variante verdoppelt), weil die Ausschnittsgeometrie fuer
-// Links/Rechts identisch ist - nur die Metadaten unterscheiden sich.
+// DIN Links/Rechts (Tuerbandseite) - bestimmt jetzt tatsaechlich sichtbar,
+// auf welcher Seite Scharniere sitzen (Tuerblatt-Darstellung, siehe
+// DoorLeaf.tsx), nicht mehr nur Metadaten ohne optische Wirkung.
 export type DoorHinge = "left" | "right";
 
 export interface OpeningTypeDef {
@@ -40,17 +45,24 @@ export interface OpeningTypeDef {
   protrusionDepth?: number;
   // Braucht dieser Typ eine DIN-Links/Rechts-Auswahl (nur Einzeltueren)?
   hasHinge?: boolean;
+  // Nur auf einer der vier Seitenwaende platzierbar, NICHT auf Oben/Unten -
+  // "Tueren logischerweise nicht [oben/unten]" (Jonas' Vorgabe 2026-07-22).
+  verticalOnly?: boolean;
+  // Wird als echtes Tuerblatt (Scharniere + Griff) gerendert statt als
+  // reiner offener Ausschnitt - siehe DoorLeaf.tsx.
+  isDoor?: boolean;
 }
 
 // Ein platzierter Durchbruch. Position ist IMMER der Mittelpunkt des
-// Durchbruchs relativ zur jeweiligen Wand: u = horizontaler Versatz von der
-// Wandmitte (Meter, negativ = nach links), v = Hoehe des Mittelpunkts ueber
-// dem Boden (Meter). Bei "round" (Rohrdurchführung) ist width der
-// Durchmesser, height wird ignoriert.
+// Durchbruchs relativ zum jeweiligen Panel: u/v sind die beiden lokalen
+// Achsen dieses Panels (fuer Seitenwaende: u = seitlich, v = Hoehe ueber dem
+// Boden; fuer Oben/Unten: u/v sind die beiden horizontalen Achsen, siehe
+// OpeningsPanel fuer die konkrete Beschriftung je Panel). Bei "round"
+// (Rohrdurchführung) ist width der Durchmesser, height wird ignoriert.
 export interface Opening {
   id: string;
   kind: OpeningKind;
-  wall: WallId;
+  panel: PanelId;
   u: number;
   v: number;
   width: number;
