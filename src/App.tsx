@@ -43,7 +43,7 @@ function App() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 px-4">
+        <aside className="w-80 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 px-4 py-4">
           <AccordionSection title="Grundeinstellungen" defaultOpen>
             <ContainerSizeControls
               size={size}

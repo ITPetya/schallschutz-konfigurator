@@ -13,7 +13,7 @@ export function AccordionSection({ title, defaultOpen = false, children }: Accor
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-b border-slate-200 py-3 first:pt-0">
+    <div className="border-b border-slate-200 py-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
