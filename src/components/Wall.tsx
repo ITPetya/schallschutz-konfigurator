@@ -8,6 +8,7 @@ import { OPENING_TYPES } from "../constants/openingTypes";
 import { DoorLeaf } from "./DoorLeaf";
 import { useSectionPlane } from "../context/SectionPlaneContext";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
+import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
 
 interface WallProps {
   position: [number, number, number];
@@ -70,7 +71,7 @@ function splitByOutward(geometry: THREE.BufferGeometry, outwardSign: number): TH
 // auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
 // AUFGESETZTEN Block auf der Aussenseite.
 export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign }: WallProps) {
-  const { viewStyle, insideColor, outsideColor } = useDisplaySettings();
+  const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
 
   const geometry = useMemo(() => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
@@ -145,10 +146,10 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
         />
         <meshStandardMaterial
           attach="material-1"
-          color={insideColor}
+          color={insideUnpainted ? UNPAINTED_INSIDE_COLOR : insideColor}
           side={THREE.DoubleSide}
           clippingPlanes={clippingPlanes}
-          {...materialProps}
+          {...(insideUnpainted ? UNPAINTED_MATERIAL_PROPS : materialProps)}
         />
         {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
       </mesh>

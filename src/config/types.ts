@@ -18,4 +18,10 @@ export interface ContainerConfig {
   // dieser Datei gespeicherte .sszkonfig-Dateien haben das Feld nicht,
   // KonfiguratorPage faellt dann auf true zurueck.
   shadowsEnabled?: boolean;
+  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-07-24): "innen unlackiert"
+  // als Alternative zur Innenfarbe, plus zwei freie Notizfelder fuer
+  // Sonderwuensche - alle optional aus demselben Altdatei-Kompatibilitaetsgrund.
+  insideUnpainted?: boolean;
+  outsideNotes?: string;
+  insideNotes?: string;
 }

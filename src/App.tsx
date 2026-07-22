@@ -4,6 +4,7 @@ import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
 import { KonfiguratorPage } from "./pages/KonfiguratorPage";
 import { InternalPage } from "./pages/InternalPage";
+import { HilfePage } from "./pages/HilfePage";
 
 // Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
 // Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
@@ -21,6 +22,7 @@ function App() {
             <Route path="/" element={<StartPage />} />
             <Route path="/konfigurator" element={<KonfiguratorPage />} />
             <Route path="/intern" element={<InternalPage />} />
+            <Route path="/hilfe" element={<HilfePage />} />
           </Route>
         </Routes>
       </TourProvider>

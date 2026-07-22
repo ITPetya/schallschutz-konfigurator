@@ -1,4 +1,5 @@
 import { CONTAINER_SIZE_PRESETS, type ContainerSize } from "../constants/containerSizes";
+import { NumberInput } from "./NumberInput";
 
 interface ContainerSizeControlsProps {
   size: ContainerSize;
@@ -48,12 +49,11 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
   return (
     <label className="flex flex-col gap-0.5 text-xs text-slate-500">
       {label}
-      <input
-        type="number"
+      <NumberInput
         step={10}
         min={0}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={onChange}
         className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none"
       />
     </label>

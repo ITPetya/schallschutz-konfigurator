@@ -7,6 +7,10 @@ export interface DisplaySettings {
   viewStyle: ViewStyle;
   insideColor: string;
   outsideColor: string;
+  // Jonas' Vorgabe 2026-07-24: "innen unlackiert" als Alternative zur
+  // Innenfarbe - wenn true, ignorieren Wall/DoorLeaf insideColor und nutzen
+  // stattdessen das rohe Blech-Material (siehe constants/unpaintedMaterial.ts).
+  insideUnpainted: boolean;
 }
 
 // Stellt Ansicht-Stil + Innen-/Aussenfarbe per Context bereit (Jonas'
@@ -19,6 +23,7 @@ const DisplaySettingsContext = createContext<DisplaySettings>({
   viewStyle: "realistic",
   insideColor: "#d7dade",
   outsideColor: "#d7dade",
+  insideUnpainted: false,
 });
 
 export const DisplaySettingsProvider = DisplaySettingsContext.Provider;

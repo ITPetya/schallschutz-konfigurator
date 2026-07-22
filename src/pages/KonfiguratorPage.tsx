@@ -40,6 +40,9 @@ function defaultConfig(): ContainerConfig {
     insideColor: RAL_STANDARD_COLORS[1].hex,
     outsideColor: RAL_STANDARD_COLORS[1].hex,
     shadowsEnabled: true,
+    insideUnpainted: false,
+    outsideNotes: "",
+    insideNotes: "",
   };
 }
 
@@ -71,6 +74,9 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   const [outsideColor, setOutsideColor] = useState(seed.outsideColor);
   const [insideColor, setInsideColor] = useState(seed.insideColor);
   const [shadowsEnabled, setShadowsEnabled] = useState(seed.shadowsEnabled ?? true);
+  const [insideUnpainted, setInsideUnpainted] = useState(seed.insideUnpainted ?? false);
+  const [outsideNotes, setOutsideNotes] = useState(seed.outsideNotes ?? "");
+  const [insideNotes, setInsideNotes] = useState(seed.insideNotes ?? "");
 
   const [fileName, setFileName] = useState("Container-Konfiguration");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -89,8 +95,33 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   // 2026-07-23) - unabhaengig vom manuellen "Speichern"-Dateidownload.
   useEffect(() => {
     if (mode !== "edit") return;
-    saveDraft({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled });
-  }, [mode, size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled]);
+    saveDraft({
+      size,
+      wallThickness,
+      openings,
+      viewStyle,
+      background,
+      insideColor,
+      outsideColor,
+      shadowsEnabled,
+      insideUnpainted,
+      outsideNotes,
+      insideNotes,
+    });
+  }, [
+    mode,
+    size,
+    wallThickness,
+    openings,
+    viewStyle,
+    background,
+    insideColor,
+    outsideColor,
+    shadowsEnabled,
+    insideUnpainted,
+    outsideNotes,
+    insideNotes,
+  ]);
 
   function handleAdd(opening: Opening) {
     setOpenings((prev) => [...prev, opening]);
@@ -104,8 +135,44 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     setOpenings((prev) => prev.filter((o) => o.id !== id));
   }
 
+  // Jonas' Vorgabe 2026-07-24: Button zum Zuruecksetzen der Konfiguration,
+  // unten links im Viewer (siehe Scene.tsx onReset-Prop). Ueberschreibt auch
+  // den Autosave-Entwurf, da der useEffect unten nach dem Reset automatisch
+  // mit den neuen (Default-)Werten erneut feuert - kein manuelles
+  // saveDraft() hier noetig.
+  function handleReset() {
+    if (!window.confirm("Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren.")) {
+      return;
+    }
+    const fresh = defaultConfig();
+    setSize(fresh.size);
+    setWallThickness(fresh.wallThickness);
+    setOpenings(fresh.openings);
+    setViewStyle(fresh.viewStyle);
+    setBackground(fresh.background);
+    setInsideColor(fresh.insideColor);
+    setOutsideColor(fresh.outsideColor);
+    setShadowsEnabled(fresh.shadowsEnabled ?? true);
+    setInsideUnpainted(fresh.insideUnpainted ?? false);
+    setOutsideNotes(fresh.outsideNotes ?? "");
+    setInsideNotes(fresh.insideNotes ?? "");
+    flashStatus("Konfiguration wurde zurückgesetzt.");
+  }
+
   function currentConfig(): ContainerConfig {
-    return { size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled };
+    return {
+      size,
+      wallThickness,
+      openings,
+      viewStyle,
+      background,
+      insideColor,
+      outsideColor,
+      shadowsEnabled,
+      insideUnpainted,
+      outsideNotes,
+      insideNotes,
+    };
   }
 
   function flashStatus(message: string) {
@@ -146,9 +213,14 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
       `Containergröße: ${size.length} × ${size.width} × ${size.height} mm`,
       `Wandstärke: ${wallThickness} mm`,
       `Durchbrüche: ${openings.length}`,
+      insideUnpainted ? "Innen: unlackiert" : null,
+      outsideNotes.trim() ? `Sonderheiten Außen: ${outsideNotes.trim()}` : null,
+      insideNotes.trim() ? `Sonderheiten Innen: ${insideNotes.trim()}` : null,
       "",
       "Mit freundlichen Grüßen",
-    ].join("\n");
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n");
 
     window.location.href = `mailto:${REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
@@ -178,7 +250,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                   <dd>{wallThickness} mm</dd>
                 </dl>
               </AccordionSection>
-              <AccordionSection title="Darstellung">
+              <AccordionSection title="Erweiterte Einstellungen">
                 <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
                   <dt className="text-slate-400">Außenfarbe</dt>
                   <dd className="flex items-center gap-1.5">
@@ -187,10 +259,26 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                   </dd>
                   <dt className="text-slate-400">Innenfarbe</dt>
                   <dd className="flex items-center gap-1.5">
-                    <span className="h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: insideColor }} />
-                    {insideColor}
+                    {insideUnpainted ? (
+                      "Unlackiert"
+                    ) : (
+                      <>
+                        <span className="h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: insideColor }} />
+                        {insideColor}
+                      </>
+                    )}
                   </dd>
                 </dl>
+                {outsideNotes.trim() && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    <span className="font-semibold text-slate-400">Sonderheiten Außen:</span> {outsideNotes}
+                  </p>
+                )}
+                {insideNotes.trim() && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    <span className="font-semibold text-slate-400">Sonderheiten Innen:</span> {insideNotes}
+                  </p>
+                )}
               </AccordionSection>
               <AccordionSection title="Einbauten" defaultOpen>
                 <OpeningsSummary openings={openings} />
@@ -207,29 +295,25 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                 />
               </AccordionSection>
 
-              <AccordionSection title="Darstellung" tourId="tour-darstellung">
+              <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
                 <DisplaySettingsPanel
-                  viewStyle={viewStyle}
-                  onViewStyleChange={setViewStyle}
                   background={background}
                   onBackgroundChange={setBackground}
                   insideColor={insideColor}
                   onInsideColorChange={setInsideColor}
                   outsideColor={outsideColor}
                   onOutsideColorChange={setOutsideColor}
-                  shadowsEnabled={shadowsEnabled}
-                  onShadowsEnabledChange={setShadowsEnabled}
+                  insideUnpainted={insideUnpainted}
+                  onInsideUnpaintedChange={setInsideUnpainted}
+                  outsideNotes={outsideNotes}
+                  onOutsideNotesChange={setOutsideNotes}
+                  insideNotes={insideNotes}
+                  onInsideNotesChange={setInsideNotes}
                 />
               </AccordionSection>
 
               <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
-                <OpeningsPanel
-                  size={size}
-                  openings={openings}
-                  onUpdate={handleUpdate}
-                  onRemove={handleRemove}
-                  onOpenAdd={() => setShowAddPopup(true)}
-                />
+                <OpeningsPanel size={size} openings={openings} onUpdate={handleUpdate} onRemove={handleRemove} />
               </AccordionSection>
 
               {/* Kein eigener border-t hier (Jonas' Fehlerbericht 2026-07-23:
@@ -285,8 +369,28 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             background={background}
             insideColor={insideColor}
             outsideColor={outsideColor}
+            insideUnpainted={insideUnpainted}
             shadowsEnabled={shadowsEnabled}
+            onReset={readOnly ? undefined : handleReset}
+            onViewStyleChange={readOnly ? undefined : setViewStyle}
+            onShadowsEnabledChange={readOnly ? undefined : setShadowsEnabled}
           />
+          {/* Jonas' Vorgabe 2026-07-24: "+"-Button fuer neue Durchbrueche
+              zieht aus der Seitenleiste hierher, oben links im Viewer -
+              gleiche Ecke, in der sich das Popup danach oeffnet. Waehrend
+              das Popup offen ist, ersetzt es den Button (statt sich zu
+              ueberlappen). */}
+          {!readOnly && !showAddPopup && (
+            <button
+              type="button"
+              data-tour="add-opening"
+              onClick={() => setShowAddPopup(true)}
+              aria-label="Durchbruch hinzufügen"
+              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-xl font-bold text-white shadow-md hover:bg-brand-dark"
+            >
+              +
+            </button>
+          )}
           {!readOnly && showAddPopup && (
             <AddOpeningPopup size={size} onAdd={handleAdd} onClose={() => setShowAddPopup(false)} />
           )}

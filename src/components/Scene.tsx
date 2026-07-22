@@ -18,10 +18,23 @@ interface SceneProps {
   background: BackgroundStyle;
   insideColor: string;
   outsideColor: string;
+  insideUnpainted: boolean;
   // Jonas' Vorgabe 2026-07-24: Schatten abschaltbar. Steuert direkt
   // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
   // Renderers global, kein Umweg ueber einzelne Mesh-Props noetig.
   shadowsEnabled: boolean;
+  // Nur im editierbaren Konfigurator gesetzt (Jonas' Vorgabe 2026-07-24:
+  // "Zuruecksetzen"-Button unten links) - im schreibgeschuetzten internen
+  // Viewer bleibt der Button einfach weg (kein Sinn, dort etwas
+  // zurueckzusetzen).
+  onReset?: () => void;
+  // Jonas' Vorgabe 2026-07-24: das "Ansicht"-Panel (Realistisch/Schattiert
+  // mit Kanten + Schatten) zieht aus der Seitenleiste in den Viewer, direkt
+  // neben "Schnitt" - deshalb braucht Scene jetzt auch Schreibzugriff
+  // (vorher nur lesend als Anzeige-Props). Optional aus demselben Grund wie
+  // onReset: im readonly-Viewer gibt es diese Steuerung nicht.
+  onViewStyleChange?: (v: ViewStyle) => void;
+  onShadowsEnabledChange?: (v: boolean) => void;
 }
 
 type SectionAxis = "x" | "y" | "z";
@@ -62,7 +75,11 @@ export function Scene({
   background,
   insideColor,
   outsideColor,
+  insideUnpainted,
   shadowsEnabled,
+  onReset,
+  onViewStyleChange,
+  onShadowsEnabledChange,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -119,7 +136,7 @@ export function Scene({
           castShadow={shadowsEnabled}
           shadow-mapSize={[2048, 2048]}
         />
-        <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor }}>
+        <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor, insideUnpainted }}>
           <SectionPlaneProvider value={sectionPlane}>
             <Container size={size} wallThickness={wallThickness} openings={openings} />
           </SectionPlaneProvider>
@@ -157,61 +174,112 @@ export function Scene({
         </GizmoHelper>
       </Canvas>
 
-      {/* Schnittansicht-Werkzeug (Jonas' Vorgabe 2026-07-22) - reines HTML-
-          Overlay, unten links (damit es sich nicht mit dem ViewCube unten
-          rechts ueberschneidet). */}
-      <div data-tour="section-view" className="absolute bottom-4 left-4 w-64 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
-        {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
-            "nicht durch so ein Checkfeld", stattdessen ein sich drehender
-            Pfeil/Ecke). */}
-        <button
-          type="button"
-          onClick={() => setSectionEnabled((v) => !v)}
-          className="flex w-full items-center justify-between font-medium text-brand-dark"
-        >
-          Schnittansicht
-          <Chevron direction={sectionEnabled ? "up" : "down"} />
-        </button>
-        {sectionEnabled && (
-          <div className="mt-3 space-y-2">
-            <div className="flex gap-1">
-              {(Object.keys(SECTION_AXIS_LABELS) as SectionAxis[]).map((axis) => (
-                <button
-                  key={axis}
-                  type="button"
-                  onClick={() => handleAxisChange(axis)}
-                  className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-bold ${
-                    sectionAxis === axis ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {axis === "y" ? (
-                    <UpDownAxisIcon active={sectionAxis === axis} />
-                  ) : (
-                    <CompassAxisIcon emphasize={axis === "x" ? "vh" : "rl"} active={sectionAxis === axis} />
-                  )}
-                  {SECTION_AXIS_LABELS[axis]}
-                </button>
-              ))}
-            </div>
-
+      {/* Unten links: Zuruecksetzen-Button (Jonas' Vorgabe 2026-07-24) ueber
+          einer Reihe aus "Schnitt" (Jonas' Vorgabe 2026-07-22, umbenannt
+          2026-07-24) und "Ansicht" (Jonas' Vorgabe 2026-07-24, aus der
+          Seitenleiste hierher verlegt) nebeneinander. flex-col/flex-row statt
+          fest verdrahteter Pixel-Offsets, damit das unabhaengig von der
+          Schnitt-Panelhoehe (auf-/zugeklappt) sauber bleibt. */}
+      <div className="absolute bottom-4 left-4 flex flex-col items-start gap-2">
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs font-medium text-slate-600 shadow-md hover:bg-slate-50"
+          >
+            <ResetIcon />
+            Zurücksetzen
+          </button>
+        )}
+        <div className="flex items-start gap-2">
+          <div data-tour="section-view" className="w-64 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
+            {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
+                "nicht durch so ein Checkfeld", stattdessen ein sich drehender
+                Pfeil/Ecke). */}
             <button
               type="button"
-              onClick={() => setCutDirection((d) => (d === 1 ? -1 : 1))}
-              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+              onClick={() => setSectionEnabled((v) => !v)}
+              className="flex w-full items-center justify-between font-medium text-brand-dark"
             >
-              <SwapIcon />
-              Richtung wechseln
+              Schnitt
+              <Chevron direction={sectionEnabled ? "up" : "down"} />
             </button>
+            {sectionEnabled && (
+              <div className="mt-3 space-y-2">
+                <div className="flex gap-1">
+                  {(Object.keys(SECTION_AXIS_LABELS) as SectionAxis[]).map((axis) => (
+                    <button
+                      key={axis}
+                      type="button"
+                      onClick={() => handleAxisChange(axis)}
+                      className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-bold ${
+                        sectionAxis === axis ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {axis === "y" ? (
+                        <UpDownAxisIcon active={sectionAxis === axis} />
+                      ) : (
+                        <CompassAxisIcon emphasize={axis === "x" ? "vh" : "rl"} active={sectionAxis === axis} />
+                      )}
+                      {SECTION_AXIS_LABELS[axis]}
+                    </button>
+                  ))}
+                </div>
 
-            <SectionSlider
-              min={axisRangeMm[sectionAxis].min}
-              max={axisRangeMm[sectionAxis].max}
-              value={sectionOffsetMm}
-              onChange={setSectionOffsetMm}
-            />
-            <p className="text-right text-xs text-slate-500">{Math.round(sectionOffsetMm)} mm</p>
+                <button
+                  type="button"
+                  onClick={() => setCutDirection((d) => (d === 1 ? -1 : 1))}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                >
+                  <SwapIcon />
+                  Richtung wechseln
+                </button>
+
+                <SectionSlider
+                  min={axisRangeMm[sectionAxis].min}
+                  max={axisRangeMm[sectionAxis].max}
+                  value={sectionOffsetMm}
+                  onChange={setSectionOffsetMm}
+                />
+                <p className="text-right text-xs text-slate-500">{Math.round(sectionOffsetMm)} mm</p>
+              </div>
+            )}
           </div>
-        )}
+
+          {onViewStyleChange && onShadowsEnabledChange && (
+            <div data-tour="view-style-panel" className="w-52 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
+              <p className="mb-2 font-medium text-brand-dark">Ansicht</p>
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => onViewStyleChange("realistic")}
+                  className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                    viewStyle === "realistic" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  Realistisch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onViewStyleChange("shaded_edges")}
+                  className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                    viewStyle === "shaded_edges" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  Schattiert mit Kanten
+                </button>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={shadowsEnabled}
+                  onChange={(e) => onShadowsEnabledChange(e.target.checked)}
+                />
+                Schatten anzeigen
+              </label>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -296,6 +364,15 @@ function SwapIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M7 7h11l-3-3M17 17H6l3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M3 12a9 9 0 1 1 3 6.7" strokeLinecap="round" />
+      <path d="M3 17v-5h5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

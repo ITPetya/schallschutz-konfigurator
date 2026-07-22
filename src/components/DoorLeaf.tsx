@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import { Edges } from "@react-three/drei";
 import type { DoorHinge } from "../types/openings";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
+import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
 
 interface DoorLeafProps {
   u: number;
@@ -34,7 +35,7 @@ const HANDLE_COLOR = "#4b5563";
 // Meshes hatten VORHER ueberhaupt kein clippingPlanes gesetzt (nur das
 // Blatt selbst), blieben bei aktiver Schnittansicht also immer sichtbar.
 export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlanes, outwardSign }: DoorLeafProps) {
-  const { viewStyle, insideColor, outsideColor } = useDisplaySettings();
+  const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
   const localY = v - panelHeight / 2;
   const hingeEdgeU = hinge === "left" ? u - width / 2 : u + width / 2;
   const handleEdgeU = hinge === "left" ? u + width / 2 - width * 0.12 : u - width / 2 + width * 0.12;
@@ -52,15 +53,19 @@ export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlan
     <group>
       <mesh position={[u, localY, 0]} castShadow receiveShadow>
         <boxGeometry args={[width - LEAF_GAP, height - LEAF_GAP, LEAF_THICKNESS]} />
-        {[0, 1, 2, 3, 4, 5].map((groupIndex) => (
-          <meshStandardMaterial
-            key={groupIndex}
-            attach={`material-${groupIndex}`}
-            color={groupIndex === insideGroup ? insideColor : outsideColor}
-            clippingPlanes={clippingPlanes}
-            {...materialProps}
-          />
-        ))}
+        {[0, 1, 2, 3, 4, 5].map((groupIndex) => {
+          const isInside = groupIndex === insideGroup;
+          const unpaintedHere = isInside && insideUnpainted;
+          return (
+            <meshStandardMaterial
+              key={groupIndex}
+              attach={`material-${groupIndex}`}
+              color={unpaintedHere ? UNPAINTED_INSIDE_COLOR : isInside ? insideColor : outsideColor}
+              clippingPlanes={clippingPlanes}
+              {...(unpaintedHere ? UNPAINTED_MATERIAL_PROPS : materialProps)}
+            />
+          );
+        })}
         {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
       </mesh>
 

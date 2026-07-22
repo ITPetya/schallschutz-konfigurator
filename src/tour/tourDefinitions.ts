@@ -19,8 +19,8 @@ export const TOURS: Record<string, Tour> = {
       },
       {
         selector: '[data-tour="tour-darstellung"]',
-        title: "Darstellung",
-        body: "Hier wechselst du zwischen „Realistisch“ und „Schattiert mit Kanten“, wählst Studio oder Gelände als Hintergrund und legst die RAL-Farben innen/außen fest.",
+        title: "Erweiterte Einstellungen",
+        body: "Hier wählst du Studio oder Gelände als Hintergrund, legst die RAL-Farben innen/außen fest (oder „Innen unlackiert“ statt einer Farbe) und kannst zwei Notizfelder für Sonderheiten außen/innen einblenden.",
         placement: "bottom",
       },
       {
@@ -37,8 +37,14 @@ export const TOURS: Record<string, Tour> = {
       },
       {
         selector: '[data-tour="section-view"]',
-        title: "Schnittansicht",
+        title: "Schnitt",
         body: "Mit diesem Werkzeug schneidest du den Container entlang einer Achse auf, um ins Innere zu sehen.",
+        placement: "top",
+      },
+      {
+        selector: '[data-tour="view-style-panel"]',
+        title: "Ansicht",
+        body: "Hier wechselst du zwischen „Realistisch“ und „Schattiert mit Kanten“ und kannst Schatten ein-/ausschalten.",
         placement: "top",
       },
       {
