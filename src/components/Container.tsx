@@ -13,9 +13,15 @@ const MM_TO_M = 1 / 1000;
 
 // Container als hohle Schale aus 6 einzeln schneidbaren Panels (vier
 // Seitenwaende + Dach + Boden - Jonas' Vorgabe 2026-07-22: auch oben/unten
-// sollen Durchbrueche moeglich sein, nicht nur an den Seiten). Kompass-Achsen
-// (Norden = kleine Stirnflaeche): Norden/Sueden liegen an den Enden der
-// LAENGE (lokal X), Osten/Westen an den Enden der BREITE (lokal Z).
+// sollen Durchbrueche moeglich sein, nicht nur an den Seiten).
+//
+// Relative Richtungen statt Kompass (Jonas' Fehlerbericht 2026-07-23, siehe
+// types/openings.ts) - die WELTKOORDINATEN unten sind UNVERAENDERT
+// gegenueber der fruaeheren Kompass-Version, nur die Zuordnung zu den
+// Bezeichnungen ist neu: front=vorheriges "south" (+X), back=vorheriges
+// "north" (-X), right=vorheriges "west" (-Z), left=vorheriges "east" (+Z).
+// Front/Back liegen an den Enden der LAENGE (lokal X), Left/Right an den
+// Enden der BREITE (lokal Z).
 //
 // Fuer Oben/Unten wird dieselbe Wall-Komponente wiederverwendet (identische
 // "Quader minus Ausschnitt"-Logik), nur um die X-Achse um ±90 Grad gekippt,
@@ -53,14 +59,15 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
 
   return (
     <group>
-      {/* Osten/Westen: lange Seitenflaechen, spannen die LAENGE (X) auf, liegen an den Enden der BREITE (Z). */}
+      {/* Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen
+          die LAENGE (X) auf, liegen an den Enden der BREITE (Z). */}
       <Wall
         position={[0, H / 2, W / 2 - t / 2]}
         rotation={[0, 0, 0]}
         panelWidth={L}
         panelHeight={H}
         thickness={t}
-        openings={openingsFor("east")}
+        openings={openingsFor("left")}
         outwardSign={1}
       />
       <Wall
@@ -69,18 +76,19 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelWidth={L}
         panelHeight={H}
         thickness={t}
-        openings={openingsFor("west")}
+        openings={openingsFor("right")}
         outwardSign={-1}
       />
 
-      {/* Norden/Sueden: kleine Stirnflaechen, spannen die BREITE (Z) auf, liegen an den Enden der LAENGE (X). */}
+      {/* Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen
+          die BREITE (Z) auf, liegen an den Enden der LAENGE (X). */}
       <Wall
         position={[-L / 2 + t / 2, H / 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
         panelWidth={W}
         panelHeight={H}
         thickness={t}
-        openings={openingsFor("north")}
+        openings={openingsFor("back")}
         outwardSign={-1}
       />
       <Wall
@@ -89,7 +97,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         panelWidth={W}
         panelHeight={H}
         thickness={t}
-        openings={openingsFor("south")}
+        openings={openingsFor("front")}
         outwardSign={1}
       />
 

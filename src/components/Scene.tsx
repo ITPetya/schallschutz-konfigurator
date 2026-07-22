@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
+import { Chevron } from "./icons/Chevron";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
@@ -24,26 +25,30 @@ type SectionAxis = "x" | "y" | "z";
 const MM_TO_M = 1 / 1000;
 
 // Normalen so gewaehlt, dass ein steigender Schieberegler-Wert die
-// sichtbare Restmenge in eine intuitive Richtung wachsen/schrumpfen laesst
-// (siehe Kommentar an der jeweiligen Stelle unten) - THREE.Plane behaelt die
-// Haelfte, in die die Normale NICHT zeigt (distanceToPoint >= 0 bleibt sichtbar).
+// sichtbare Restmenge in eine intuitive Richtung wachsen/schrumpfen laesst -
+// siehe cutDirection weiter unten fuer den "Richtung wechseln"-Button, der
+// diese Normalen (und die Ebenenkonstante) vorzeichenrichtig umkehrt.
 const SECTION_NORMALS: Record<SectionAxis, THREE.Vector3> = {
   x: new THREE.Vector3(-1, 0, 0),
   y: new THREE.Vector3(0, -1, 0),
   z: new THREE.Vector3(0, 0, -1),
 };
 
+// Kurzformen statt ausgeschriebener Kompassnamen (Jonas' Fehlerbericht
+// 2026-07-23) - x-Achse = Vorne/Hinten (V/H), z-Achse = Rechts/Links (R/L),
+// y-Achse = Oben/Unten (O/U).
 const SECTION_AXIS_LABELS: Record<SectionAxis, string> = {
-  x: "Nord–Süd",
-  y: "Oben–Unten",
-  z: "Ost–West",
+  x: "V/H",
+  z: "R/L",
+  y: "O/U",
 };
 
-// Kompass-Beschriftung des ViewCube statt der drei-Standardwerte
-// (Right/Left/Top/Bottom/Front/Back, in genau dieser Reihenfolge = +X/-X/+Y/-Y/+Z/-Z) -
-// passend zur Kompass-Umbenennung der Waende (Container.tsx): +X=Sueden,
-// -X=Norden, +Z=Osten, -Z=Westen, Oben/Unten unveraendert.
-const VIEWCUBE_FACES = ["Süden", "Norden", "Oben", "Unten", "Osten", "Westen"];
+// Relative Richtungen statt Himmelsrichtungen (Jonas' Fehlerbericht
+// 2026-07-23, siehe types/openings.ts) - Reihenfolge entspricht weiterhin
+// GizmoViewcube's Erwartung (+X,-X,+Y,-Y,+Z,-Z): +X=Vorne (vorher Sueden),
+// -X=Hinten (vorher Norden), +Z=Links (vorher Osten), -Z=Rechts (vorher
+// Westen), Oben/Unten unveraendert.
+const VIEWCUBE_FACES = ["Vorne", "Hinten", "Oben", "Unten", "Links", "Rechts"];
 
 export function Scene({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
@@ -55,6 +60,11 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
 
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [sectionAxis, setSectionAxis] = useState<SectionAxis>("z");
+  // Welche Haelfte sichtbar bleibt, ist umkehrbar (Jonas' Fehlerbericht
+  // 2026-07-23: "Schnittansichten gehen immer nur in eine Richtung") - der
+  // "Richtung wechseln"-Button dreht sowohl Normale als auch Ebenenkonstante
+  // vorzeichenrichtig um, siehe sectionPlane unten.
+  const [cutDirection, setCutDirection] = useState<1 | -1>(1);
   // Schieberegler-Bereich bleibt in mm (durchgehende Einheit im UI-Layer),
   // nur beim Bauen der eigentlichen THREE.Plane unten auf Meter umgerechnet.
   const axisRangeMm = useMemo(
@@ -69,8 +79,10 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
 
   const sectionPlane = useMemo(() => {
     if (!sectionEnabled) return null;
-    return new THREE.Plane(SECTION_NORMALS[sectionAxis], sectionOffsetMm * MM_TO_M);
-  }, [sectionEnabled, sectionAxis, sectionOffsetMm]);
+    const normal = SECTION_NORMALS[sectionAxis].clone().multiplyScalar(cutDirection);
+    const constant = sectionOffsetMm * MM_TO_M * cutDirection;
+    return new THREE.Plane(normal, constant);
+  }, [sectionEnabled, sectionAxis, sectionOffsetMm, cutDirection]);
 
   function handleAxisChange(axis: SectionAxis) {
     setSectionAxis(axis);
@@ -136,43 +148,141 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
           Overlay, unten links (damit es sich nicht mit dem ViewCube unten
           rechts ueberschneidet). */}
       <div data-tour="section-view" className="absolute bottom-4 left-4 w-64 rounded-lg border border-slate-200 bg-white/95 p-3 text-sm shadow-md">
-        <label className="flex items-center gap-2 font-medium text-brand-dark">
-          <input
-            type="checkbox"
-            checked={sectionEnabled}
-            onChange={(e) => setSectionEnabled(e.target.checked)}
-          />
+        {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
+            "nicht durch so ein Checkfeld", stattdessen ein sich drehender
+            Pfeil/Ecke). */}
+        <button
+          type="button"
+          onClick={() => setSectionEnabled((v) => !v)}
+          className="flex w-full items-center justify-between font-medium text-brand-dark"
+        >
           Schnittansicht
-        </label>
+          <Chevron direction={sectionEnabled ? "up" : "down"} />
+        </button>
         {sectionEnabled && (
-          <div className="mt-2 space-y-2">
+          <div className="mt-3 space-y-2">
             <div className="flex gap-1">
               {(Object.keys(SECTION_AXIS_LABELS) as SectionAxis[]).map((axis) => (
                 <button
                   key={axis}
                   type="button"
                   onClick={() => handleAxisChange(axis)}
-                  className={`flex-1 rounded-full px-2 py-1 text-xs ${
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-bold ${
                     sectionAxis === axis ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
                   }`}
                 >
+                  {axis === "y" ? (
+                    <UpDownAxisIcon active={sectionAxis === axis} />
+                  ) : (
+                    <CompassAxisIcon emphasize={axis === "x" ? "vh" : "rl"} active={sectionAxis === axis} />
+                  )}
                   {SECTION_AXIS_LABELS[axis]}
                 </button>
               ))}
             </div>
-            <input
-              type="range"
+
+            <button
+              type="button"
+              onClick={() => setCutDirection((d) => (d === 1 ? -1 : 1))}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+            >
+              <SwapIcon />
+              Richtung wechseln
+            </button>
+
+            <SectionSlider
               min={axisRangeMm[sectionAxis].min}
               max={axisRangeMm[sectionAxis].max}
-              step={10}
               value={sectionOffsetMm}
-              onChange={(e) => setSectionOffsetMm(Number(e.target.value))}
-              className="w-full accent-brand"
+              onChange={setSectionOffsetMm}
             />
             <p className="text-right text-xs text-slate-500">{Math.round(sectionOffsetMm)} mm</p>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// Ersetzt den nativen <input type="range"> (Jonas' Fehlerbericht 2026-07-23:
+// "eher ein Pfeil, bzw. ein Pfeil ohne Stiel, der das Fenster für Schnitte
+// vergrößert") - eine wachsende Fuellung von links + eine Pfeil-Ecke
+// (Chevron, kein Dreieck) an der aktuellen Position, per Pointer-Events
+// ziehbar (Maus UND Touch).
+function SectionSlider({ min, max, value, onChange }: { min: number; max: number; value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+
+  function setFromClientX(clientX: number) {
+    const rect = trackRef.current!.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const raw = min + ratio * (max - min);
+    onChange(Math.round(raw / 10) * 10);
+  }
+
+  return (
+    <div
+      ref={trackRef}
+      className="relative h-6 w-full touch-none rounded-full bg-slate-100"
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        setFromClientX(e.clientX);
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons === 1) setFromClientX(e.clientX);
+      }}
+    >
+      <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-brand-light/50" style={{ width: `${pct}%` }} />
+      <div
+        className="pointer-events-none absolute top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-brand-dark"
+        style={{ left: `calc(${pct}% - 12px)` }}
+      >
+        <Chevron direction="right" />
+      </div>
+    </div>
+  );
+}
+
+// Kompass-Icon fuer die V/H- bzw. R/L-Achsenauswahl: alle vier Richtungen
+// sichtbar, aber die zwei zur jeweiligen Achse gehoerenden groesser/fetter
+// dargestellt (Jonas' Vorgabe 2026-07-23: "die Richtungen die gemeint sind
+// nochmal größer oder dicker").
+function CompassAxisIcon({ emphasize, active }: { emphasize: "vh" | "rl"; active: boolean }) {
+  const big = active ? "#ffffff" : "#075471";
+  const small = active ? "rgba(255,255,255,0.6)" : "#94a3b8";
+  const vh = emphasize === "vh";
+  return (
+    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden>
+      <circle cx="13" cy="13" r="11" fill="none" stroke={active ? "rgba(255,255,255,0.5)" : "#cbd5e1"} strokeWidth="1.2" />
+      <text x="13" y="9" textAnchor="middle" fontSize={vh ? 10 : 7} fontWeight={vh ? 700 : 500} fill={vh ? big : small}>
+        V
+      </text>
+      <text x="13" y="22" textAnchor="middle" fontSize={vh ? 10 : 7} fontWeight={vh ? 700 : 500} fill={vh ? big : small}>
+        H
+      </text>
+      <text x="4" y="17" textAnchor="middle" fontSize={!vh ? 10 : 7} fontWeight={!vh ? 700 : 500} fill={!vh ? big : small}>
+        L
+      </text>
+      <text x="22" y="17" textAnchor="middle" fontSize={!vh ? 10 : 7} fontWeight={!vh ? 700 : 500} fill={!vh ? big : small}>
+        R
+      </text>
+    </svg>
+  );
+}
+
+function UpDownAxisIcon({ active }: { active: boolean }) {
+  const color = active ? "#ffffff" : "#075471";
+  return (
+    <svg width="18" height="22" viewBox="0 0 18 22" fill="none" stroke={color} strokeWidth="2" aria-hidden>
+      <path d="M9 2v18M9 2l-4 4M9 2l4 4M9 20l-4-4M9 20l4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SwapIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M7 7h11l-3-3M17 17H6l3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

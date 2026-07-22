@@ -1,12 +1,13 @@
 import type { OpeningKind, OpeningTypeDef, PanelId } from "../types/openings";
 
-// Himmelsrichtungen (Jonas' Vorgabe 2026-07-22, Norden = kleine Stirnflaeche)
-// + Oben/Unten unveraendert. Alle sechs sind gueltige Durchbruch-Ziele.
+// Relative Richtungen statt Himmelsrichtungen (Jonas' Fehlerbericht
+// 2026-07-23, siehe types/openings.ts) + Oben/Unten unveraendert. Alle
+// sechs sind gueltige Durchbruch-Ziele.
 export const PANEL_LABELS: Record<PanelId, string> = {
-  north: "Norden",
-  south: "Süden",
-  east: "Osten",
-  west: "Westen",
+  front: "Vorne",
+  back: "Hinten",
+  left: "Links",
+  right: "Rechts",
   top: "Oben",
   bottom: "Unten",
 };

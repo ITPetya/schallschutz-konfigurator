@@ -21,7 +21,7 @@ const inputClass =
 // OpeningsPanel.tsx, der Zustand (offen/zu) lebt in App.tsx, weil das Popup
 // im Viewer (main), der "+"-Button aber in der Seitenleiste sitzt.
 export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) {
-  const [panel, setPanel] = useState<PanelId>("east");
+  const [panel, setPanel] = useState<PanelId>("left");
   const [kind, setKind] = useState<OpeningKind>("door_single_1918");
   const [hinge, setHinge] = useState<DoorHinge>("left");
 

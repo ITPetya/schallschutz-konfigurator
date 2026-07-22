@@ -1,13 +1,17 @@
-// Himmelsrichtungen fuer die vier Seitenwaende (Jonas' Vorgabe 2026-07-22:
-// Norden ist eine der KLEINEN Stirnflaechen, nicht eine der langen
-// Seitenflaechen). Oben/Unten bleiben wie vom Bauherrn benannt, keine
-// Himmelsrichtung. Alle sechs zusammen sind jetzt gueltige Ziele fuer
-// Durchbrueche - vorher nur die vier Seitenwaende.
-export type WallId = "north" | "south" | "east" | "west";
+// Relative Richtungen statt Himmelsrichtungen fuer die vier Seitenwaende
+// (Jonas' Fehlerbericht 2026-07-23: Kompassrichtungen waren fuer ein Objekt
+// ohne echte Nordausrichtung verwirrend - "ich komme da selbst nicht mit
+// klar"). "front" ist die Seite, auf die der Nutzer in der Default-Ansicht
+// zuerst schaut (identisch zur vorherigen physischen Position von "south"),
+// "back" die gegenueberliegende (vorher "north"). "left"/"right" sind aus
+// Sicht eines Betrachters, der VOR der Front-Wand steht und in den Container
+// hineinschaut (vorher "east"/"west") - siehe Container.tsx fuer die exakte
+// Zuordnung zu den unveraenderten Weltkoordinaten. Oben/Unten unveraendert.
+export type WallId = "front" | "back" | "left" | "right";
 export type PanelId = WallId | "top" | "bottom";
 
 export function isVerticalWall(panel: PanelId): panel is WallId {
-  return panel === "north" || panel === "south" || panel === "east" || panel === "west";
+  return panel === "front" || panel === "back" || panel === "left" || panel === "right";
 }
 
 export type OpeningKind =

@@ -1,10 +1,10 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import { isVerticalWall, type PanelId } from "../types/openings";
 
-// u laeuft immer auf der Achse, auf der Norden/Sueden ("Breite") bzw.
-// Osten/Westen/Oben/Unten ("Laenge") liegen.
+// u laeuft immer auf der Achse, auf der Vorne/Hinten ("Breite") bzw.
+// Links/Rechts/Oben/Unten ("Laenge") liegen.
 export function panelSpanU(panel: PanelId, size: ContainerSize) {
-  return panel === "north" || panel === "south" ? size.width : size.length;
+  return panel === "front" || panel === "back" ? size.width : size.length;
 }
 
 // v-Spanne: bei den vier Seitenwaenden die Containerhoehe (verticalBounds

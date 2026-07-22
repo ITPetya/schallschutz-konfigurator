@@ -228,7 +228,10 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                 />
               </AccordionSection>
 
-              <div data-tour="save-project" className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+              {/* Kein eigener border-t hier (Jonas' Fehlerbericht 2026-07-23:
+                  "eine Trennlinie zu viel") - die AccordionSection "Einbauten"
+                  direkt darueber hat bereits einen border-b, der reicht. */}
+              <div data-tour="save-project" className="mt-4 space-y-2 pt-1">
                 <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Anfragen</p>
                 <input
                   type="text"
