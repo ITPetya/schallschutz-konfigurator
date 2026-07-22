@@ -17,8 +17,8 @@ export function Scene({ size, openings }: SceneProps) {
       shadows
       camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
     >
-      <color attach="background" args={["#1e293b"]} />
-      <ambientLight intensity={0.5} />
+      <color attach="background" args={["#eef2f5"]} />
+      <ambientLight intensity={0.7} />
       <directionalLight
         position={[10, 12, 6]}
         intensity={1.2}
@@ -28,8 +28,8 @@ export function Scene({ size, openings }: SceneProps) {
       <Container size={size} openings={openings} />
       <Grid
         args={[40, 40]}
-        cellColor="#475569"
-        sectionColor="#64748b"
+        cellColor="#cbd5e1"
+        sectionColor="#94a3b8"
         fadeDistance={30}
         position={[0, 0, 0]}
       />

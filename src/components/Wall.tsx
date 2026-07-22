@@ -12,6 +12,11 @@ interface WallProps {
   thickness: number;
   openings: Opening[];
   color: string;
+  // +1, wenn die lokale +Z-Richtung dieser Wand (vor Rotation) nach AUSSEN
+  // zeigt, -1, wenn lokal -Z nach aussen zeigt - haengt davon ab, wie die
+  // Wand in Container.tsx positioniert/rotiert wurde. Wird nur fuer
+  // Durchbrueche mit protrusionDepth gebraucht (z. B. Wetterschutzgitter).
+  outwardSign: 1 | -1;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -23,8 +28,11 @@ const evaluator = new Evaluator();
 // pro platziertem Durchbruch dieser Wand. Die Ausschnitt-Geometrie wird in
 // LOKALEN Koordinaten der Wand berechnet (bevor Position/Rotation der Wand
 // selbst angewendet werden) - dadurch ist diese Komponente unabhaengig davon,
-// an welcher Seite des Containers sie tatsaechlich sitzt.
-export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, color }: WallProps) {
+// an welcher Seite des Containers sie tatsaechlich sitzt. Durchbrueche mit
+// protrusionDepth (aktuell nur das Wetterschutzgitter, "baut 12mm nach aussen
+// auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
+// AUFGESETZTEN Block auf der Aussenseite.
+export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, color, outwardSign }: WallProps) {
   const geometry = useMemo(() => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
     let result: Brush = new Brush(wallGeom);
@@ -57,9 +65,23 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
     return result.geometry;
   }, [panelWidth, panelHeight, thickness, openings]);
 
+  const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
+
   return (
-    <mesh position={position} rotation={rotation} geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial color={color} roughness={0.6} metalness={0.4} side={THREE.DoubleSide} />
-    </mesh>
+    <group position={position} rotation={rotation}>
+      <mesh geometry={geometry} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.6} metalness={0.4} side={THREE.DoubleSide} />
+      </mesh>
+      {protrusions.map((o) => {
+        const depth = OPENING_TYPES[o.kind].protrusionDepth!;
+        const zOffset = outwardSign * (thickness / 2 + depth / 2);
+        return (
+          <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>
+            <boxGeometry args={[o.width, o.height, depth]} />
+            <meshStandardMaterial color={color} roughness={0.5} metalness={0.5} />
+          </mesh>
+        );
+      })}
+    </group>
   );
 }

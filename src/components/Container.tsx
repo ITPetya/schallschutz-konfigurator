@@ -8,8 +8,11 @@ interface ContainerProps {
   openings: Opening[];
 }
 
-const WALL_COLOR = "#c2410c";
-const ROOF_FLOOR_COLOR = "#9a3412";
+// Neutrales, industrielles Hellgrau statt einer Markenfarbe - reale
+// Sondercontainer (siehe lc.systems-Referenzbilder) sind lackierte
+// Stahlpaneele, keine Marken-Buntfarbe.
+const WALL_COLOR = "#d7dade";
+const ROOF_FLOOR_COLOR = "#b7bcc2";
 
 // Container als hohle Schale aus 4 einzeln schneidbaren Seitenwaenden + einer
 // massiven Dach-/Bodenplatte (bewusst OHNE Durchbrueche in dieser
@@ -32,6 +35,7 @@ export function Container({ size, openings }: ContainerProps) {
         thickness={t}
         openings={openingsByWall("front")}
         color={WALL_COLOR}
+        outwardSign={1}
       />
       <Wall
         position={[0, H / 2, -W / 2 + t / 2]}
@@ -41,6 +45,7 @@ export function Container({ size, openings }: ContainerProps) {
         thickness={t}
         openings={openingsByWall("back")}
         color={WALL_COLOR}
+        outwardSign={-1}
       />
       <Wall
         position={[-L / 2 + t / 2, H / 2, 0]}
@@ -50,6 +55,7 @@ export function Container({ size, openings }: ContainerProps) {
         thickness={t}
         openings={openingsByWall("left")}
         color={WALL_COLOR}
+        outwardSign={-1}
       />
       <Wall
         position={[L / 2 - t / 2, H / 2, 0]}
@@ -59,6 +65,7 @@ export function Container({ size, openings }: ContainerProps) {
         thickness={t}
         openings={openingsByWall("right")}
         color={WALL_COLOR}
+        outwardSign={1}
       />
 
       <mesh position={[0, H - t / 2, 0]} castShadow receiveShadow>

@@ -22,15 +22,16 @@ function App() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-slate-900 text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-700 px-6 py-3">
-        <h1 className="text-lg font-semibold tracking-tight">
-          Schallschutz-Sondercontainer – 3D-Konfigurator
+    <div className="flex h-full flex-col bg-white text-ink">
+      <div className="h-1.5 bg-brand-light" />
+      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+        <h1 className="font-heading text-lg font-bold uppercase tracking-wide text-brand-dark">
+          Schallschutz-Sondercontainer <span className="text-brand-light">–</span> 3D-Konfigurator
         </h1>
         <select
           value={sizeId}
           onChange={(e) => setSizeId(e.target.value as ContainerSizeId)}
-          className="rounded border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm"
+          className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-sm text-ink shadow-sm"
         >
           {Object.values(CONTAINER_SIZES).map((s) => (
             <option key={s.id} value={s.id}>
@@ -41,10 +42,11 @@ function App() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-72 shrink-0 overflow-y-auto border-r border-slate-700 bg-slate-800/50 p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <aside className="w-80 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 p-4">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-brand">
             Durchbrüche
           </h2>
+          <div className="mb-3 h-0.5 w-10 bg-brand-light" />
           <OpeningsPanel
             size={size}
             openings={openings}
