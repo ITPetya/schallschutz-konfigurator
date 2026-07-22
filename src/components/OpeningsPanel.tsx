@@ -1,140 +1,35 @@
-import { useState } from "react";
-import type { DoorHinge, Opening, OpeningKind, PanelId } from "../types/openings";
-import { isVerticalWall } from "../types/openings";
+import type { DoorHinge, Opening } from "../types/openings";
 import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { clampVerticalPosition, verticalBounds } from "../utils/openingConstraints";
+import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
   openings: Opening[];
-  onAdd: (opening: Opening) => void;
   onUpdate: (id: string, patch: Partial<Opening>) => void;
   onRemove: (id: string) => void;
-}
-
-// u laeuft immer auf der Achse, auf der Norden/Sueden ("Breite") bzw.
-// Osten/Westen/Oben/Unten ("Laenge") liegen.
-function panelSpanU(panel: PanelId, size: ContainerSize) {
-  return panel === "north" || panel === "south" ? size.width : size.length;
-}
-
-// v-Spanne: bei den vier Seitenwaenden die Containerhoehe (verticalBounds
-// wendet dort zusaetzlich Tuer-Mindestabstaende an); bei Oben/Unten die
-// Containerbreite - dieselbe Funktion liefert ohne minBottomOffset/
-// minTopMargin einfach "0 bis Spanne", genau das ist auch fuer Oben/Unten
-// richtig (kein Boden-/Oberkante-Konzept dort).
-function panelSpanV(panel: PanelId, size: ContainerSize) {
-  return isVerticalWall(panel) ? size.height : size.width;
-}
-
-function positionLabels(panel: PanelId): [string, string] {
-  return isVerticalWall(panel) ? ["Seitlich (m)", "Höhe über Boden (m)"] : ["Position Länge (m)", "Position Breite (m)"];
+  onOpenAdd: () => void;
 }
 
 const inputClass =
   "w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none";
 const labelClass = "flex flex-col gap-0.5 text-xs text-slate-500";
 
-export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: OpeningsPanelProps) {
-  const [panel, setPanel] = useState<PanelId>("east");
-  const [kind, setKind] = useState<OpeningKind>("door_single_1918");
-  const [hinge, setHinge] = useState<DoorHinge>("left");
-
-  const availableKinds = Object.values(OPENING_TYPES).filter(
-    (t) => !t.verticalOnly || isVerticalWall(panel),
-  );
-  const newTypeDef = OPENING_TYPES[kind];
-
-  function handlePanelChange(next: PanelId) {
-    setPanel(next);
-    // Tueren sind auf Oben/Unten nicht erlaubt (logisch, Jonas' Vorgabe
-    // 2026-07-22) - beim Wechsel auf ein horizontales Panel automatisch auf
-    // einen dort gueltigen Typ umschalten, statt einen unmoeglichen
-    // ausgewaehlt zu lassen.
-    if (!isVerticalWall(next) && newTypeDef.verticalOnly) {
-      setKind("vent_weather");
-    }
-  }
-
-  function handleAdd() {
-    const typeDef = OPENING_TYPES[kind];
-    const width = typeDef.fixedWidth ?? typeDef.defaultWidth ?? 0.1;
-    const height = typeDef.fixedHeight ?? typeDef.defaultHeight ?? 0.1;
-    // Standardvorgabe: Tueren sitzen am erlaubten Mindestabstand vom Boden
-    // (170mm), alles andere mittig auf der Panel-Spanne - beides danach frei
-    // ueber die Positions-Eingabe anpassbar (innerhalb der erlaubten Grenzen).
-    const bounds = verticalBounds(typeDef, height, panelSpanV(panel, size));
-    const v = typeDef.minBottomOffset !== undefined ? bounds.min : panelSpanV(panel, size) / 2;
-
-    onAdd({
-      id: crypto.randomUUID(),
-      kind,
-      panel,
-      u: 0,
-      v,
-      width,
-      height,
-      hinge: typeDef.hasHinge ? hinge : undefined,
-    });
-  }
-
+// Reine Liste der platzierten Durchbrueche + ein einzelner "+"-Button (Jonas'
+// Vorgabe 2026-07-22) - das eigentliche Anlegen-Formular ist jetzt ein Popup
+// IM Viewer (siehe AddOpeningPopup.tsx), nicht mehr hier in der Seitenleiste.
+export function OpeningsPanel({ size, openings, onUpdate, onRemove, onOpenAdd }: OpeningsPanelProps) {
   return (
     <div className="space-y-4">
-      <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <select
-          value={panel}
-          onChange={(e) => handlePanelChange(e.target.value as PanelId)}
-          className={inputClass}
-        >
-          {(Object.keys(PANEL_LABELS) as PanelId[]).map((p) => (
-            <option key={p} value={p}>
-              {PANEL_LABELS[p]}
-            </option>
-          ))}
-        </select>
-        <select
-          value={kind}
-          onChange={(e) => setKind(e.target.value as OpeningKind)}
-          className={inputClass}
-        >
-          <optgroup label="Standard (feste Maße)">
-            {availableKinds
-              .filter((t) => t.category === "standard")
-              .map((t) => (
-                <option key={t.kind} value={t.kind}>
-                  {t.label}
-                </option>
-              ))}
-          </optgroup>
-          <optgroup label="Frei (parametrisch)">
-            {availableKinds
-              .filter((t) => t.category === "free")
-              .map((t) => (
-                <option key={t.kind} value={t.kind}>
-                  {t.label}
-                </option>
-              ))}
-          </optgroup>
-        </select>
-        {newTypeDef.hasHinge && (
-          <select
-            value={hinge}
-            onChange={(e) => setHinge(e.target.value as DoorHinge)}
-            className={inputClass}
-          >
-            <option value="left">DIN Links</option>
-            <option value="right">DIN Rechts</option>
-          </select>
-        )}
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-        >
-          + Durchbruch hinzufügen
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onOpenAdd}
+        aria-label="Durchbruch hinzufügen"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-xl font-bold text-white hover:bg-brand-dark"
+      >
+        +
+      </button>
 
       <div className="space-y-2">
         {openings.length === 0 && (
@@ -144,7 +39,11 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
           const typeDef = OPENING_TYPES[o.kind];
           const maxU = Math.max(0, panelSpanU(o.panel, size) / 2 - o.width / 2);
           const vBounds = verticalBounds(typeDef, o.height, panelSpanV(o.panel, size));
-          const [uLabel, vLabel] = positionLabels(o.panel);
+          const [uLabel, vLabel] = positionLabels(o.panel, !!typeDef.isDoor);
+          const widthMin = typeDef.minWidth ?? typeDef.minSize;
+          const widthMax = typeDef.maxWidth ?? typeDef.maxSize;
+          const heightMin = typeDef.minHeight ?? typeDef.minSize;
+          const heightMax = typeDef.maxHeight ?? typeDef.maxSize;
 
           return (
             <div key={o.id} className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm">
@@ -163,7 +62,7 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
 
               {typeDef.category === "standard" && (
                 <p className="mb-2 text-xs text-slate-400">
-                  Feste Maße: {typeDef.fixedWidth} × {typeDef.fixedHeight} m
+                  Feste Maße: {typeDef.fixedWidth} × {typeDef.fixedHeight} mm
                 </p>
               )}
 
@@ -194,10 +93,10 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
                   {uLabel}
                   <input
                     type="number"
-                    step={0.05}
+                    step={10}
                     min={-maxU}
                     max={maxU}
-                    value={o.u}
+                    value={Math.round(o.u)}
                     onChange={(e) => onUpdate(o.id, { u: Number(e.target.value) })}
                     className={inputClass}
                   />
@@ -206,10 +105,10 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
                   {vLabel}
                   <input
                     type="number"
-                    step={0.05}
+                    step={10}
                     min={vBounds.impossible ? undefined : vBounds.min}
                     max={vBounds.impossible ? undefined : vBounds.max}
-                    value={o.v}
+                    value={Math.round(o.v)}
                     onChange={(e) => onUpdate(o.id, { v: Number(e.target.value) })}
                     onBlur={(e) => onUpdate(o.id, { v: clampVerticalPosition(Number(e.target.value), vBounds) })}
                     className={inputClass}
@@ -219,26 +118,26 @@ export function OpeningsPanel({ size, openings, onAdd, onUpdate, onRemove }: Ope
                 {typeDef.category === "free" && (
                   <>
                     <label className={labelClass}>
-                      {typeDef.shape === "round" ? "Durchmesser (m)" : "Breite (m)"}
+                      {typeDef.shape === "round" ? "Durchmesser (mm)" : "Breite (mm)"}
                       <input
                         type="number"
-                        step={0.01}
-                        min={typeDef.minSize}
-                        max={typeDef.maxSize}
-                        value={o.width}
+                        step={10}
+                        min={widthMin}
+                        max={widthMax}
+                        value={Math.round(o.width)}
                         onChange={(e) => onUpdate(o.id, { width: Number(e.target.value) })}
                         className={inputClass}
                       />
                     </label>
                     {typeDef.shape === "rect" && (
                       <label className={labelClass}>
-                        Höhe (m)
+                        Höhe (mm)
                         <input
                           type="number"
-                          step={0.01}
-                          min={typeDef.minSize}
-                          max={typeDef.maxSize}
-                          value={o.height}
+                          step={10}
+                          min={heightMin}
+                          max={heightMax}
+                          value={Math.round(o.height)}
                           onChange={(e) => onUpdate(o.id, { height: Number(e.target.value) })}
                           className={inputClass}
                         />

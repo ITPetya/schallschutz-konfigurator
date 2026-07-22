@@ -10,26 +10,32 @@ export interface VerticalBounds {
   impossible: boolean;
 }
 
-// Rundet auf Millimeter (3 Nachkommastellen) - ohne das zeigen Zahlenfelder
-// haessliche Fliesskomma-Artefakte wie "1.4349999999999996" an, sobald mit
-// Werten wie 0.17/2.53 gerechnet wird (0.1+0.2-Problem).
-function roundMm(value: number): number {
-  return Math.round(value * 1000) / 1000;
+// Rundet auf 1/100 mm - ohne das zeigen Zahlenfelder haessliche Fliesskomma-
+// Artefakte an, sobald z. B. eine ungerade Hoehe durch 2 geteilt wird.
+function round(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
-// Berechnet den erlaubten Bereich fuer v (Hoehe des Durchbruch-Mittelpunkts
-// ueber dem Boden), basierend auf minBottomOffset/minTopMargin des Typs -
-// siehe Jonas' Vorgabe 2026-07-22: Tueren muessen mindestens 170mm ueber dem
-// Boden beginnen und duerfen hoechstens bis 150mm unter die Containeroberkante
-// reichen. Typen ohne diese Felder (Gitter/Kabel/Rohr) sind unbeschraenkt
-// (0 bis containerHeight).
+// Berechnet den erlaubten Bereich fuer v, basierend auf minBottomOffset/
+// minTopMargin des Typs (Jonas' Vorgabe 2026-07-22: Tueren mindestens 170mm
+// ueber dem Boden, hoechstens bis 150mm unter die Containeroberkante).
+// WICHTIG: bei Tueren (isDoor) ist v die UNTERKANTE, bei allen anderen
+// Durchbruchsarten die ACHSE/Mitte (Jonas' Vorgabe 2026-07-22, zweite
+// Praezisierung) - deshalb zwei unterschiedliche Formeln. Typen ohne
+// minBottomOffset/minTopMargin (Gitter/Kabel/Rohr) sind unbeschraenkt
+// (0 bis containerHeight, ueber den Achse-Zweig).
 export function verticalBounds(typeDef: OpeningTypeDef, openingHeight: number, containerHeight: number): VerticalBounds {
-  const min = roundMm((typeDef.minBottomOffset ?? 0) + openingHeight / 2);
-  const max = roundMm(containerHeight - (typeDef.minTopMargin ?? 0) - openingHeight / 2);
+  if (typeDef.isDoor) {
+    const min = round(typeDef.minBottomOffset ?? 0);
+    const max = round(containerHeight - (typeDef.minTopMargin ?? 0) - openingHeight);
+    return { min, max, impossible: min > max };
+  }
+  const min = round((typeDef.minBottomOffset ?? 0) + openingHeight / 2);
+  const max = round(containerHeight - (typeDef.minTopMargin ?? 0) - openingHeight / 2);
   return { min, max, impossible: min > max };
 }
 
 export function clampVerticalPosition(v: number, bounds: VerticalBounds): number {
   if (bounds.impossible) return v;
-  return roundMm(Math.min(Math.max(v, bounds.min), bounds.max));
+  return round(Math.min(Math.max(v, bounds.min), bounds.max));
 }

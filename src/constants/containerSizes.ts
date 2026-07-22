@@ -1,19 +1,29 @@
-// Standard-Aussenmasse von ISO-Seecontainern in Metern (Laenge x Breite x Hoehe).
-// Dienen als Startwerte fuer den Schallschutz-Sondercontainer - spaeter frei
-// konfigurierbar, siehe Projektbrief.
-export type ContainerSizeId = "20ft" | "40ft";
-
+// Alle Masse in Millimetern (Jonas' Vorgabe 2026-07-22: "alle Maße sollen
+// immer in mm angegeben werden") - das gilt durchgehend fuer den gesamten
+// Datenmodell-/UI-Layer, nur die 3D-Rendering-Komponenten (Container/Wall/
+// DoorLeaf/Scene) rechnen das intern einmalig auf Meter um (Three.js-
+// Konvention), siehe Container.tsx.
 export interface ContainerSize {
-  id: ContainerSizeId;
-  label: string;
   length: number;
   width: number;
   height: number;
 }
 
-export const CONTAINER_SIZES: Record<ContainerSizeId, ContainerSize> = {
-  "20ft": { id: "20ft", label: "20-Fuß-Container", length: 6.058, width: 2.438, height: 2.591 },
-  "40ft": { id: "40ft", label: "40-Fuß-Container", length: 12.192, width: 2.438, height: 2.591 },
-};
+export interface ContainerSizePreset extends ContainerSize {
+  label: string;
+}
 
-export const DEFAULT_CONTAINER_SIZE: ContainerSizeId = "20ft";
+// Container-Aussenmasse sind jetzt frei editierbar (Jonas' Vorgabe
+// 2026-07-22) - diese drei sind nur noch Vorschlaege zum schnellen
+// Uebernehmen, keine feste Auswahlliste mehr.
+export const CONTAINER_SIZE_PRESETS: ContainerSizePreset[] = [
+  { label: "7000 × 2990 × 2990", length: 7000, width: 2990, height: 2990 },
+  { label: "9600 × 2990 × 2990", length: 9600, width: 2990, height: 2990 },
+  { label: "12000 × 2990 × 2990", length: 12000, width: 2990, height: 2990 },
+];
+
+export const DEFAULT_CONTAINER_SIZE: ContainerSize = { ...CONTAINER_SIZE_PRESETS[0] };
+
+// Wandstaerke ist jetzt ebenfalls frei einstellbar (Jonas' Vorgabe
+// 2026-07-22), Standardwert bleibt 100mm.
+export const DEFAULT_WALL_THICKNESS = 100;

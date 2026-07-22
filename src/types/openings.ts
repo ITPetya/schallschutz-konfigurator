@@ -14,6 +14,8 @@ export type OpeningKind =
   | "door_single_1918"
   | "door_single_2418"
   | "door_double"
+  | "door_custom_single"
+  | "door_custom_double"
   | "vent_weather"
   | "cable"
   | "pipe";
@@ -32,6 +34,14 @@ export interface OpeningTypeDef {
   fixedHeight?: number;
   defaultWidth?: number;
   defaultHeight?: number;
+  // Fuer "frei"-Typen mit UNTERSCHIEDLICHEM Breiten-/Hoehen-Bereich (z. B.
+  // Tueren nach Mass) - wenn gesetzt, haben Vorrang vor minSize/maxSize.
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  // Fallback fuer "frei"-Typen mit EINEM gemeinsamen Bereich fuer beide
+  // Achsen (Kabel-/Rohrdurchführung - Breite/Hoehe bzw. Durchmesser).
   minSize: number;
   maxSize: number;
   // Nur fuer Tueren gesetzt (Jonas' Vorgabe 2026-07-22): Mindestabstand der
@@ -40,8 +50,8 @@ export interface OpeningTypeDef {
   // diese Felder nicht gesetzt = keine Einschraenkung.
   minBottomOffset?: number;
   minTopMargin?: number;
-  // Nur fuer das Wetterschutzgitter gesetzt: baut so viel (in Metern) ueber
-  // die AUSSENseite der Wand hinaus auf (zusaetzlich zum Ausschnitt selbst).
+  // Nur fuer das Wetterschutzgitter gesetzt: baut so viel (in mm) ueber die
+  // AUSSENseite der Wand hinaus auf (zusaetzlich zum Ausschnitt selbst).
   protrusionDepth?: number;
   // Braucht dieser Typ eine DIN-Links/Rechts-Auswahl (nur Einzeltueren)?
   hasHinge?: boolean;
@@ -53,11 +63,11 @@ export interface OpeningTypeDef {
   isDoor?: boolean;
 }
 
-// Ein platzierter Durchbruch. Position ist IMMER der Mittelpunkt des
-// Durchbruchs relativ zum jeweiligen Panel: u/v sind die beiden lokalen
-// Achsen dieses Panels (fuer Seitenwaende: u = seitlich, v = Hoehe ueber dem
-// Boden; fuer Oben/Unten: u/v sind die beiden horizontalen Achsen, siehe
-// OpeningsPanel fuer die konkrete Beschriftung je Panel). Bei "round"
+// Ein platzierter Durchbruch, alle Masse in Millimetern. u ist IMMER der
+// horizontale Versatz von der Panel-Mitte. v ist bei Tueren (isDoor) die
+// Hoehe der UNTERKANTE ueber dem Boden, bei allen anderen Durchbruchsarten
+// die Hoehe der ACHSE/Mitte ueber dem Boden (Jonas' Vorgabe 2026-07-22 - vor
+// dieser Aenderung war v ueberall einheitlich die Mitte). Bei "round"
 // (Rohrdurchführung) ist width der Durchmesser, height wird ignoriert.
 export interface Opening {
   id: string;

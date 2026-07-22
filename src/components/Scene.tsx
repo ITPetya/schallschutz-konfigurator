@@ -9,10 +9,13 @@ import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 
 interface SceneProps {
   size: ContainerSize;
+  wallThickness: number;
   openings: Opening[];
 }
 
 type SectionAxis = "x" | "y" | "z";
+
+const MM_TO_M = 1 / 1000;
 
 // Normalen so gewaehlt, dass ein steigender Schieberegler-Wert die
 // sichtbare Restmenge in eine intuitive Richtung wachsen/schrumpfen laesst
@@ -36,12 +39,19 @@ const SECTION_AXIS_LABELS: Record<SectionAxis, string> = {
 // -X=Norden, +Z=Osten, -Z=Westen, Oben/Unten unveraendert.
 const VIEWCUBE_FACES = ["Süden", "Norden", "Oben", "Unten", "Osten", "Westen"];
 
-export function Scene({ size, openings }: SceneProps) {
-  const cameraDistance = Math.max(size.length, size.width) * 1.6 + 4;
+export function Scene({ size, wallThickness, openings }: SceneProps) {
+  // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
+  // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
+  const lengthM = size.length * MM_TO_M;
+  const widthM = size.width * MM_TO_M;
+  const heightM = size.height * MM_TO_M;
+  const cameraDistance = Math.max(lengthM, widthM) * 1.6 + 4;
 
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [sectionAxis, setSectionAxis] = useState<SectionAxis>("z");
-  const axisRange = useMemo(
+  // Schieberegler-Bereich bleibt in mm (durchgehende Einheit im UI-Layer),
+  // nur beim Bauen der eigentlichen THREE.Plane unten auf Meter umgerechnet.
+  const axisRangeMm = useMemo(
     () => ({
       x: { min: -size.length / 2, max: size.length / 2 },
       y: { min: 0, max: size.height },
@@ -49,16 +59,16 @@ export function Scene({ size, openings }: SceneProps) {
     }),
     [size],
   );
-  const [sectionOffset, setSectionOffset] = useState(0);
+  const [sectionOffsetMm, setSectionOffsetMm] = useState(0);
 
   const sectionPlane = useMemo(() => {
     if (!sectionEnabled) return null;
-    return new THREE.Plane(SECTION_NORMALS[sectionAxis], sectionOffset);
-  }, [sectionEnabled, sectionAxis, sectionOffset]);
+    return new THREE.Plane(SECTION_NORMALS[sectionAxis], sectionOffsetMm * MM_TO_M);
+  }, [sectionEnabled, sectionAxis, sectionOffsetMm]);
 
   function handleAxisChange(axis: SectionAxis) {
     setSectionAxis(axis);
-    setSectionOffset((axisRange[axis].min + axisRange[axis].max) / 2);
+    setSectionOffsetMm((axisRangeMm[axis].min + axisRangeMm[axis].max) / 2);
   }
 
   return (
@@ -77,7 +87,7 @@ export function Scene({ size, openings }: SceneProps) {
           shadow-mapSize={[2048, 2048]}
         />
         <SectionPlaneProvider value={sectionPlane}>
-          <Container size={size} openings={openings} />
+          <Container size={size} wallThickness={wallThickness} openings={openings} />
         </SectionPlaneProvider>
         <Grid
           args={[40, 40]}
@@ -91,7 +101,7 @@ export function Scene({ size, openings }: SceneProps) {
           makeDefault
           minDistance={2}
           maxDistance={40}
-          target={[0, size.height / 2, 0]}
+          target={[0, heightM / 2, 0]}
         />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}
@@ -137,13 +147,14 @@ export function Scene({ size, openings }: SceneProps) {
             </div>
             <input
               type="range"
-              min={axisRange[sectionAxis].min}
-              max={axisRange[sectionAxis].max}
-              step={0.02}
-              value={sectionOffset}
-              onChange={(e) => setSectionOffset(Number(e.target.value))}
+              min={axisRangeMm[sectionAxis].min}
+              max={axisRangeMm[sectionAxis].max}
+              step={10}
+              value={sectionOffsetMm}
+              onChange={(e) => setSectionOffsetMm(Number(e.target.value))}
               className="w-full accent-brand"
             />
+            <p className="text-right text-xs text-slate-500">{Math.round(sectionOffsetMm)} mm</p>
           </div>
         )}
       </div>

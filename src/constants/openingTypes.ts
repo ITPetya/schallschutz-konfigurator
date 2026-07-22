@@ -1,10 +1,5 @@
 import type { OpeningKind, OpeningTypeDef, PanelId } from "../types/openings";
 
-// Wandstaerke des Sondercontainers - deutlich dicker als ein normaler
-// Seecontainer (~2mm Stahlblech), weil es ein SCHALLSCHUTZ-Container ist
-// (gedaemmtes Paneel). Reiner Platzhalterwert fuer diese Ausbaustufe.
-export const WALL_THICKNESS = 0.1;
-
 // Himmelsrichtungen (Jonas' Vorgabe 2026-07-22, Norden = kleine Stirnflaeche)
 // + Oben/Unten unveraendert. Alle sechs sind gueltige Durchbruch-Ziele.
 export const PANEL_LABELS: Record<PanelId, string> = {
@@ -16,22 +11,23 @@ export const PANEL_LABELS: Record<PanelId, string> = {
   bottom: "Unten",
 };
 
-// Alle Masse in Metern. Tuer-Masse (2026-07-22, Jonas' Vorgabe) sind LICHTE
-// Durchgangsmasse (fertige nutzbare Oeffnung) - der tatsaechliche Wandausschnitt
-// muesste in Wirklichkeit etwas groesser sein (Zargenzuschlag), das ist hier
-// noch NICHT beruecksichtigt (kein Zuschlagswert vorgegeben) - siehe README.
+// Alle Masse in MILLIMETERN (Jonas' Vorgabe 2026-07-22). Tuer-Masse der
+// Standardtueren sind LICHTE Durchgangsmasse (fertige nutzbare Oeffnung) -
+// der tatsaechliche Wandausschnitt muesste in Wirklichkeit etwas groesser
+// sein (Zargenzuschlag), das ist hier noch NICHT beruecksichtigt (kein
+// Zuschlagswert vorgegeben) - siehe README.
 export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
   door_single_1918: {
     kind: "door_single_1918",
     label: "Einzeltür 904 × 1918",
     category: "standard",
     shape: "rect",
-    fixedWidth: 0.904,
-    fixedHeight: 1.918,
+    fixedWidth: 904,
+    fixedHeight: 1918,
     minSize: 0,
     maxSize: 0,
-    minBottomOffset: 0.17,
-    minTopMargin: 0.15,
+    minBottomOffset: 170,
+    minTopMargin: 150,
     hasHinge: true,
     verticalOnly: true,
     isDoor: true,
@@ -41,12 +37,12 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     label: "Einzeltür 904 × 2418",
     category: "standard",
     shape: "rect",
-    fixedWidth: 0.904,
-    fixedHeight: 2.418,
+    fixedWidth: 904,
+    fixedHeight: 2418,
     minSize: 0,
     maxSize: 0,
-    minBottomOffset: 0.17,
-    minTopMargin: 0.15,
+    minBottomOffset: 170,
+    minTopMargin: 150,
     hasHinge: true,
     verticalOnly: true,
     isDoor: true,
@@ -56,12 +52,49 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     label: "Doppelflügeltür 2234 × 2530",
     category: "standard",
     shape: "rect",
-    fixedWidth: 2.234,
-    fixedHeight: 2.53,
+    fixedWidth: 2234,
+    fixedHeight: 2530,
     minSize: 0,
     maxSize: 0,
-    minBottomOffset: 0.17,
-    minTopMargin: 0.15,
+    minBottomOffset: 170,
+    minTopMargin: 150,
+    verticalOnly: true,
+    isDoor: true,
+  },
+  door_custom_single: {
+    kind: "door_custom_single",
+    label: "Einzeltür (frei nach Maß)",
+    category: "free",
+    shape: "rect",
+    defaultWidth: 904,
+    defaultHeight: 1918,
+    minWidth: 700,
+    maxWidth: 1200,
+    minHeight: 1900,
+    maxHeight: 2600,
+    minSize: 0,
+    maxSize: 0,
+    minBottomOffset: 170,
+    minTopMargin: 150,
+    hasHinge: true,
+    verticalOnly: true,
+    isDoor: true,
+  },
+  door_custom_double: {
+    kind: "door_custom_double",
+    label: "Doppelflügeltür (frei nach Maß)",
+    category: "free",
+    shape: "rect",
+    defaultWidth: 2234,
+    defaultHeight: 2530,
+    minWidth: 1600,
+    maxWidth: 3200,
+    minHeight: 1900,
+    maxHeight: 2700,
+    minSize: 0,
+    maxSize: 0,
+    minBottomOffset: 170,
+    minTopMargin: 150,
     verticalOnly: true,
     isDoor: true,
   },
@@ -70,30 +103,30 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     label: "Wetterschutzgitter 411 × 411",
     category: "standard",
     shape: "rect",
-    fixedWidth: 0.411,
-    fixedHeight: 0.411,
+    fixedWidth: 411,
+    fixedHeight: 411,
     minSize: 0,
     maxSize: 0,
-    protrusionDepth: 0.012,
+    protrusionDepth: 12,
   },
   cable: {
     kind: "cable",
     label: "Kabeldurchführung",
     category: "free",
     shape: "rect",
-    defaultWidth: 0.1,
-    defaultHeight: 0.1,
-    minSize: 0.03,
-    maxSize: 0.4,
+    defaultWidth: 100,
+    defaultHeight: 100,
+    minSize: 30,
+    maxSize: 400,
   },
   pipe: {
     kind: "pipe",
     label: "Rohrdurchführung",
     category: "free",
     shape: "round",
-    defaultWidth: 0.1,
-    defaultHeight: 0.1,
-    minSize: 0.05,
-    maxSize: 0.5,
+    defaultWidth: 100,
+    defaultHeight: 100,
+    minSize: 50,
+    maxSize: 500,
   },
 };

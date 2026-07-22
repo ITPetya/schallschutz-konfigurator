@@ -1,10 +1,11 @@
 import type { ContainerSize } from "../constants/containerSizes";
-import { WALL_THICKNESS } from "../constants/openingTypes";
+import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { Wall } from "./Wall";
 
 interface ContainerProps {
   size: ContainerSize;
+  wallThickness: number;
   openings: Opening[];
 }
 
@@ -12,6 +13,8 @@ interface ContainerProps {
 // Sondercontainer (siehe lc.systems-Referenzbilder) sind lackierte
 // Stahlpaneele, keine Marken-Buntfarbe.
 const WALL_COLOR = "#d7dade";
+
+const MM_TO_M = 1 / 1000;
 
 // Container als hohle Schale aus 6 einzeln schneidbaren Panels (vier
 // Seitenwaende + Dach + Boden - Jonas' Vorgabe 2026-07-22: auch oben/unten
@@ -24,11 +27,34 @@ const WALL_COLOR = "#d7dade";
 // damit die Dicke lokal weiterhin auf lokal-Z liegt, aber nach der Rotation
 // tatsaechlich VERTIKAL (Welt-Y) zeigt - siehe Wall.tsx-Kommentar zu
 // outwardSign fuer die Herleitung, welches Vorzeichen dabei "aussen" ist.
-export function Container({ size, openings }: ContainerProps) {
-  const { length: L, width: W, height: H } = size;
-  const t = WALL_THICKNESS;
+//
+// EINHEITEN: size/wallThickness/openings kommen komplett in MILLIMETERN an
+// (Jonas' Vorgabe 2026-07-22, gilt fuers gesamte Datenmodell/UI) - hier,
+// zentral an EINER Stelle, auf Meter umgerechnet (Three.js-Konvention),
+// damit Wall/DoorLeaf unveraendert in Metern weiterrechnen koennen. Bei
+// dieser Gelegenheit wird fuer Tueren auch v (Unterkante ueber Boden, siehe
+// types/openings.ts) in die fuer Wall/DoorLeaf erwartete Mitte umgerechnet -
+// beide Konzepte (Einheit + Bezugspunkt) an derselben Stelle aufgeloest,
+// damit Wall.tsx/DoorLeaf.tsx von beidem nichts wissen muessen.
+export function Container({ size, wallThickness, openings }: ContainerProps) {
+  const L = size.length * MM_TO_M;
+  const W = size.width * MM_TO_M;
+  const H = size.height * MM_TO_M;
+  const t = wallThickness * MM_TO_M;
 
-  const openingsFor = (panel: PanelId) => openings.filter((o) => o.panel === panel);
+  const openingsM = openings.map((o) => {
+    const typeDef = OPENING_TYPES[o.kind];
+    const vBottomOrCenterMm = typeDef.isDoor ? o.v + o.height / 2 : o.v;
+    return {
+      ...o,
+      u: o.u * MM_TO_M,
+      v: vBottomOrCenterMm * MM_TO_M,
+      width: o.width * MM_TO_M,
+      height: o.height * MM_TO_M,
+    };
+  });
+
+  const openingsFor = (panel: PanelId) => openingsM.filter((o) => o.panel === panel);
 
   return (
     <group>

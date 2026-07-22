@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { Scene } from "./components/Scene";
 import { OpeningsPanel } from "./components/OpeningsPanel";
-import { CONTAINER_SIZES, DEFAULT_CONTAINER_SIZE, type ContainerSizeId } from "./constants/containerSizes";
+import { AddOpeningPopup } from "./components/AddOpeningPopup";
+import { ContainerSizeControls } from "./components/ContainerSizeControls";
+import { DEFAULT_CONTAINER_SIZE, DEFAULT_WALL_THICKNESS, type ContainerSize } from "./constants/containerSizes";
 import type { Opening } from "./types/openings";
 
 function App() {
-  const [sizeId, setSizeId] = useState<ContainerSizeId>(DEFAULT_CONTAINER_SIZE);
+  const [size, setSize] = useState<ContainerSize>(DEFAULT_CONTAINER_SIZE);
+  const [wallThickness, setWallThickness] = useState(DEFAULT_WALL_THICKNESS);
   const [openings, setOpenings] = useState<Opening[]>([]);
-  const size = CONTAINER_SIZES[sizeId];
+  const [showAddPopup, setShowAddPopup] = useState(false);
 
   function handleAdd(opening: Opening) {
     setOpenings((prev) => [...prev, opening]);
@@ -28,17 +31,12 @@ function App() {
         <h1 className="font-heading text-lg font-bold uppercase tracking-wide text-brand-dark">
           Schallschutz-Sondercontainer <span className="text-brand-light">–</span> 3D-Konfigurator
         </h1>
-        <select
-          value={sizeId}
-          onChange={(e) => setSizeId(e.target.value as ContainerSizeId)}
-          className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-sm text-ink shadow-sm"
-        >
-          {Object.values(CONTAINER_SIZES).map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <ContainerSizeControls
+          size={size}
+          wallThickness={wallThickness}
+          onSizeChange={setSize}
+          onWallThicknessChange={setWallThickness}
+        />
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -50,9 +48,9 @@ function App() {
           <OpeningsPanel
             size={size}
             openings={openings}
-            onAdd={handleAdd}
             onUpdate={handleUpdate}
             onRemove={handleRemove}
+            onOpenAdd={() => setShowAddPopup(true)}
           />
         </aside>
 
@@ -63,7 +61,10 @@ function App() {
             Resize eine intrinsische Groesse, die genau diesen Bug ausloest
             (Fenster verkleinern nach vorherigem Vergroessern haengt fest). */}
         <main className="relative min-h-0 min-w-0 flex-1">
-          <Scene size={size} openings={openings} />
+          <Scene size={size} wallThickness={wallThickness} openings={openings} />
+          {showAddPopup && (
+            <AddOpeningPopup size={size} onAdd={handleAdd} onClose={() => setShowAddPopup(false)} />
+          )}
         </main>
       </div>
     </div>
