@@ -18,6 +18,10 @@ interface SceneProps {
   background: BackgroundStyle;
   insideColor: string;
   outsideColor: string;
+  // Jonas' Vorgabe 2026-07-24: Schatten abschaltbar. Steuert direkt
+  // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
+  // Renderers global, kein Umweg ueber einzelne Mesh-Props noetig.
+  shadowsEnabled: boolean;
 }
 
 type SectionAxis = "x" | "y" | "z";
@@ -50,7 +54,16 @@ const SECTION_AXIS_LABELS: Record<SectionAxis, string> = {
 // Westen), Oben/Unten unveraendert.
 const VIEWCUBE_FACES = ["Vorne", "Hinten", "Oben", "Unten", "Links", "Rechts"];
 
-export function Scene({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor }: SceneProps) {
+export function Scene({
+  size,
+  wallThickness,
+  openings,
+  viewStyle,
+  background,
+  insideColor,
+  outsideColor,
+  shadowsEnabled,
+}: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
   const lengthM = size.length * MM_TO_M;
@@ -94,7 +107,7 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
   return (
     <div className="relative h-full w-full">
       <Canvas
-        shadows
+        shadows={shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
       >
@@ -103,7 +116,7 @@ export function Scene({ size, wallThickness, openings, viewStyle, background, in
         <directionalLight
           position={[10, 12, 6]}
           intensity={1.2}
-          castShadow
+          castShadow={shadowsEnabled}
           shadow-mapSize={[2048, 2048]}
         />
         <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor }}>

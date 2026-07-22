@@ -39,6 +39,7 @@ function defaultConfig(): ContainerConfig {
     // RAL 7004 Signalgrau.
     insideColor: RAL_STANDARD_COLORS[1].hex,
     outsideColor: RAL_STANDARD_COLORS[1].hex,
+    shadowsEnabled: true,
   };
 }
 
@@ -69,6 +70,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   const [background, setBackground] = useState<BackgroundStyle>(seed.background);
   const [outsideColor, setOutsideColor] = useState(seed.outsideColor);
   const [insideColor, setInsideColor] = useState(seed.insideColor);
+  const [shadowsEnabled, setShadowsEnabled] = useState(seed.shadowsEnabled ?? true);
 
   const [fileName, setFileName] = useState("Container-Konfiguration");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -87,8 +89,8 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   // 2026-07-23) - unabhaengig vom manuellen "Speichern"-Dateidownload.
   useEffect(() => {
     if (mode !== "edit") return;
-    saveDraft({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor });
-  }, [mode, size, wallThickness, openings, viewStyle, background, insideColor, outsideColor]);
+    saveDraft({ size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled });
+  }, [mode, size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled]);
 
   function handleAdd(opening: Opening) {
     setOpenings((prev) => [...prev, opening]);
@@ -103,7 +105,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   }
 
   function currentConfig(): ContainerConfig {
-    return { size, wallThickness, openings, viewStyle, background, insideColor, outsideColor };
+    return { size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled };
   }
 
   function flashStatus(message: string) {
@@ -215,6 +217,8 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                   onInsideColorChange={setInsideColor}
                   outsideColor={outsideColor}
                   onOutsideColorChange={setOutsideColor}
+                  shadowsEnabled={shadowsEnabled}
+                  onShadowsEnabledChange={setShadowsEnabled}
                 />
               </AccordionSection>
 
@@ -281,6 +285,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             background={background}
             insideColor={insideColor}
             outsideColor={outsideColor}
+            shadowsEnabled={shadowsEnabled}
           />
           {!readOnly && showAddPopup && (
             <AddOpeningPopup size={size} onAdd={handleAdd} onClose={() => setShowAddPopup(false)} />

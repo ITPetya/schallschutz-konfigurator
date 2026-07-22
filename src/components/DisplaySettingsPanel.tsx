@@ -11,6 +11,8 @@ interface DisplaySettingsPanelProps {
   onInsideColorChange: (hex: string) => void;
   outsideColor: string;
   onOutsideColorChange: (hex: string) => void;
+  shadowsEnabled: boolean;
+  onShadowsEnabledChange: (v: boolean) => void;
 }
 
 const toggleBtn = (active: boolean) =>
@@ -25,6 +27,8 @@ export function DisplaySettingsPanel({
   onInsideColorChange,
   outsideColor,
   onOutsideColorChange,
+  shadowsEnabled,
+  onShadowsEnabledChange,
 }: DisplaySettingsPanelProps) {
   return (
     <div className="space-y-4 text-sm">
@@ -42,6 +46,15 @@ export function DisplaySettingsPanel({
             Schattiert mit Kanten
           </button>
         </div>
+        {/* Jonas' Vorgabe 2026-07-24: Schatten abschaltbar machen. */}
+        <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={shadowsEnabled}
+            onChange={(e) => onShadowsEnabledChange(e.target.checked)}
+          />
+          Schatten anzeigen
+        </label>
       </div>
 
       <div>

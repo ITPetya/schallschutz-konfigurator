@@ -14,4 +14,8 @@ export interface ContainerConfig {
   background: BackgroundStyle;
   insideColor: string;
   outsideColor: string;
+  // Optional (Jonas' Vorgabe 2026-07-24, nachtraeglich hinzugefuegt) - vor
+  // dieser Datei gespeicherte .sszkonfig-Dateien haben das Feld nicht,
+  // KonfiguratorPage faellt dann auf true zurueck.
+  shadowsEnabled?: boolean;
 }

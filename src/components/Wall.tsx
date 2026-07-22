@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
@@ -100,7 +101,18 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
     }
 
-    return splitByOutward(result.geometry, outwardSign);
+    // Fund zu Jonas' Fehlerbericht 2026-07-24 ("komische diagonale Linien in
+    // den Flaechen bei Schattiert mit Kanten"): three-bvh-csg's Boolean-
+    // Ergebnis laesst am Rand des Ausschnitts oft unverschweisste
+    // Duplikat-Vertices auf der eigentlich flachen Restflaeche zurueck.
+    // THREE.EdgesGeometry (in <Edges> unten) zeichnet JEDE Kante, die nur zu
+    // EINEM Dreieck gehoert, unabhaengig vom Winkel-Schwellwert - genau
+    // dieser "nur ein Dreieck sieht diese Kante"-Fall tritt durch die
+    // Duplikate an inneren, eigentlich geteilten Naht-Kanten auf. mergeVertices
+    // verschweisst positionsgleiche Vertices MIT gleichem Normalenvektor
+    // (also echte flache Naehte), laesst aber echte harte Kanten (andere
+    // Normale trotz gleicher Position, z. B. am Ausschnitt-Rand) unangetastet.
+    return splitByOutward(mergeVertices(result.geometry), outwardSign);
   }, [panelWidth, panelHeight, thickness, openings, outwardSign]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
