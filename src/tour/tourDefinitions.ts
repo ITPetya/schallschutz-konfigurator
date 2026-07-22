@@ -1,9 +1,9 @@
 import type { Role } from "../auth/types";
 import type { Tour } from "./types";
 
-// Vier Tutorials (Jonas' Vorgabe 2026-07-22): Konfigurator unangemeldet,
-// sowie je einmal "erste Anmeldung" fuer Kunde/Konstrukteur/Admin. Zeigt auf
-// echte UI-Elemente ueber data-tour-Attribute, siehe TourOverlay.tsx.
+// Tutorials (Jonas' Vorgabe 2026-07-22): Konfigurator unangemeldet, sowie je
+// einmal "erste Anmeldung" fuer Kunde/Konstrukteur/Admin/Verkaeufer. Zeigt
+// auf echte UI-Elemente ueber data-tour-Attribute, siehe TourOverlay.tsx.
 export const TOURS: Record<string, Tour> = {
   "configurator-guest": {
     id: "configurator-guest",
@@ -136,11 +136,30 @@ export const TOURS: Record<string, Tour> = {
       },
     ],
   },
+  "verkaeufer-first-login": {
+    id: "verkaeufer-first-login",
+    steps: [
+      {
+        selector: '[data-tour="menu-button"]',
+        title: "Menü",
+        body: "Willkommen! Über dieses Menü erreichst du alle Kundenprojekte.",
+        placement: "bottom",
+      },
+      {
+        selector: '[data-tour="menu-item-verkaeufer-projekte"]',
+        forceMenuOpen: true,
+        title: "Kundenprojekte",
+        body: "Hier siehst du alle konfigurierten Kundenprojekte – angefragt oder nur gespeichert – inklusive Kontaktdaten. So erkennst du Leads, die seit einer Weile nicht mehr weiterbearbeitet wurden.",
+        placement: "bottom",
+      },
+    ],
+  },
 };
 
 export function firstLoginTourIdForRole(role: Role): string {
   if (role === "admin") return "admin-first-login";
   if (role === "konstrukteur") return "konstrukteur-first-login";
+  if (role === "verkaeufer") return "verkaeufer-first-login";
   return "kunde-first-login";
 }
 

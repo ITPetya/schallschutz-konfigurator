@@ -6,6 +6,7 @@ import { AuthPopover } from "./AuthPopover";
 import { useTour } from "../tour/TourContext";
 import { helpTourIdFor } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
+import { NotificationBell } from "./NotificationBell";
 
 // Oben links: Menu-Button zurueck zur Hauptseite, sobald eingeloggt zusaetzlich
 // die rollenspezifischen Seiten (Jonas' Vorgabe 2026-07-22: "der button soll
@@ -65,6 +66,11 @@ export function AppShell() {
                         Zugeteilte Projekte
                       </MenuItem>
                     )}
+                    {user.role === "verkaeufer" && (
+                      <MenuItem tourId="menu-item-verkaeufer-projekte" onClick={() => go("/verkauf/projekte")}>
+                        Kundenprojekte
+                      </MenuItem>
+                    )}
                     {user.role === "admin" && (
                       <>
                         <div className="my-1 border-t border-slate-200" />
@@ -101,6 +107,7 @@ export function AppShell() {
           >
             ?
           </button>
+          <NotificationBell />
           <div className="relative">
             <button
               type="button"

@@ -12,6 +12,7 @@ import { KonstrukteurViewerPage } from "./pages/KonstrukteurViewerPage";
 import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminEmployeesPage } from "./pages/AdminEmployeesPage";
 import { AdminStandardsPage } from "./pages/AdminStandardsPage";
+import { VerkaeuferProjectsPage } from "./pages/VerkaeuferProjectsPage";
 
 // 3 Rollenbereiche (Jonas' Vorgabe 2026-07-22: Kunde/Konstrukteur/Admin) -
 // reines Mock-Grundgeruest, siehe auth/mockAuthStore.ts und
@@ -40,6 +41,14 @@ function App() {
                   element={
                     <RequireRole roles={["konstrukteur"]}>
                       <KonstrukteurViewerPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/verkauf/projekte"
+                  element={
+                    <RequireRole roles={["verkaeufer"]}>
+                      <VerkaeuferProjectsPage />
                     </RequireRole>
                   }
                 />

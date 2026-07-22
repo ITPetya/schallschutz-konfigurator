@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import type { User } from "./types";
+import type { CustomerRegistrationInput, User } from "./types";
 import * as store from "./mockAuthStore";
 
 interface AuthContextValue {
@@ -10,7 +10,9 @@ interface AuthContextValue {
   // 2026-07-22: Tutorials).
   login: (email: string, password: string) => User | null;
   logout: () => void;
-  register: (email: string, name: string, password: string) => User | string; // User bei Erfolg, sonst Fehlermeldung
+  // Nur fuer Kunden-Selbstregistrierung (Jonas' Vorgabe 2026-07-23) - User bei
+  // Erfolg, sonst Fehlermeldung.
+  register: (data: CustomerRegistrationInput) => User | string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,8 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  function register(email: string, name: string, password: string) {
-    const result = store.register(email, name, password);
+  function register(data: CustomerRegistrationInput) {
+    const result = store.register(data);
     if ("error" in result) return result.error;
     setUser(result);
     return result;
