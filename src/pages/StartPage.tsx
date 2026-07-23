@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { decodeConfig } from "../config/configFileCodec";
+import { decodeConfig, CONFIG_FILE_EXTENSION } from "../config/configFileCodec";
+import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
+
+type StartMode = "single" | "project";
 
 // Zentrierter Startbildschirm: "Konfiguration starten" + "Konfiguration
 // laden" (Jonas' Vorgabe 2026-07-23 - kein Login mehr, stattdessen laedt man
@@ -12,17 +15,40 @@ export function StartPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // Jonas' Vorgabe 2026-07-25: kein eigener "Baugruppen-Projekt"-Link mehr
+  // (seit dem Workspace-Merge sind Einzel/Ensemble nur noch der Startmodus
+  // EINER Seite, siehe WorkspacePage.tsx) - stattdessen waehlt man den Modus
+  // direkt am "Konfiguration starten"-Button ueber den kleinen runden
+  // Umschalt-Button (gleiche Bildsprache wie "Richtung wechseln" bei
+  // Schnitt, siehe Scene.tsx).
+  const [startMode, setStartMode] = useState<StartMode>("single");
 
+  // "Konfiguration laden" akzeptiert jetzt beide Dateiformate (Jonas'
+  // Vorgabe 2026-07-25: "soll natürlich für einzelne Container als auch
+  // Baugruppen gehen") - unterscheidet anhand der Dateiendung, welcher
+  // Decoder und welche Route (Einzel-/Ensemble-Modus derselben
+  // WorkspacePage) zum Einsatz kommt.
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // erlaubt erneutes Auswaehlen derselben Datei
     if (!file) return;
+    const isProject = file.name.endsWith(PROJECT_FILE_EXTENSION);
     try {
-      const config = await decodeConfig(file);
-      setError(null);
-      navigate("/konfigurator", { state: { config } });
+      if (isProject) {
+        const project = await decodeProject(file);
+        setError(null);
+        navigate("/projekt", { state: { project } });
+      } else {
+        const config = await decodeConfig(file);
+        setError(null);
+        navigate("/konfigurator", { state: { config } });
+      }
     } catch {
-      setError("Datei konnte nicht geladen werden – ist es eine gültige Konfigurationsdatei (.sszkonfig)?");
+      setError(
+        isProject
+          ? "Datei konnte nicht geladen werden – ist es eine gültige Projektdatei (.sszprojekt)?"
+          : "Datei konnte nicht geladen werden – ist es eine gültige Konfigurationsdatei (.sszkonfig)?",
+      );
     }
   }
 
@@ -53,14 +79,31 @@ export function StartPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <AnimatedButton
-          type="button"
-          onClick={() => navigate("/konfigurator")}
-          className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-        >
-          Konfiguration starten
-          <ArrowRightIcon size={18} />
-        </AnimatedButton>
+        {/* Zusammengesetzter Button: linker (groesserer) Teil startet direkt
+            im aktuell gewaehlten Modus, der rechte runde Teil schaltet
+            zwischen "Einzel" und "Ensemble" um (Jonas' Vorgabe 2026-07-25:
+            "nicht so praegnant Einzel oder Ensemble ueber einen runden
+            Button im Button mit einem Pfeil, wie bei Schnitt der Pfeil").
+            Beide Haelften bilden zusammen EINE Kapselform ohne Luecke. */}
+        <div className="flex items-stretch">
+          <AnimatedButton
+            type="button"
+            onClick={() => navigate(startMode === "single" ? "/konfigurator" : "/projekt")}
+            className="flex items-center justify-center gap-2 rounded-l-full bg-brand py-3 pl-8 pr-4 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+          >
+            Konfiguration starten
+            <ArrowRightIcon size={18} />
+          </AnimatedButton>
+          <AnimatedButton
+            type="button"
+            onClick={() => setStartMode((m) => (m === "single" ? "project" : "single"))}
+            aria-label="Zwischen Einzel- und Ensemble-Start wechseln"
+            className="flex items-center gap-1.5 rounded-r-full border-l border-white/25 bg-brand py-3 pl-3 pr-5 text-xs font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+          >
+            {startMode === "single" ? "Einzel" : "Ensemble"}
+            <SwapIcon />
+          </AnimatedButton>
+        </div>
         <AnimatedButton
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -69,21 +112,25 @@ export function StartPage() {
           <UploadIcon size={18} />
           Konfiguration laden
         </AnimatedButton>
-        <input ref={fileInputRef} type="file" accept=".sszkonfig" onChange={handleFileSelected} className="hidden" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={`${CONFIG_FILE_EXTENSION},${PROJECT_FILE_EXTENSION}`}
+          onChange={handleFileSelected}
+          className="hidden"
+        />
       </div>
       {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}
-
-      {/* Baugruppen-Feature (Nacht-Session 2026-07-23): bewusst als
-          unauffaelliger Textlink statt gleichwertiger dritter Haupt-Button -
-          neu und noch nicht so ausgereift wie der Einzelcontainer-
-          Konfigurator, soll den nicht optisch verdraengen. */}
-      <button
-        type="button"
-        onClick={() => navigate("/projekt")}
-        className="text-sm font-medium text-slate-500 underline decoration-slate-300 hover:text-brand"
-      >
-        Baugruppen-Projekt (mehrere Container) starten
-      </button>
     </div>
+  );
+}
+
+// Gleiches Icon wie "Richtung wechseln" bei Schnitt (Scene.tsx) - bewusst
+// dieselbe Bildsprache fuer "hier kann man etwas umschalten".
+function SwapIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M7 7h11l-3-3M17 17H6l3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

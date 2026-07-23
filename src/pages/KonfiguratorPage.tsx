@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Scene } from "../components/Scene";
 import { OpeningsSummary } from "../components/OpeningsSummary";
 import { AccordionSection } from "../components/AccordionSection";
+import { AnimatedButton } from "../components/AnimatedButton";
+import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
@@ -15,13 +17,20 @@ interface KonfiguratorPageProps {
   // Details wo was ist"), deshalb kein "mode"-Prop/editierbarer Zweig mehr.
   initialConfig: ContainerConfig;
   projectName?: string;
+  // Gesetzt, wenn dieser Container aus einer Baugruppe heraus geoeffnet
+  // wurde (Jonas' Vorgabe 2026-07-25: "man soll auch die einzelnen
+  // Container aus den Baugruppen öffnen können" im Konstrukteur-Viewer) -
+  // zeigt einen Zurueck-Link statt einer zweiten Kopfzeile, siehe
+  // "Zurück zur Baugruppe" in WorkspacePage.tsx fuer denselben Stil.
+  onBack?: () => void;
+  backLabel?: string;
 }
 
 // Reiner schreibgeschuetzter Detail-Viewer fuer eine geladene .sszkonfig
 // (siehe InternalPage.tsx) - zeigt Groesse, Farben und Einbauten als reine
 // Auflistung statt editierbarer Felder, ohne eigene Speicher-/Reset-/
 // Moduswechsel-Logik (die gibt es nur im editierbaren WorkspacePage.tsx).
-export function KonfiguratorPage({ initialConfig, projectName }: KonfiguratorPageProps) {
+export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel }: KonfiguratorPageProps) {
   const config = initialConfig;
 
   const [size] = useState<ContainerSize>(config.size);
@@ -48,6 +57,16 @@ export function KonfiguratorPage({ initialConfig, projectName }: KonfiguratorPag
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
           <div className="flex-1 overflow-y-auto px-4 py-4">
+            {onBack && (
+              <AnimatedButton
+                type="button"
+                onClick={onBack}
+                className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+              >
+                <ArrowLeftIcon size={16} />
+                {backLabel ?? "Zurück"}
+              </AnimatedButton>
+            )}
             {projectName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{projectName}</p>}
             <AccordionSection title="Grundeinstellungen" defaultOpen>
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">

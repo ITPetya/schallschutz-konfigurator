@@ -9,6 +9,7 @@ import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
+import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
@@ -130,8 +131,14 @@ interface DragState {
 // konfigurierte Container ... darein geladen werden").
 export function WorkspacePage() {
   const location = useLocation();
-  const routeState = location.state as { config?: ContainerConfig } | null;
+  // "project" hier zusaetzlich zu "config" (Jonas' Vorgabe 2026-07-25:
+  // "Konfiguration laden soll natürlich für einzelne Container als auch
+  // Baugruppen gehen") - StartPage.tsx erkennt anhand der Dateiendung, ob
+  // eine .sszkonfig- oder .sszprojekt-Datei geladen wurde, und uebergibt
+  // entsprechend "config" ODER "project" ueber location.state.
+  const routeState = location.state as { config?: ContainerConfig; project?: ProjectConfig } | null;
   const routeConfig = routeState?.config;
+  const routeProject = routeState?.project;
   const draftConfig = loadDraft();
   const seed = routeConfig ?? draftConfig ?? defaultConfig();
 
@@ -162,7 +169,7 @@ export function WorkspacePage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // ---------- Baugruppen-Zustand ----------
-  const [project, setProject] = useState<ProjectConfig>(() => loadProjectDraft() ?? emptyProject());
+  const [project, setProject] = useState<ProjectConfig>(() => routeProject ?? loadProjectDraft() ?? emptyProject());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragValid, setDragValid] = useState(true);
@@ -176,6 +183,34 @@ export function WorkspacePage() {
   const [alignError, setAlignError] = useState<string | null>(null);
   const [showResetProjectConfirm, setShowResetProjectConfirm] = useState(false);
   const workspaceDragRef = useRef<DragState | null>(null);
+
+  // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
+  // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
+  // aufploppen, welches ein paar Grundeinstellungen abfragt") - erscheint
+  // NICHT, wenn eine konkrete Datei geladen wurde (routeConfig) oder bereits
+  // eine SINNVOLLE (nicht-leere/nicht-Standard) Konfiguration im Cache liegt
+  // ("Das Fenster soll nicht kommen, wenn man noch ein Projekt im Cache
+  // hat") - sonst wuerde man bei jedem Neuladen wieder gefragt, obwohl schon
+  // gearbeitet wurde.
+  const [showGrundeinstellungen, setShowGrundeinstellungen] = useState(() => {
+    if (routeConfig || routeProject) return false;
+    if (location.pathname === "/projekt") {
+      const projectDraft = loadProjectDraft();
+      return !projectDraft || projectDraft.instances.length === 0;
+    }
+    return !draftConfig || JSON.stringify(draftConfig) === JSON.stringify(defaultConfig());
+  });
+
+  function handleGrundeinstellungenSubmit(result: GrundeinstellungenResult) {
+    if (mode === "project") {
+      setProject((p) => ({ ...p, name: result.name }));
+    } else {
+      setFileName(result.name);
+      if (result.size) setSize(result.size);
+      if (result.outsideColor) setOutsideColor(result.outsideColor);
+    }
+    setShowGrundeinstellungen(false);
+  }
 
   const { start: startTour } = useTour();
   useEffect(() => {
@@ -253,6 +288,125 @@ export function WorkspacePage() {
     setOutsideNotes(config.outsideNotes ?? "");
     setInsideNotes(config.insideNotes ?? "");
   }
+
+  // ---------- Rückgängig/Wiederholen (Jonas' Vorgabe 2026-07-25: "vor und
+  // zurück Buttons ... für Strg+Z usw.") ----------
+  // Ein Verlaufseintrag pro "Aenderungs-Burst" statt pro Tastendruck/Drag-
+  // Schritt: die Effekte unten schreiben den Snapshot VOR der Aenderung erst
+  // nach einer kurzen Ruhephase (DEBOUNCE_MS) auf den Undo-Stack, sodass
+  // z. B. das Tippen einer ganzen Zahl oder ein komplettes Ziehen EIN
+  // Rueckgaengig-Schritt ist statt vieler winziger. skipHistory* unterdrueckt
+  // das erneute Aufzeichnen der eigenen Undo/Redo-Anwendung.
+  const DEBOUNCE_MS = 600;
+  const HISTORY_LIMIT = 50;
+
+  const [singleUndoStack, setSingleUndoStack] = useState<ContainerConfig[]>([]);
+  const [singleRedoStack, setSingleRedoStack] = useState<ContainerConfig[]>([]);
+  const singleSkipHistoryRef = useRef(false);
+  const singleLastSnapshotRef = useRef<string | null>(null);
+  const singleHistoryTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const json = JSON.stringify(currentSingleConfig());
+    if (singleSkipHistoryRef.current) {
+      singleSkipHistoryRef.current = false;
+      singleLastSnapshotRef.current = json;
+      return;
+    }
+    if (singleLastSnapshotRef.current === json) return;
+    const previousJson = singleLastSnapshotRef.current;
+    singleLastSnapshotRef.current = json;
+    if (previousJson === null) return; // erster Aufruf, noch kein "davor"
+    if (singleHistoryTimerRef.current) window.clearTimeout(singleHistoryTimerRef.current);
+    singleHistoryTimerRef.current = window.setTimeout(() => {
+      setSingleUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
+      setSingleRedoStack([]);
+    }, DEBOUNCE_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled, terrainDetail, insideUnpainted, outsideNotes, insideNotes]);
+
+  function handleUndoSingle() {
+    if (singleUndoStack.length === 0) return;
+    const prev = singleUndoStack[singleUndoStack.length - 1];
+    setSingleUndoStack((s) => s.slice(0, -1));
+    setSingleRedoStack((s) => [...s, currentSingleConfig()]);
+    singleSkipHistoryRef.current = true;
+    loadSingleConfig(prev);
+  }
+
+  function handleRedoSingle() {
+    if (singleRedoStack.length === 0) return;
+    const next = singleRedoStack[singleRedoStack.length - 1];
+    setSingleRedoStack((s) => s.slice(0, -1));
+    setSingleUndoStack((s) => [...s, currentSingleConfig()]);
+    singleSkipHistoryRef.current = true;
+    loadSingleConfig(next);
+  }
+
+  const [projectUndoStack, setProjectUndoStack] = useState<ProjectConfig[]>([]);
+  const [projectRedoStack, setProjectRedoStack] = useState<ProjectConfig[]>([]);
+  const projectSkipHistoryRef = useRef(false);
+  const projectLastSnapshotRef = useRef<string | null>(null);
+  const projectHistoryTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const json = JSON.stringify(project);
+    if (projectSkipHistoryRef.current) {
+      projectSkipHistoryRef.current = false;
+      projectLastSnapshotRef.current = json;
+      return;
+    }
+    if (projectLastSnapshotRef.current === json) return;
+    const previousJson = projectLastSnapshotRef.current;
+    projectLastSnapshotRef.current = json;
+    if (previousJson === null) return;
+    if (projectHistoryTimerRef.current) window.clearTimeout(projectHistoryTimerRef.current);
+    projectHistoryTimerRef.current = window.setTimeout(() => {
+      setProjectUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
+      setProjectRedoStack([]);
+    }, DEBOUNCE_MS);
+  }, [project]);
+
+  function handleUndoProject() {
+    if (projectUndoStack.length === 0) return;
+    const prev = projectUndoStack[projectUndoStack.length - 1];
+    setProjectUndoStack((s) => s.slice(0, -1));
+    setProjectRedoStack((s) => [...s, project]);
+    projectSkipHistoryRef.current = true;
+    setProject(prev);
+  }
+
+  function handleRedoProject() {
+    if (projectRedoStack.length === 0) return;
+    const next = projectRedoStack[projectRedoStack.length - 1];
+    setProjectRedoStack((s) => s.slice(0, -1));
+    setProjectUndoStack((s) => [...s, project]);
+    projectSkipHistoryRef.current = true;
+    setProject(next);
+  }
+
+  // Tastaturkuerzel Strg+Z / Strg+Y (bzw. Strg+Umschalt+Z) - greift nicht,
+  // solange der Fokus in einem Text-/Zahlenfeld steht, damit das native
+  // Undo dort (z. B. beim Tippen im Bezeichnungsfeld) nicht durchkreuzt wird.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const target = e.target as HTMLElement | null;
+      const isEditable = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if (isEditable) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        mode === "single" ? handleUndoSingle() : handleUndoProject();
+      } else if (key === "y" || (key === "z" && e.shiftKey)) {
+        e.preventDefault();
+        mode === "single" ? handleRedoSingle() : handleRedoProject();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, singleUndoStack, singleRedoStack, projectUndoStack, projectRedoStack]);
 
   // ---------- Moduswechsel (siehe ModeSwitchContext.tsx) ----------
   const { registerWorkspace } = useModeSwitch();
@@ -488,6 +642,38 @@ export function WorkspacePage() {
   async function handleDownloadProject() {
     const blob = await encodeProject(project);
     downloadBlob(blob, `${sanitizeFileName(project.name)}${PROJECT_FILE_EXTENSION}`);
+  }
+
+  // Baugruppen-Pendant zu handleRequest (Jonas' Vorgabe 2026-07-25: "Baugruppen
+  // soll man auch anfragen können, genauso wie da jetzt ein Laden-Button ist,
+  // kann auch genauso der Anfragen-Button [sein]") - gleiche Mechanik
+  // (Datei zum Anhaengen herunterladen, dann mailto: mit Zusammenfassung).
+  async function handleRequestProject() {
+    const safeName = sanitizeFileName(project.name);
+    const downloadFirst = window.confirm(
+      "Soll die Projektdatei jetzt heruntergeladen werden, damit du sie der E-Mail anhängen kannst?",
+    );
+    if (downloadFirst) {
+      const blob = await encodeProject(project);
+      downloadBlob(blob, `${safeName}${PROJECT_FILE_EXTENSION}`);
+    }
+
+    const subject = `Anfrage Baugruppen-Projekt: ${safeName}`;
+    const body = [
+      "Hallo,",
+      "",
+      "ich möchte folgende Baugruppe (mehrere Container) anfragen.",
+      `Bitte die Datei "${safeName}${PROJECT_FILE_EXTENSION}" ${downloadFirst ? "(gerade heruntergeladen)" : "aus dem Konfigurator"} manuell an diese E-Mail anhängen, bevor du sie abschickst.`,
+      "",
+      `Anzahl Container: ${project.instances.length}`,
+      ...project.instances.map(
+        (inst, i) => `Container ${i + 1} (${inst.label}): ${inst.config.size.length} × ${inst.config.size.width} × ${inst.config.size.height} mm`,
+      ),
+      "",
+      "Mit freundlichen Grüßen",
+    ].join("\n");
+
+    window.location.href = `mailto:${REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
 
   function applyResetProject() {
@@ -779,7 +965,7 @@ export function WorkspacePage() {
                 )}
 
                 <div className="mt-4 space-y-2 pt-1">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Laden</p>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
                   <div className="flex gap-2">
                     <AnimatedButton
                       type="button"
@@ -805,6 +991,21 @@ export function WorkspacePage() {
                       className="hidden"
                     />
                   </div>
+                  {/* Baugruppen-Pendant zum Einzel-Modus (Jonas' Vorgabe
+                      2026-07-25: "Baugruppen soll man auch anfragen können,
+                      genauso wie da jetzt ein Laden-Button ist"). */}
+                  <AnimatedButton
+                    type="button"
+                    onClick={handleRequestProject}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+                  >
+                    <SendIcon size={16} />
+                    Anfragen
+                  </AnimatedButton>
+                  <p className="text-xs text-slate-400">
+                    „Speichern“ lädt die Baugruppe als Datei herunter, um sie später wieder zu laden. „Anfragen“ öffnet
+                    zusätzlich eine E-Mail-Anfrage.
+                  </p>
                   {projectError && <p className="text-xs text-red-600">{projectError}</p>}
                 </div>
               </>
@@ -852,6 +1053,10 @@ export function WorkspacePage() {
                 onBackgroundChange={setBackground}
                 onShadowsEnabledChange={setShadowsEnabled}
                 onTerrainDetailChange={setTerrainDetail}
+                onUndo={handleUndoSingle}
+                onRedo={handleRedoSingle}
+                canUndo={singleUndoStack.length > 0}
+                canRedo={singleRedoStack.length > 0}
               />
               {!showAddPopup && (
                 <AnimatedButton
@@ -903,6 +1108,13 @@ export function WorkspacePage() {
                 draggingId={draggingId}
                 dragValid={dragValid}
                 onSelect={setSelectedId}
+                onSetAllViewStyle={(v) =>
+                  setProject((p) => ({ ...p, instances: p.instances.map((i) => ({ ...i, config: { ...i.config, viewStyle: v } })) }))
+                }
+                onUndo={handleUndoProject}
+                onRedo={handleRedoProject}
+                canUndo={projectUndoStack.length > 0}
+                canRedo={projectRedoStack.length > 0}
                 onPointerDown={(id, ground) => {
                   const inst = project.instances.find((i) => i.id === id);
                   if (!inst) return;
@@ -954,6 +1166,8 @@ export function WorkspacePage() {
           )}
         </main>
       </div>
+
+      {showGrundeinstellungen && <GrundeinstellungenOverlay mode={mode} onSubmit={handleGrundeinstellungenSubmit} />}
 
       {showResetConfirm && (
         <ThreeOptionConfirmDialog

@@ -53,6 +53,22 @@ export const TOURS: Record<string, Tour> = {
         body: "Hier wechselst du zwischen „Realistisch“ und „Schattiert mit Kanten“ und kannst Schatten ein-/ausschalten.",
         placement: "top",
       },
+      // Die folgenden zwei Schritte erklaeren die Bedienung des 3D-Viewers
+      // selbst (Jonas' Vorgabe 2026-07-25: "alles wie man den Viewer bedient,
+      // also auch der ViewCube, Schnitte, Ansichte, vor und zurück, die
+      // Steuerung etc. alles soll im Tutorial angezeigt werden").
+      {
+        selector: '[data-tour="viewcube-anchor"]',
+        title: "Ansicht drehen & zurücksetzen",
+        body: "Mit der linken Maustaste drehst du die Ansicht, mit der mittleren Maustaste (oder zwei Fingern am Handy/Tablet) verschiebst du sie, und mit dem Mausrad (oder zwei Fingern zum Zoomen) vergrößerst/verkleinerst du. Der Würfel oben rechts springt zu einer Standardansicht (z. B. „Oben“), sobald du auf eine Seite klickst.",
+        placement: "top",
+      },
+      {
+        selector: '[data-tour="viewer-toolbar"]',
+        title: "Rückgängig, Wiederholen & Ansicht zurücksetzen",
+        body: "Diese drei Knöpfe machen Änderungen rückgängig (auch per Strg+Z) bzw. wiederholen sie (Strg+Y), oder setzen die Kameraansicht auf den Ausgangspunkt zurück – praktisch, nachdem du dich mit der mittleren Maustaste verschoben hast.",
+        placement: "top",
+      },
       {
         selector: '[data-tour="save-project"]',
         title: "Speichern & Anfragen",

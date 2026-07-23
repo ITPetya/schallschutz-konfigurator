@@ -1,13 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Container } from "./Container";
+import { TerrainBackground } from "./TerrainBackground";
 import type { ContainerInstance } from "../config/projectTypes";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
-import { DisplaySettingsProvider } from "../context/DisplaySettingsContext";
+import { DisplaySettingsProvider, type ViewStyle } from "../context/DisplaySettingsContext";
+import { ViewerToolbar } from "./ViewerToolbar";
+import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import type { ContainerSize } from "../constants/containerSizes";
 
 const MM_TO_M = 1 / 1000;
+
+// Fallback-Groesse fuer die Schnitt-Achsenbereiche, solange kein Container
+// ausgewaehlt ist (useSectionPlane braucht immer eine gueltige Groesse, der
+// Hook kann nicht bedingt aufgerufen werden) - wird nie sichtbar genutzt,
+// weil das Schnitt-Panel dann ohnehin den disabledHint statt Reglern zeigt.
+const FALLBACK_SIZE: ContainerSize = { length: 7000, width: 2990, height: 2990 };
 
 // Gleicher ViewCube-Stil wie Scene.tsx (Einzelcontainer-Konfigurator) - siehe
 // dort fuer die Herleitung der Bezeichnungen/Reihenfolge.
@@ -37,6 +48,22 @@ interface ProjectScene3DProps extends ProjectScene3DHandlers {
   selectedId: string | null;
   draggingId: string | null;
   dragValid: boolean;
+  // Schreibt einen Ansicht-Stil auf ALLE Instanzen gleichzeitig (Jonas'
+  // Fehlerbericht 2026-07-25: "kann in der Baugruppen-Ansicht keine Schnitte
+  // oder die Ansicht verwalten") - anders als "Schnitt" (bezieht sich immer
+  // auf GENAU den ausgewaehlten Container) betrifft "Ansicht" hier bewusst
+  // die ganze Baugruppe einheitlich, weil Hintergrund/Schatten ohnehin nur
+  // EINMAL fuer die ganze geteilte 3D-Szene existieren koennen.
+  // Optional: fehlt im schreibgeschuetzten Konstrukteur-Viewer (Jonas'
+  // Vorgabe 2026-07-25), dort soll nichts an der geladenen Baugruppe
+  // veraendert werden koennen - das Ansicht-Panel blendet sich dann
+  // komplett aus (siehe SectionAndViewPanel.tsx's Gate darauf).
+  onSetAllViewStyle?: (v: ViewStyle) => void;
+  // Jonas' Vorgabe 2026-07-25: "vor und zurück buttons ... für strg+z usw."
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 // 3D-Ansicht der Baugruppe (Jonas' Vorgabe 2026-07-25: "soll auch einen 3D
@@ -57,6 +84,11 @@ export function ProjectScene3D({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onSetAllViewStyle,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: ProjectScene3DProps) {
   const cameraDistance = useMemo(() => {
     if (instances.length === 0) return 14;
@@ -67,6 +99,28 @@ export function ProjectScene3D({
     }
     return maxReach * 1.3 + 4;
   }, [instances]);
+
+  // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+
+  // "Hintergrund"/"Schatten"/Gelände-Detailstufe gelten fuer die ganze
+  // geteilte 3D-Szene (nicht pro Instanz, siehe onSetAllViewStyle-Kommentar
+  // oben) - deshalb lokaler Szene-Zustand statt eines Felds pro Container.
+  const [background, setBackground] = useState<"studio" | "terrain">("studio");
+  const [shadowsEnabled, setShadowsEnabled] = useState(true);
+  const [terrainDetail, setTerrainDetail] = useState<"low" | "medium" | "high" | "ultra">("low");
+  const isTerrain = background === "terrain";
+
+  const selectedInstance = instances.find((i) => i.id === selectedId) ?? null;
+  // "Schnitt" bezieht sich immer auf GENAU den ausgewaehlten Container (siehe
+  // sectionDisabledHint unten, falls keiner ausgewaehlt ist) - der Hook
+  // braucht trotzdem immer eine gueltige Groesse (Hooks duerfen nicht bedingt
+  // aufgerufen werden), FALLBACK_SIZE wird dann aber nie sichtbar genutzt.
+  const section = useSectionPlane(selectedInstance?.config.size ?? FALLBACK_SIZE);
+  // Der Stil-Toggle im Ansicht-Panel zeigt den Wert der ausgewaehlten Instanz
+  // (oder der ersten, falls keine ausgewaehlt) und schreibt beim Klick auf
+  // ALLE Instanzen zurueck (siehe onSetAllViewStyle).
+  const displayedViewStyle = (selectedInstance ?? instances[0])?.config.viewStyle ?? "realistic";
 
   function handlePointerEvent(id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") {
     e.stopPropagation();
@@ -82,53 +136,94 @@ export function ProjectScene3D({
   }
 
   return (
-    <Canvas
-      shadows
-      gl={{ localClippingEnabled: true }}
-      camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
-      onPointerMissed={() => onSelect(null)}
-    >
-      <color attach="background" args={["#eef2f5"]} />
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[10, 12, 6]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
-
-      {instances.map((inst) => (
-        <InstanceGroup
-          key={inst.id}
-          instance={inst}
-          selected={selectedId === inst.id}
-          dragging={draggingId === inst.id}
-          dragValid={dragValid}
-          onPointerDown={(e) => handlePointerEvent(inst.id, e, "down")}
-          onPointerMove={(e) => handlePointerEvent(inst.id, e, "move")}
-          onPointerUp={(e) => handlePointerEvent(inst.id, e, "up")}
+    <div className="relative h-full w-full">
+      <Canvas
+        shadows={shadowsEnabled}
+        gl={{ localClippingEnabled: true }}
+        camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
+        onPointerMissed={() => onSelect(null)}
+      >
+        {!isTerrain && <color attach="background" args={["#eef2f5"]} />}
+        <ambientLight intensity={0.7} />
+        <directionalLight
+          position={[10, 12, 6]}
+          intensity={1.2}
+          castShadow={shadowsEnabled}
+          shadow-mapSize={[2048, 2048]}
         />
-      ))}
 
-      <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} />
-      <Environment preset="studio" />
+        {instances.map((inst) => (
+          <InstanceGroup
+            key={inst.id}
+            instance={inst}
+            selected={selectedId === inst.id}
+            dragging={draggingId === inst.id}
+            dragValid={dragValid}
+            sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
+            onPointerDown={(e) => handlePointerEvent(inst.id, e, "down")}
+            onPointerMove={(e) => handlePointerEvent(inst.id, e, "move")}
+            onPointerUp={(e) => handlePointerEvent(inst.id, e, "up")}
+          />
+        ))}
 
-      {/* Waehrend ein Container per Pointer-Drag verschoben wird, MUSS
-          OrbitControls deaktiviert sein: e.stopPropagation() im r3f-
-          Pointer-Event stoppt nur die Ausbreitung im r3f/three.js-
-          Raycasting-System, nicht aber den nativen DOM-Pointer-Listener,
-          den drei's OrbitControls direkt am Canvas-Element registriert -
-          ohne dieses Flag rotiert die Kamera waehrend jedes Drags
-          gleichzeitig mit (fuehrte zu einer stark verzerrten
-          Streifschuss-Ansicht, sichtbar in Playwright-Screenshots waehrend
-          des Ziehens). */}
-      <OrbitControls makeDefault enabled={!draggingId} minDistance={2} maxDistance={80} target={[0, 1.2, 0]} />
-      <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-        <GizmoViewcube
-          faces={VIEWCUBE_FACES}
-          color="#e2e8f0"
-          hoverColor="#008eb4"
-          textColor="#075471"
-          strokeColor="#94a3b8"
-          opacity={0.75}
+        {isTerrain ? (
+          <>
+            <TerrainBackground detail={terrainDetail} />
+            <Environment preset="park" background={false} />
+          </>
+        ) : (
+          <>
+            <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} />
+            <Environment preset="studio" />
+          </>
+        )}
+
+        {/* Waehrend ein Container per Pointer-Drag verschoben wird, MUSS
+            OrbitControls deaktiviert sein: e.stopPropagation() im r3f-
+            Pointer-Event stoppt nur die Ausbreitung im r3f/three.js-
+            Raycasting-System, nicht aber den nativen DOM-Pointer-Listener,
+            den drei's OrbitControls direkt am Canvas-Element registriert -
+            ohne dieses Flag rotiert die Kamera waehrend jedes Drags
+            gleichzeitig mit (fuehrte zu einer stark verzerrten
+            Streifschuss-Ansicht, sichtbar in Playwright-Screenshots waehrend
+            des Ziehens). */}
+        <OrbitControls
+          ref={controlsRef}
+          makeDefault
+          enabled={!draggingId}
+          minDistance={2}
+          maxDistance={80}
+          target={[0, 1.2, 0]}
+          // Siehe Scene.tsx: mittlere Maustaste verschiebt statt zu dollyen.
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
         />
-      </GizmoHelper>
-    </Canvas>
+        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+          <GizmoViewcube
+            faces={VIEWCUBE_FACES}
+            color="#e2e8f0"
+            hoverColor="#008eb4"
+            textColor="#075471"
+            strokeColor="#94a3b8"
+            opacity={0.75}
+          />
+        </GizmoHelper>
+      </Canvas>
+
+      <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
+
+      <SectionAndViewPanel
+        section={section}
+        viewStyle={displayedViewStyle}
+        background={background}
+        shadowsEnabled={shadowsEnabled}
+        terrainDetail={terrainDetail}
+        onViewStyleChange={onSetAllViewStyle}
+        onBackgroundChange={setBackground}
+        onShadowsEnabledChange={setShadowsEnabled}
+        onTerrainDetailChange={setTerrainDetail}
+        sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
+      />
+    </div>
   );
 }
 
@@ -137,6 +232,14 @@ interface InstanceGroupProps {
   selected: boolean;
   dragging: boolean;
   dragValid: boolean;
+  // In der LOKALEN Achse der Instanz berechnet (wie in Scene.tsx, wo der
+  // Container immer im Weltursprung steht) - three.js' clippingPlanes sind
+  // aber IMMER Welt-Koordinaten, unabhaengig vom Mesh/Group-Transform.
+  // Deshalb unten mit der eigenen Position/Rotation in eine Welt-Ebene
+  // umgerechnet, bevor sie ans Material weitergereicht wird - sonst wuerde
+  // ein Schnitt an einem verschobenen/gedrehten Container an der falschen
+  // Stelle (relativ zum echten Weltursprung) auftauchen.
+  sectionPlane: THREE.Plane | null;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
   onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
   onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
@@ -152,7 +255,7 @@ interface InstanceGroupProps {
 // Container hervor und bleibt so aus jedem Blickwinkel sichtbar.
 const FOOTPRINT_MARGIN_M = 0.6;
 
-function InstanceGroup({ instance, selected, dragging, dragValid, onPointerDown, onPointerMove, onPointerUp }: InstanceGroupProps) {
+function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, onPointerDown, onPointerMove, onPointerUp }: InstanceGroupProps) {
   const lengthM = instance.config.size.length * MM_TO_M;
   const widthM = instance.config.size.width * MM_TO_M;
   const xM = instance.position.x * MM_TO_M;
@@ -161,6 +264,13 @@ function InstanceGroup({ instance, selected, dragging, dragValid, onPointerDown,
 
   const footprintColor = dragging && !dragValid ? "#dc2626" : selected ? "#0284c7" : "#94a3b8";
   const footprintOpacity = dragging && !dragValid ? 0.6 : dragging || selected ? 0.4 : 0.12;
+
+  const worldSectionPlane = useMemo(() => {
+    if (!sectionPlane) return null;
+    const matrix = new THREE.Matrix4().makeRotationY(rotRad);
+    matrix.setPosition(xM, 0, zM);
+    return sectionPlane.clone().applyMatrix4(matrix);
+  }, [sectionPlane, rotRad, xM, zM]);
 
   return (
     <group position={[xM, 0, zM]} rotation={[0, rotRad, 0]}>
@@ -187,7 +297,7 @@ function InstanceGroup({ instance, selected, dragging, dragValid, onPointerDown,
           insideUnpainted: instance.config.insideUnpainted ?? false,
         }}
       >
-        <SectionPlaneProvider value={null}>
+        <SectionPlaneProvider value={worldSectionPlane}>
           <Container size={instance.config.size} wallThickness={instance.config.wallThickness} openings={instance.config.openings} />
         </SectionPlaneProvider>
       </DisplaySettingsProvider>
