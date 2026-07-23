@@ -1,10 +1,20 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TourProvider } from "./tour/TourContext";
 import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
-import { KonfiguratorPage } from "./pages/KonfiguratorPage";
-import { InternalPage } from "./pages/InternalPage";
-import { HilfePage } from "./pages/HilfePage";
+
+// KonfiguratorPage und InternalPage ziehen den gesamten three.js/r3f/drei/
+// three-bvh-csg-Stack nach (>1MB minifiziert) - per Performance-Audit
+// 2026-07-23 lag der VORHER 1,5MB-Bundle allein daran, dass App.tsx sie
+// eager importiert hat, wodurch schon die Startseite (StartPage) und die
+// Hilfeseite (die BEIDE gar keinen 3D-Viewer brauchen) den vollen 3D-Stack
+// mitladen mussten. React.lazy() teilt sie in eigene Chunks auf, die erst
+// beim tatsaechlichen Navigieren zu /konfigurator bzw. /intern nachgeladen
+// werden.
+const KonfiguratorPage = lazy(() => import("./pages/KonfiguratorPage").then((m) => ({ default: m.KonfiguratorPage })));
+const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
+const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
 
 // Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
 // Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
@@ -17,16 +27,26 @@ function App() {
   return (
     <BrowserRouter>
       <TourProvider>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<StartPage />} />
-            <Route path="/konfigurator" element={<KonfiguratorPage />} />
-            <Route path="/intern" element={<InternalPage />} />
-            <Route path="/hilfe" element={<HilfePage />} />
-          </Route>
-        </Routes>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<StartPage />} />
+              <Route path="/konfigurator" element={<KonfiguratorPage />} />
+              <Route path="/intern" element={<InternalPage />} />
+              <Route path="/hilfe" element={<HilfePage />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </TourProvider>
     </BrowserRouter>
+  );
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+      Lädt…
+    </div>
   );
 }
 

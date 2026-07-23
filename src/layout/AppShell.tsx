@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -65,7 +66,9 @@ export function AppShell() {
       </header>
 
       <div className="min-h-0 flex-1">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </div>
       <TourOverlay />
     </div>
