@@ -2,6 +2,14 @@ import { createContext, useContext } from "react";
 
 export type ViewStyle = "realistic" | "shaded_edges";
 export type BackgroundStyle = "studio" | "terrain";
+// 4 Detailstufen fuer den Gelände-Hintergrund (Jonas' Vorgabe 2026-07-25,
+// siehe components/TerrainBackground.tsx) - lebt hier statt dort, damit
+// config/types.ts (und darüber ProjectPage.tsx/defaultContainerConfig.ts)
+// diesen Typ importieren kann, ohne TerrainBackground.tsx's three.js/r3f-
+// Laufzeit-Importe mitzuziehen (reiner Typ-Import waere zwar an sich schon
+// erasure-sicher, aber die Abhaengigkeitsrichtung Daten-Layer -> Komponente
+// ist ohnehin die falsche Richtung).
+export type TerrainDetail = "low" | "medium" | "high" | "ultra";
 
 export interface DisplaySettings {
   viewStyle: ViewStyle;

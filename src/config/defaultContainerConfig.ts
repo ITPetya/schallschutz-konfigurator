@@ -20,6 +20,7 @@ export function defaultConfig(): ContainerConfig {
     insideColor: RAL_STANDARD_COLORS[1].hex,
     outsideColor: RAL_STANDARD_COLORS[1].hex,
     shadowsEnabled: true,
+    terrainDetail: "low",
     insideUnpainted: false,
     outsideNotes: "",
     insideNotes: "",

@@ -1,6 +1,6 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
-import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
+import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 
 // Kompletter Konfigurator-Zustand, wie er in eine .sszkonfig-Datei
 // geschrieben/aus ihr gelesen wird (Jonas' Vorgabe 2026-07-23: kein Server,
@@ -18,6 +18,10 @@ export interface ContainerConfig {
   // dieser Datei gespeicherte .sszkonfig-Dateien haben das Feld nicht,
   // KonfiguratorPage faellt dann auf true zurueck.
   shadowsEnabled?: boolean;
+  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-07-25): 4 Detailstufen fuer
+  // den Gelände-Hintergrund - alte Dateien haben das Feld nicht, faellt dann
+  // auf "low" zurueck (der bisherige, unveraenderte Gelände-Look).
+  terrainDetail?: TerrainDetail;
   // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-07-24): "innen unlackiert"
   // als Alternative zur Innenfarbe, plus zwei freie Notizfelder fuer
   // Sonderwuensche - alle optional aus demselben Altdatei-Kompatibilitaetsgrund.

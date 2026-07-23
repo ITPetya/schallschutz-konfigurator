@@ -9,7 +9,12 @@ import { AnimatedButton } from "./AnimatedButton";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
-import { DisplaySettingsProvider, type BackgroundStyle, type ViewStyle } from "../context/DisplaySettingsContext";
+import {
+  DisplaySettingsProvider,
+  type BackgroundStyle,
+  type TerrainDetail,
+  type ViewStyle,
+} from "../context/DisplaySettingsContext";
 
 interface SceneProps {
   size: ContainerSize;
@@ -24,6 +29,10 @@ interface SceneProps {
   // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
   // Renderers global, kein Umweg ueber einzelne Mesh-Props noetig.
   shadowsEnabled: boolean;
+  // Jonas' Vorgabe 2026-07-25: 4 Detailstufen fuer den "Gelände"-Hintergrund
+  // (siehe TerrainBackground.tsx) - nur relevant/sichtbar, wenn background
+  // bereits "terrain" ist, faellt sonst auf "low" zurueck.
+  terrainDetail: TerrainDetail;
   // Jonas' Vorgabe 2026-07-24: das "Ansicht"-Panel (Realistisch/Schattiert
   // mit Kanten, Hintergrund, Schatten) zieht aus der Seitenleiste in den
   // Viewer, direkt neben "Schnitt" - deshalb braucht Scene jetzt auch
@@ -32,6 +41,7 @@ interface SceneProps {
   onViewStyleChange?: (v: ViewStyle) => void;
   onBackgroundChange?: (b: BackgroundStyle) => void;
   onShadowsEnabledChange?: (v: boolean) => void;
+  onTerrainDetailChange?: (d: TerrainDetail) => void;
 }
 
 type SectionAxis = "x" | "y" | "z";
@@ -64,6 +74,15 @@ const SECTION_AXIS_LABELS: Record<SectionAxis, string> = {
 // Westen), Oben/Unten unveraendert.
 const VIEWCUBE_FACES = ["Vorne", "Hinten", "Oben", "Unten", "Links", "Rechts"];
 
+// 4 Detailstufen fuer den Gelände-Hintergrund (Jonas' Vorgabe 2026-07-25) -
+// "niedrig" ist der bisherige, unveraenderte Stand (siehe TerrainBackground.tsx).
+const TERRAIN_DETAIL_OPTIONS: [TerrainDetail, string][] = [
+  ["low", "Niedrig"],
+  ["medium", "Mittel"],
+  ["high", "Detailliert"],
+  ["ultra", "Hochauflösend"],
+];
+
 export function Scene({
   size,
   wallThickness,
@@ -74,9 +93,11 @@ export function Scene({
   outsideColor,
   insideUnpainted,
   shadowsEnabled,
+  terrainDetail,
   onViewStyleChange,
   onBackgroundChange,
   onShadowsEnabledChange,
+  onTerrainDetailChange,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -143,7 +164,7 @@ export function Scene({
 
         {isTerrain ? (
           <>
-            <TerrainBackground />
+            <TerrainBackground detail={terrainDetail} />
             <Environment preset="park" background={false} />
           </>
         ) : (
@@ -290,6 +311,32 @@ export function Scene({
                     </button>
                   </div>
                 </div>
+
+                {/* Detailstufen fuer den Gelände-Hintergrund (Jonas' Vorgabe
+                    2026-07-25) - nur sichtbar/relevant, wenn "Gelände"
+                    bereits aktiv ist; faellt sonst immer auf "low" zurueck
+                    (siehe TerrainBackground.tsx). onTerrainDetailChange kann
+                    fehlen (readonly-Viewer), dann wird die Auswahl gar
+                    nicht erst angezeigt. */}
+                {isTerrain && onTerrainDetailChange && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-slate-500">Gelände-Detailstufe</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {TERRAIN_DETAIL_OPTIONS.map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => onTerrainDetailChange(value)}
+                          className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                            terrainDetail === value ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <label className="flex items-center gap-2 text-xs text-slate-600">
                   <input

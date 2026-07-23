@@ -10,7 +10,7 @@ import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
-import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
+import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
@@ -75,6 +75,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   const [outsideColor, setOutsideColor] = useState(seed.outsideColor);
   const [insideColor, setInsideColor] = useState(seed.insideColor);
   const [shadowsEnabled, setShadowsEnabled] = useState(seed.shadowsEnabled ?? true);
+  const [terrainDetail, setTerrainDetail] = useState<TerrainDetail>(seed.terrainDetail ?? "low");
   const [insideUnpainted, setInsideUnpainted] = useState(seed.insideUnpainted ?? false);
   const [outsideNotes, setOutsideNotes] = useState(seed.outsideNotes ?? "");
   const [insideNotes, setInsideNotes] = useState(seed.insideNotes ?? "");
@@ -119,6 +120,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     insideColor,
     outsideColor,
     shadowsEnabled,
+    terrainDetail,
     insideUnpainted,
     outsideNotes,
     insideNotes,
@@ -146,6 +148,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
       insideColor,
       outsideColor,
       shadowsEnabled,
+      terrainDetail,
       insideUnpainted,
       outsideNotes,
       insideNotes,
@@ -160,6 +163,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     insideColor,
     outsideColor,
     shadowsEnabled,
+    terrainDetail,
     insideUnpainted,
     outsideNotes,
     insideNotes,
@@ -193,6 +197,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     setInsideColor(fresh.insideColor);
     setOutsideColor(fresh.outsideColor);
     setShadowsEnabled(fresh.shadowsEnabled ?? true);
+    setTerrainDetail(fresh.terrainDetail ?? "low");
     setInsideUnpainted(fresh.insideUnpainted ?? false);
     setOutsideNotes(fresh.outsideNotes ?? "");
     setInsideNotes(fresh.insideNotes ?? "");
@@ -215,6 +220,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
       insideColor,
       outsideColor,
       shadowsEnabled,
+      terrainDetail,
       insideUnpainted,
       outsideNotes,
       insideNotes,
@@ -453,9 +459,11 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             outsideColor={outsideColor}
             insideUnpainted={insideUnpainted}
             shadowsEnabled={shadowsEnabled}
+            terrainDetail={terrainDetail}
             onViewStyleChange={readOnly ? undefined : setViewStyle}
             onBackgroundChange={readOnly ? undefined : setBackground}
             onShadowsEnabledChange={readOnly ? undefined : setShadowsEnabled}
+            onTerrainDetailChange={readOnly ? undefined : setTerrainDetail}
           />
           {/* Jonas' Vorgabe 2026-07-24: "+"-Button fuer neue Durchbrueche
               zieht aus der Seitenleiste hierher, oben links im Viewer -
