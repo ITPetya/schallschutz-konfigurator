@@ -1,8 +1,14 @@
-# Beta-Vorschau (Nacht-Session 2026-07-23): proxied /beta/* transparent auf
-# den Netlify-Branch-Deploy von "night-2026-07-23-beta", URL-Leiste bleibt
-# bei hayse.de/beta (Status 200 = Proxy, kein sichtbarer Redirect). Muss VOR
-# der SPA-Catch-all-Regel stehen, sonst faengt die zuerst.
-/beta/*  https://night-2026-07-23-beta--containerconfigurator.netlify.app/:splat  200
-/beta    https://night-2026-07-23-beta--containerconfigurator.netlify.app/  200
+# Beta-Vorschau (Nacht-Session 2026-07-23): /beta leitet auf den Netlify-
+# Branch-Deploy von "night-2026-07-23-beta" weiter. BEWUSST ein echter
+# Redirect (302), kein transparenter Proxy (200): ein Proxy haette die
+# index.html unter hayse.de/beta ausgeliefert, aber deren JS/CSS werden mit
+# root-absoluten Pfaden (/assets/...) referenziert - die haetten sich dann
+# gegen hayse.de/assets/... aufgeloest (das PRODUKTIV-Bundle, andere Datei-
+# Hashes), nicht gegen den Beta-Build. Ergebnis war eine leere weisse Seite.
+# Ein echter Redirect landet stattdessen auf der tatsaechlichen Beta-URL,
+# wo alle Pfade wieder relativ zur richtigen Origin sind - haesslichere
+# URL-Leiste danach, aber funktioniert zuverlaessig statt kaputt auszusehen.
+/beta/*  https://night-2026-07-23-beta--containerconfigurator.netlify.app/:splat  302
+/beta    https://night-2026-07-23-beta--containerconfigurator.netlify.app/  302
 
 /*    /index.html   200
