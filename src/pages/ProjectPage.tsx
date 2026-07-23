@@ -14,6 +14,7 @@ import { UploadIcon } from "../components/icons/UploadIcon";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { useModeSwitch } from "../context/ModeSwitchContext";
+import { AccordionSection } from "../components/AccordionSection";
 
 // Mindestabstand zwischen zwei Container-Grundrissen (siehe docs/baugruppen-
 // architektur.md - "reale Container brauchen Zugangsraum, nicht nur
@@ -150,6 +151,10 @@ export function ProjectPage() {
   // sind, sonst direkt wechseln.
   const { registerGuard } = useModeSwitch();
   const [modeSwitchTarget, setModeSwitchTarget] = useState<string | null>(null);
+  // "Genauso wie der normale Konfigurator" (Jonas' Vorgabe 2026-07-25) -
+  // gleiches Zuruecksetzen-Muster wie KonfiguratorPage.tsx, fest unten in der
+  // Seitenleiste, mit derselben Speichern/Verwerfen-Dialogkomponente.
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   useEffect(() => {
     registerGuard((targetPath) => {
       if (project.instances.length === 0) {
@@ -343,6 +348,17 @@ export function ProjectPage() {
     downloadBlob(blob, `${sanitizeFileName(project.name)}${PROJECT_FILE_EXTENSION}`);
   }
 
+  function applyResetProject() {
+    setProject(emptyProject());
+    setSelectedId(null);
+    setShowResetConfirm(false);
+  }
+
+  async function handleResetProjectAndSave() {
+    await handleDownloadProject();
+    applyResetProject();
+  }
+
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -360,108 +376,87 @@ export function ProjectPage() {
   return (
     <div className="flex h-full flex-col bg-white text-ink">
       <div className="flex flex-1 overflow-hidden">
+        {/* Gleiche Seitenleisten-Struktur wie KonfiguratorPage.tsx (Jonas'
+            Vorgabe 2026-07-25: "genauso wie der normale Konfigurator, nur mit
+            den Funktionen die ich beschrieben habe") - Akkordeon-Bereich
+            scrollt, Zuruecksetzen-Button bleibt als eigener, nicht
+            scrollender Footer immer sichtbar. */}
         <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Projekt</p>
-            <input
-              type="text"
-              value={project.name}
-              onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
-              className="mb-4 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
-            />
-
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-widest text-brand">Container</p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => configFileInputRef.current?.click()}
-                  aria-label="Container aus Datei laden"
-                  title="Aus gespeicherter Konfigurationsdatei laden"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-brand text-brand hover:bg-brand hover:text-white"
-                >
-                  <UploadIcon size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddInstance}
-                  aria-label="Container hinzufügen"
-                  title="Neuen leeren Container hinzufügen"
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white hover:bg-brand-dark"
-                >
-                  <PlusIcon size={16} />
-                </button>
+            <AccordionSection title="Grundeinstellungen" defaultOpen>
+              <label className="block text-xs text-slate-500">
+                Projektname
                 <input
-                  ref={configFileInputRef}
-                  type="file"
-                  accept={CONFIG_FILE_EXTENSION}
-                  onChange={handleLoadConfigFile}
-                  className="hidden"
+                  type="text"
+                  value={project.name}
+                  onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+                  className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
                 />
-              </div>
-            </div>
+              </label>
+            </AccordionSection>
 
-            {project.instances.length === 0 && (
-              <p className="text-sm text-slate-400">Noch keine Container im Projekt.</p>
-            )}
-
-            <div className="space-y-2">
-              {project.instances.map((inst) => (
-                <div
-                  key={inst.id}
-                  onClick={() => setSelectedId(inst.id)}
-                  className={`cursor-pointer rounded-lg border p-2.5 text-sm shadow-sm ${
-                    selectedId === inst.id ? "border-brand bg-white" : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={inst.label}
-                      onChange={(e) => handleLabelChange(inst.id, e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none"
-                    />
+            <AccordionSection title="Container" defaultOpen>
+              {project.instances.length === 0 && (
+                <p className="text-sm text-slate-400">Noch keine Container im Projekt.</p>
+              )}
+              <div className="space-y-2">
+                {project.instances.map((inst) => (
+                  <div
+                    key={inst.id}
+                    onClick={() => setSelectedId(inst.id)}
+                    className={`cursor-pointer rounded-lg border p-2.5 text-sm shadow-sm ${
+                      selectedId === inst.id ? "border-brand bg-white" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={inst.label}
+                        onChange={(e) => handleLabelChange(inst.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRotate(inst.id);
+                        }}
+                        aria-label={`${inst.label} drehen`}
+                        className="shrink-0 text-slate-400 hover:text-brand"
+                      >
+                        <RotateCcwIcon size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove(inst.id);
+                        }}
+                        aria-label={`${inst.label} entfernen`}
+                        className="shrink-0 text-slate-400 hover:text-red-500"
+                      >
+                        <TrashIcon size={15} />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {inst.config.size.length} × {inst.config.size.width} mm · {inst.rotationY}°
+                    </p>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRotate(inst.id);
+                        handleEdit(inst);
                       }}
-                      aria-label={`${inst.label} drehen`}
-                      className="shrink-0 text-slate-400 hover:text-brand"
+                      className="mt-1.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
                     >
-                      <RotateCcwIcon size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemove(inst.id);
-                      }}
-                      aria-label={`${inst.label} entfernen`}
-                      className="shrink-0 text-slate-400 hover:text-red-500"
-                    >
-                      <TrashIcon size={15} />
+                      Detail bearbeiten
+                      <ArrowRightIcon size={13} />
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {inst.config.size.length} × {inst.config.size.width} mm · {inst.rotationY}°
-                  </p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(inst);
-                    }}
-                    className="mt-1.5 flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
-                  >
-                    Detail bearbeiten
-                    <ArrowRightIcon size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </AccordionSection>
 
             {/* "Passend"/"Fluchtend" (Jonas' Vorgabe 2026-07-25, Inventor-
                 Begriffe) - einmalige Ausrichtung statt eines live
@@ -469,9 +464,7 @@ export function ProjectPage() {
                 computeFlushPosition weiter oben fuer die Abgrenzung. Nur ab
                 zwei Containern sinnvoll. */}
             {project.instances.length >= 2 && (
-              <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
-                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Ausrichten</p>
-
+              <AccordionSection title="Ausrichten">
                 <label className="block text-xs text-slate-500">
                   Container
                   <select
@@ -488,7 +481,7 @@ export function ProjectPage() {
                   </select>
                 </label>
 
-                <label className="block text-xs text-slate-500">
+                <label className="mt-2 block text-xs text-slate-500">
                   relativ zu
                   <select
                     value={alignRefId ?? ""}
@@ -506,7 +499,7 @@ export function ProjectPage() {
                   </select>
                 </label>
 
-                <div className="flex gap-1.5">
+                <div className="mt-2 flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => setAlignMode("mate")}
@@ -528,7 +521,7 @@ export function ProjectPage() {
                 </div>
 
                 {alignMode === "mate" ? (
-                  <label className="block text-xs text-slate-500">
+                  <label className="mt-2 block text-xs text-slate-500">
                     Position
                     <select
                       value={alignSide}
@@ -542,7 +535,7 @@ export function ProjectPage() {
                     </select>
                   </label>
                 ) : (
-                  <label className="block text-xs text-slate-500">
+                  <label className="mt-2 block text-xs text-slate-500">
                     Achse
                     <select
                       value={alignAxis}
@@ -555,7 +548,7 @@ export function ProjectPage() {
                   </label>
                 )}
 
-                <label className="block text-xs text-slate-500">
+                <label className="mt-2 block text-xs text-slate-500">
                   Abstand (mm)
                   <input
                     type="number"
@@ -569,15 +562,18 @@ export function ProjectPage() {
                 <button
                   type="button"
                   onClick={handleApplyAlign}
-                  className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+                  className="mt-2 w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
                 >
                   Anwenden
                 </button>
-                {alignError && <p className="text-xs text-red-600">{alignError}</p>}
-              </div>
+                {alignError && <p className="mt-1 text-xs text-red-600">{alignError}</p>}
+              </AccordionSection>
             )}
 
-            <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
+            {/* Kein eigener border-t hier (analog zu KonfiguratorPage.tsx'
+                "Speichern & Anfragen") - die AccordionSection direkt darueber
+                hat bereits einen border-b. */}
+            <div className="mt-4 space-y-2 pt-1">
               <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Laden</p>
               <div className="flex gap-2">
                 <button
@@ -607,9 +603,52 @@ export function ProjectPage() {
               {error && <p className="text-xs text-red-600">{error}</p>}
             </div>
           </div>
+          <div className="border-t border-slate-200 p-3">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+            >
+              <RotateCcwIcon size={16} />
+              Projekt zurücksetzen
+            </button>
+          </div>
         </aside>
 
+        {/* min-w-0/min-h-0 siehe KonfiguratorPage.tsx-Kommentar (Jonas'
+            Fehlerbericht 2026-07-22) - dasselbe Flexbox-Verhalten gilt auch
+            fuer die SVG-Ansicht hier. */}
         <main className="relative min-h-0 min-w-0 flex-1 bg-slate-100">
+          {/* Gleiche Position/Optik wie der "+"-Button im normalen
+              Konfigurator (oben links im Viewer) - hier zwei Knoepfe: neuer
+              leerer Container und aus gespeicherter Datei laden. */}
+          <div className="absolute left-4 top-4 z-10 flex gap-2">
+            <button
+              type="button"
+              onClick={handleAddInstance}
+              aria-label="Container hinzufügen"
+              title="Neuen leeren Container hinzufügen"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
+            >
+              <PlusIcon size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => configFileInputRef.current?.click()}
+              aria-label="Container aus Datei laden"
+              title="Aus gespeicherter Konfigurationsdatei laden"
+              className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-brand bg-white text-brand shadow-md hover:bg-brand hover:text-white"
+            >
+              <UploadIcon size={16} />
+            </button>
+            <input
+              ref={configFileInputRef}
+              type="file"
+              accept={CONFIG_FILE_EXTENSION}
+              onChange={handleLoadConfigFile}
+              className="hidden"
+            />
+          </div>
           <svg ref={svgRef} viewBox={viewBox} className="h-full w-full" onPointerDown={() => setSelectedId(null)}>
             <defs>
               <pattern id="project-grid" width={1000} height={1000} patternUnits="userSpaceOnUse">
@@ -663,6 +702,18 @@ export function ProjectPage() {
           </svg>
         </main>
       </div>
+
+      {showResetConfirm && (
+        <ThreeOptionConfirmDialog
+          title="Zurücksetzen"
+          message="Projekt wirklich zurücksetzen? Alle Container und deren Anordnung gehen verloren."
+          primaryLabel="Speichern & zurücksetzen"
+          onPrimary={handleResetProjectAndSave}
+          confirmLabel="Ja, zurücksetzen"
+          onConfirm={applyResetProject}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
 
       {/* Moduswechsel-Sicherheitshinweis (Jonas' Vorgabe 2026-07-25) - siehe
           registerGuard-Effekt oben, gleiches Muster wie KonfiguratorPage.tsx. */}
