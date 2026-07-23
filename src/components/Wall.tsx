@@ -4,6 +4,7 @@ import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
+import type { OpeningTypeDef } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { DoorLeaf } from "./DoorLeaf";
 import { useSectionPlane } from "../context/SectionPlaneContext";
@@ -28,6 +29,66 @@ interface WallProps {
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
 // siehe three-bvh-csg-Doku.
 const evaluator = new Evaluator();
+
+// Jonas' Fehlerbericht 2026-07-25: Wetterschutzgitter "ca. 10m lang" statt
+// 12mm. Root Cause: protrusionDepth in OPENING_TYPES ist wie ALLE Masse dort
+// in MILLIMETERN definiert, aber o.width/o.height/thickness kommen hier
+// bereits in METERN an (Container.tsx rechnet einmalig um, siehe dortiger
+// Kommentar) - protrusionDepth wurde bisher OHNE diese Umrechnung direkt
+// verwendet, also faktisch als 12 METER statt 0,012m behandelt.
+const MM_TO_M = 1 / 1000;
+
+// Jonas' Fehlerbericht 2026-07-25 (weiterhin nach dem mergeVertices-Versuch
+// aus einer frueheren Runde): "komische Diagonallinien" bestehen weiter.
+// Root Cause, per Analyse dieser Runde (Node-Script hat die tatsaechliche
+// EdgesGeometry-Ausgabe der CSG-Restflaeche vermessen): THREE.EdgesGeometry
+// hasht Kanten NUR ueber Vertex-POSITION (gerundet auf 4 Nachkommastellen) -
+// mergeVertices (das zusaetzlich Normalen/UVs vergleicht) aendert daran
+// nichts. Die echten Diagonalen sind KEINE knapp daneben liegenden
+// Duplikat-Vertices, sondern echte, einzelne, nur von EINEM Dreieck
+// genutzte innere Kanten aus three-bvh-csg's eigener Triangulierung der
+// ringfoermigen Restflaeche (Wand minus Loch) - das Boolean-Werkzeug ist
+// nicht darauf ausgelegt, dabei eine "saubere" 2D-Restflaeche zu erzeugen.
+// Deshalb: Kantenlinien fuer die "Schattiert mit Kanten"-Ansicht NICHT mehr
+// aus der CSG-Geometrie ableiten, sondern von Hand aus der bekannten,
+// exakten Geometrie aufbauen - Aussenkontur der Wand (immer sauber, weil aus
+// einer ungeschnittenen BoxGeometry) plus je eine Umrandung pro Durchbruch
+// (Rechteck oder Kreis, exakt an dessen echter Position/Groesse).
+function buildOpeningRimEdges(opening: Opening, typeDef: OpeningTypeDef, panelHeight: number, thickness: number): number[] {
+  const cx = opening.u;
+  const cy = opening.v - panelHeight / 2;
+  const outline: [number, number][] = [];
+
+  if (typeDef.shape === "round") {
+    const segments = 32;
+    const r = opening.width / 2;
+    for (let i = 0; i < segments; i++) {
+      const a0 = (i / segments) * Math.PI * 2;
+      const a1 = ((i + 1) / segments) * Math.PI * 2;
+      outline.push([cx + r * Math.cos(a0), cy + r * Math.sin(a0)]);
+      outline.push([cx + r * Math.cos(a1), cy + r * Math.sin(a1)]);
+    }
+  } else {
+    const hw = opening.width / 2;
+    const hh = opening.height / 2;
+    const corners: [number, number][] = [
+      [cx - hw, cy - hh],
+      [cx + hw, cy - hh],
+      [cx + hw, cy + hh],
+      [cx - hw, cy + hh],
+    ];
+    for (let i = 0; i < 4; i++) {
+      outline.push(corners[i]);
+      outline.push(corners[(i + 1) % 4]);
+    }
+  }
+
+  const verts: number[] = [];
+  for (const z of [thickness / 2, -thickness / 2]) {
+    for (const [x, y] of outline) verts.push(x, y, z);
+  }
+  return verts;
+}
 
 // Teilt die fertige CSG-Geometrie in zwei Materialgruppen auf: Aussen-
 // (outwardSign-Richtung) und Innenflaeche (Jonas' Vorgabe 2026-07-22:
@@ -102,19 +163,32 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
     }
 
-    // Fund zu Jonas' Fehlerbericht 2026-07-24 ("komische diagonale Linien in
-    // den Flaechen bei Schattiert mit Kanten"): three-bvh-csg's Boolean-
-    // Ergebnis laesst am Rand des Ausschnitts oft unverschweisste
-    // Duplikat-Vertices auf der eigentlich flachen Restflaeche zurueck.
-    // THREE.EdgesGeometry (in <Edges> unten) zeichnet JEDE Kante, die nur zu
-    // EINEM Dreieck gehoert, unabhaengig vom Winkel-Schwellwert - genau
-    // dieser "nur ein Dreieck sieht diese Kante"-Fall tritt durch die
-    // Duplikate an inneren, eigentlich geteilten Naht-Kanten auf. mergeVertices
-    // verschweisst positionsgleiche Vertices MIT gleichem Normalenvektor
-    // (also echte flache Naehte), laesst aber echte harte Kanten (andere
-    // Normale trotz gleicher Position, z. B. am Ausschnitt-Rand) unangetastet.
+    // mergeVertices bleibt fuer die SOLIDE Flaeche sinnvoll (glattere
+    // Normalen an eigentlich flachen Naehten), ist aber NICHT die Loesung
+    // fuer die Diagonallinien im "Schattiert mit Kanten"-Modus - siehe
+    // buildOpeningRimEdges oben fuer den echten Grund und Fix.
     return splitByOutward(mergeVertices(result.geometry), outwardSign);
   }, [panelWidth, panelHeight, thickness, openings, outwardSign]);
+
+  // Kantenlinien fuer "Schattiert mit Kanten" werden bewusst NICHT mehr aus
+  // der CSG-Restgeometrie abgeleitet (siehe buildOpeningRimEdges), sondern
+  // von Hand aus der Aussenkontur der ungeschnittenen Wand plus einer
+  // Umrandung je Durchbruch zusammengesetzt - dadurch koennen keine
+  // Triangulierungs-Artefakte der Boolean-Bibliothek mehr als Linien
+  // auftauchen.
+  const edgeGeometry = useMemo(() => {
+    const boxEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(panelWidth, panelHeight, thickness));
+    const positions = Array.from(boxEdges.attributes.position.array as Float32Array);
+    boxEdges.dispose();
+
+    for (const opening of openings) {
+      positions.push(...buildOpeningRimEdges(opening, OPENING_TYPES[opening.kind], panelHeight, thickness));
+    }
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geom;
+  }, [panelWidth, panelHeight, thickness, openings]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
@@ -151,10 +225,14 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
           clippingPlanes={clippingPlanes}
           {...(insideUnpainted ? UNPAINTED_MATERIAL_PROPS : materialProps)}
         />
-        {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
       </mesh>
+      {shaded && (
+        <lineSegments geometry={edgeGeometry}>
+          <lineBasicMaterial color="#1e293b" clippingPlanes={clippingPlanes} />
+        </lineSegments>
+      )}
       {protrusions.map((o) => {
-        const depth = OPENING_TYPES[o.kind].protrusionDepth!;
+        const depth = OPENING_TYPES[o.kind].protrusionDepth! * MM_TO_M;
         const zOffset = outwardSign * (thickness / 2 + depth / 2);
         return (
           <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DoorHinge, Opening, OpeningKind, PanelId } from "../types/openings";
-import { isVerticalWall } from "../types/openings";
+import { isKindAllowedOnPanel } from "../types/openings";
 import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { verticalBounds } from "../utils/openingConstraints";
@@ -26,19 +26,19 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
   const [kind, setKind] = useState<OpeningKind>("door_single_1918");
   const [hinge, setHinge] = useState<DoorHinge>("left");
 
-  const availableKinds = Object.values(OPENING_TYPES).filter(
-    (t) => !t.verticalOnly || isVerticalWall(panel),
-  );
+  const availableKinds = Object.values(OPENING_TYPES).filter((t) => isKindAllowedOnPanel(t, panel));
   const typeDef = OPENING_TYPES[kind];
 
   function handlePanelChange(next: PanelId) {
     setPanel(next);
-    // Tueren sind auf Oben/Unten nicht erlaubt (logisch, Jonas' Vorgabe
-    // 2026-07-22) - beim Wechsel auf ein horizontales Panel automatisch auf
-    // einen dort gueltigen Typ umschalten, statt einen unmoeglichen
+    // Der aktuell gewaehlte Typ ist auf dem neuen Panel evtl. nicht mehr
+    // erlaubt (Tueren nicht auf Oben/Unten, Wetterschutzgitter nicht auf dem
+    // Dach - Jonas' Vorgabe 2026-07-22/Fehlerbericht 2026-07-25) - dann auf
+    // den ersten dort gueltigen Typ umschalten, statt einen unmoeglichen
     // ausgewaehlt zu lassen.
-    if (!isVerticalWall(next) && typeDef.verticalOnly) {
-      setKind("vent_weather");
+    if (!isKindAllowedOnPanel(typeDef, next)) {
+      const fallback = Object.values(OPENING_TYPES).find((t) => isKindAllowedOnPanel(t, next));
+      if (fallback) setKind(fallback.kind);
     }
   }
 
@@ -81,7 +81,12 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
         </button>
       </div>
 
-      <select value={panel} onChange={(e) => handlePanelChange(e.target.value as PanelId)} className={inputClass}>
+      <select
+        aria-label="Wand"
+        value={panel}
+        onChange={(e) => handlePanelChange(e.target.value as PanelId)}
+        className={inputClass}
+      >
         {(Object.keys(PANEL_LABELS) as PanelId[]).map((p) => (
           <option key={p} value={p}>
             {PANEL_LABELS[p]}
@@ -89,7 +94,7 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
         ))}
       </select>
 
-      <select value={kind} onChange={(e) => setKind(e.target.value as OpeningKind)} className={inputClass}>
+      <select aria-label="Durchbruch-Typ" value={kind} onChange={(e) => setKind(e.target.value as OpeningKind)} className={inputClass}>
         <optgroup label="Standard (feste Maße)">
           {availableKinds
             .filter((t) => t.category === "standard")
@@ -111,7 +116,7 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
       </select>
 
       {typeDef.hasHinge && (
-        <select value={hinge} onChange={(e) => setHinge(e.target.value as DoorHinge)} className={inputClass}>
+        <select aria-label="Bandseite" value={hinge} onChange={(e) => setHinge(e.target.value as DoorHinge)} className={inputClass}>
           <option value="left">DIN Links</option>
           <option value="right">DIN Rechts</option>
         </select>

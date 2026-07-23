@@ -62,9 +62,23 @@ export interface OpeningTypeDef {
   // Nur auf einer der vier Seitenwaende platzierbar, NICHT auf Oben/Unten -
   // "Tueren logischerweise nicht [oben/unten]" (Jonas' Vorgabe 2026-07-22).
   verticalOnly?: boolean;
+  // Generische Ausschlussliste einzelner Panels (Jonas' Fehlerbericht
+  // 2026-07-25: "keine Wetterschutzgitter auf dem Dach") - im Unterschied zu
+  // verticalOnly (schliesst BEIDE horizontalen Panels aus) laesst sich damit
+  // gezielt NUR "top" oder NUR "bottom" ausschliessen.
+  excludedPanels?: PanelId[];
   // Wird als echtes Tuerblatt (Scharniere + Griff) gerendert statt als
   // reiner offener Ausschnitt - siehe DoorLeaf.tsx.
   isDoor?: boolean;
+}
+
+// Gemeinsame Pruefung fuer beide Ausschluss-Mechanismen (verticalOnly UND
+// excludedPanels) - benutzt von AddOpeningPopup.tsx sowohl fuers Filtern der
+// Typauswahl als auch fuers automatische Umschalten bei Panelwechsel.
+export function isKindAllowedOnPanel(typeDef: OpeningTypeDef, panel: PanelId): boolean {
+  if (typeDef.verticalOnly && !isVerticalWall(panel)) return false;
+  if (typeDef.excludedPanels?.includes(panel)) return false;
+  return true;
 }
 
 // Ein platzierter Durchbruch, alle Masse in Millimetern. u ist IMMER der

@@ -109,6 +109,8 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     minSize: 0,
     maxSize: 0,
     protrusionDepth: 12,
+    // Jonas' Fehlerbericht 2026-07-25: "keine Wetterschutzgitter auf dem Dach".
+    excludedPanels: ["top"],
   },
   cable: {
     kind: "cable",
