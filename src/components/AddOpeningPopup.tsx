@@ -6,6 +6,7 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { verticalBounds } from "../utils/openingConstraints";
 import { panelSpanV } from "../utils/panelGeometry";
 import { XIcon } from "./icons/XIcon";
+import { AnimatedButton } from "./AnimatedButton";
 
 interface AddOpeningPopupProps {
   size: ContainerSize;
@@ -71,14 +72,14 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
         <span className="text-xs font-bold uppercase tracking-widest text-brand">
           Neuer Durchbruch
         </span>
-        <button
+        <AnimatedButton
           type="button"
           onClick={onClose}
           className="text-slate-400 hover:text-red-500"
           aria-label="Schließen"
         >
           <XIcon size={16} />
-        </button>
+        </AnimatedButton>
       </div>
 
       <select

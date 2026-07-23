@@ -6,6 +6,7 @@ import { clampVerticalPosition, verticalBounds } from "../utils/openingConstrain
 import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
 import { NumberInput } from "./NumberInput";
 import { TrashIcon } from "./icons/TrashIcon";
+import { AnimatedButton } from "./AnimatedButton";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
@@ -74,14 +75,14 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
           <span className="font-medium text-brand-dark">{typeDef.label}</span>
           <span className="text-xs text-slate-500">{PANEL_LABELS[o.panel]}</span>
         </button>
-        <button
+        <AnimatedButton
           type="button"
           onClick={() => onRemove(o.id)}
           className="shrink-0 text-slate-400 hover:text-red-500"
           aria-label={`${typeDef.label} entfernen`}
         >
           <TrashIcon size={16} />
-        </button>
+        </AnimatedButton>
       </div>
 
       {expanded && (

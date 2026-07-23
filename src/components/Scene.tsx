@@ -5,6 +5,7 @@ import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@r
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
 import { Chevron } from "./icons/Chevron";
+import { AnimatedButton } from "./AnimatedButton";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
@@ -228,14 +229,14 @@ export function Scene({
               "nicht durch so ein Checkfeld", stattdessen ein sich drehender
               Pfeil/Ecke) - zeigt nach oben, solange geschlossen (dahin klappt
               der Inhalt beim Oeffnen auf), nach unten sobald offen. */}
-          <button
+          <AnimatedButton
             type="button"
             onClick={() => setSectionEnabled((v) => !v)}
             className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
           >
             Schnitt
             <Chevron direction={sectionEnabled ? "down" : "up"} />
-          </button>
+          </AnimatedButton>
         </div>
 
         {onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && (
@@ -300,14 +301,14 @@ export function Scene({
                 </label>
               </div>
             )}
-            <button
+            <AnimatedButton
               type="button"
               onClick={() => setViewPanelOpen((v) => !v)}
               className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
             >
               Ansicht
               <Chevron direction={viewPanelOpen ? "down" : "up"} />
-            </button>
+            </AnimatedButton>
           </div>
         )}
       </div>

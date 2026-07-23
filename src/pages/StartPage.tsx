@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { decodeConfig } from "../config/configFileCodec";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
+import { AnimatedButton } from "../components/AnimatedButton";
 
 // Zentrierter Startbildschirm: "Konfiguration starten" + "Konfiguration
 // laden" (Jonas' Vorgabe 2026-07-23 - kein Login mehr, stattdessen laedt man
@@ -52,22 +53,22 @@ export function StartPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button
+        <AnimatedButton
           type="button"
           onClick={() => navigate("/konfigurator")}
           className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
         >
           Konfiguration starten
           <ArrowRightIcon size={18} />
-        </button>
-        <button
+        </AnimatedButton>
+        <AnimatedButton
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white"
         >
           <UploadIcon size={18} />
           Konfiguration laden
-        </button>
+        </AnimatedButton>
         <input ref={fileInputRef} type="file" accept=".sszkonfig" onChange={handleFileSelected} className="hidden" />
       </div>
       {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}

@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface SendIconProps {
   size?: number;
@@ -22,8 +23,10 @@ const group: Variants = {
   },
 };
 
+// Kein eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover()
+// liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function SendIcon({ size = 20, className }: SendIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -35,12 +38,8 @@ export function SendIcon({ size = 20, className }: SendIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={hovered ? "animate" : "initial"}>
         <path d="M14.5,21.7c.1.3.4.4.7.3.1,0,.2-.2.3-.3L22,2.7c0-.3,0-.5-.3-.6-.1,0-.2,0-.3,0L2.3,8.5c-.3,0-.4.4-.3.6,0,.1.2.2.3.3l7.9,3.2c.5.2.9.6,1.1,1.1l3.2,7.9Z" />
         <path d="M21.9,2.1l-10.9,10.9" />
       </motion.g>

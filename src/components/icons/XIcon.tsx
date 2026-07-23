@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface XIconProps {
   size?: number;
@@ -16,8 +17,11 @@ const line2: Variants = {
 
 // Lucide "x", animiert mit Motion (Jonas' Vorgabe 2026-07-24, siehe
 // PlusIcon.tsx fuer die Begruendung des vereinfachten Trigger-Mechanismus).
+// Kein eigener Hover/Tap-Trigger mehr (Jonas' Fehlerbericht 2026-07-25) -
+// useIconHover() liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function XIcon({ size = 20, className }: XIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
+  const target = hovered ? "animate" : "initial";
   return (
     <motion.svg
       width={size}
@@ -29,13 +33,9 @@ export function XIcon({ size = 20, className }: XIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.line x1={6} y1={18} x2={18} y2={6} variants={line1} initial="initial" animate={controls} />
-      <motion.line x1={6} y1={6} x2={18} y2={18} variants={line2} initial="initial" animate={controls} />
+      <motion.line x1={6} y1={18} x2={18} y2={6} variants={line1} initial="initial" animate={target} />
+      <motion.line x1={6} y1={6} x2={18} y2={18} variants={line2} initial="initial" animate={target} />
     </motion.svg>
   );
 }

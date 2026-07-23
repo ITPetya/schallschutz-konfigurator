@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface UploadIconProps {
   size?: number;
@@ -12,8 +13,10 @@ const group: Variants = {
 
 // Lucide "upload", animiert mit Motion (Jonas' Vorgabe 2026-07-24) - fuer
 // "Konfiguration laden" (StartPage.tsx: liest eine .sszkonfig-Datei ein).
+// Kein eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover()
+// liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function UploadIcon({ size = 20, className }: UploadIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -25,12 +28,8 @@ export function UploadIcon({ size = 20, className }: UploadIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={hovered ? "animate" : "initial"}>
         <path d="M12 3v12" />
         <path d="m17 8-5-5-5 5" />
       </motion.g>

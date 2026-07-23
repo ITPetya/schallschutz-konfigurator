@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface RotateCcwIconProps {
   size?: number;
@@ -12,8 +13,10 @@ const group: Variants = {
 
 // Lucide "rotate-ccw", animiert mit Motion (Jonas' Vorgabe 2026-07-24) - fuer
 // den "Zurücksetzen"-Button (KonfiguratorPage.tsx), passendes Undo-Symbol.
+// Kein eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover()
+// liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function RotateCcwIcon({ size = 20, className }: RotateCcwIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -27,11 +30,7 @@ export function RotateCcwIcon({ size = 20, className }: RotateCcwIconProps) {
       className={className}
       variants={group}
       initial="initial"
-      animate={controls}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
+      animate={hovered ? "animate" : "initial"}
     >
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />

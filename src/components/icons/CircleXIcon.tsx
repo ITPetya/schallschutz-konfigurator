@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface CircleXIconProps {
   size?: number;
@@ -15,9 +16,12 @@ const line2: Variants = {
 };
 
 // Lucide "circle-x", animiert mit Motion (Jonas' Vorgabe 2026-07-24) - fuer
-// "Nein" im Bestaetigungs-Dialog (KonfiguratorPage.tsx).
+// "Nein" im Bestaetigungs-Dialog (KonfiguratorPage.tsx). Kein eigener
+// Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover() liest den
+// Zustand des umgebenden AnimatedButton-Wrappers.
 export function CircleXIcon({ size = 20, className }: CircleXIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
+  const target = hovered ? "animate" : "initial";
   return (
     <motion.svg
       width={size}
@@ -29,14 +33,10 @@ export function CircleXIcon({ size = 20, className }: CircleXIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
       <circle cx={12} cy={12} r={10} />
-      <motion.line x1={9} y1={15} x2={15} y2={9} variants={line1} initial="initial" animate={controls} />
-      <motion.line x1={9} y1={9} x2={15} y2={15} variants={line2} initial="initial" animate={controls} />
+      <motion.line x1={9} y1={15} x2={15} y2={9} variants={line1} initial="initial" animate={target} />
+      <motion.line x1={9} y1={9} x2={15} y2={15} variants={line2} initial="initial" animate={target} />
     </motion.svg>
   );
 }

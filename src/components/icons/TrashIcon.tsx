@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface TrashIconProps {
   size?: number;
@@ -22,8 +23,11 @@ const bar: Variants = {
 // Deckel hebt sich beim Hover leicht an. Ersetzt das reine "✕" beim
 // Entfernen eines platzierten Durchbruchs (OpeningsPanel.tsx), passt
 // semantisch besser zu "loeschen" als ein generisches Schliessen-Kreuz.
+// Kein eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover()
+// liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function TrashIcon({ size = 20, className }: TrashIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
+  const target = hovered ? "animate" : "initial";
   return (
     <motion.svg
       width={size}
@@ -35,18 +39,14 @@ export function TrashIcon({ size = 20, className }: TrashIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={target}>
         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
         <path d="M3 6h18" />
       </motion.g>
-      <motion.path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" variants={lid} initial="initial" animate={controls} />
-      <motion.line x1={10} x2={10} y1={11} y2={17} variants={bar} initial="initial" animate={controls} />
-      <motion.line x1={14} x2={14} y1={11} y2={17} variants={bar} initial="initial" animate={controls} />
+      <motion.path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" variants={lid} initial="initial" animate={target} />
+      <motion.line x1={10} x2={10} y1={11} y2={17} variants={bar} initial="initial" animate={target} />
+      <motion.line x1={14} x2={14} y1={11} y2={17} variants={bar} initial="initial" animate={target} />
     </motion.svg>
   );
 }

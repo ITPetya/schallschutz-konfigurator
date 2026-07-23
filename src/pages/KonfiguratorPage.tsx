@@ -7,6 +7,7 @@ import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { AccordionSection } from "../components/AccordionSection";
+import { AnimatedButton } from "../components/AnimatedButton";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
@@ -345,14 +346,14 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
           ) : (
             <>
               {returnToProject && (
-                <button
+                <AnimatedButton
                   type="button"
                   onClick={handleBackToProject}
                   className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
                 >
                   <ArrowLeftIcon size={16} />
                   Zurück zum Projekt
-                </button>
+                </AnimatedButton>
               )}
               <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
                 <ContainerSizeControls
@@ -395,22 +396,22 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
                   className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
                 />
                 <div className="flex gap-2">
-                  <button
+                  <AnimatedButton
                     type="button"
                     onClick={handleDownload}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
                   >
                     <DownloadIcon size={16} />
                     Speichern
-                  </button>
-                  <button
+                  </AnimatedButton>
+                  <AnimatedButton
                     type="button"
                     onClick={handleRequest}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
                   >
                     <SendIcon size={16} />
                     Anfragen
-                  </button>
+                  </AnimatedButton>
                 </div>
                 <p className="text-xs text-slate-400">
                   „Speichern“ lädt die Konfiguration als Datei herunter, um sie später wieder zu laden. „Anfragen“ öffnet
@@ -423,14 +424,14 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
         </div>
         {!readOnly && (
           <div className="border-t border-slate-200 p-3">
-            <button
+            <AnimatedButton
               type="button"
               onClick={() => setShowResetConfirm(true)}
               className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
             >
               <RotateCcwIcon size={16} />
               Zurücksetzen
-            </button>
+            </AnimatedButton>
           </div>
         )}
         </aside>
@@ -462,7 +463,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               das Popup offen ist, ersetzt es den Button (statt sich zu
               ueberlappen). */}
           {!readOnly && !showAddPopup && (
-            <button
+            <AnimatedButton
               type="button"
               data-tour="add-opening"
               onClick={() => setShowAddPopup(true)}
@@ -470,7 +471,7 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
               className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
             >
               <PlusIcon size={20} />
-            </button>
+            </AnimatedButton>
           )}
           {!readOnly && showAddPopup && (
             <AddOpeningPopup size={size} onAdd={handleAdd} onClose={() => setShowAddPopup(false)} />

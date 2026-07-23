@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface ChevronProps {
   direction: "up" | "down" | "left" | "right";
@@ -21,8 +22,10 @@ const path: Variants = {
 // der Y-Nudge bei Hover/Tap ist Lucides eigene chevron-down-Animation und
 // wandert dank der CSS-Rotation immer in die aktuell angezeigte Pfeilrichtung
 // (der Nudge liegt im lokalen, mitgedrehten Koordinatensystem des SVGs).
+// Kein eigener Hover/Tap-Trigger mehr (Jonas' Fehlerbericht 2026-07-25) -
+// useIconHover() liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function Chevron({ direction, className = "" }: ChevronProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width="14"
@@ -35,12 +38,8 @@ export function Chevron({ direction, className = "" }: ChevronProps) {
       strokeLinejoin="round"
       className={className}
       style={{ transform: `rotate(${ROTATION[direction]}deg)`, transition: "transform 200ms ease" }}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.path d="m6 9 6 6 6-6" variants={path} initial="initial" animate={controls} />
+      <motion.path d="m6 9 6 6 6-6" variants={path} initial="initial" animate={hovered ? "animate" : "initial"} />
     </motion.svg>
   );
 }

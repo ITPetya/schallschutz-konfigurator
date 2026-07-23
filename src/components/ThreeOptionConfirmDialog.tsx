@@ -1,3 +1,4 @@
+import { AnimatedButton } from "./AnimatedButton";
 import { DownloadIcon } from "./icons/DownloadIcon";
 import { CircleXIcon } from "./icons/CircleXIcon";
 import { CheckIcon } from "./icons/CheckIcon";
@@ -34,31 +35,31 @@ export function ThreeOptionConfirmDialog({
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">{title}</p>
         <p className="mb-4 text-sm text-slate-600">{message}</p>
         <div className="flex flex-col gap-2">
-          <button
+          <AnimatedButton
             type="button"
             onClick={onPrimary}
             className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
           >
             <DownloadIcon size={16} />
             {primaryLabel}
-          </button>
+          </AnimatedButton>
           <div className="flex gap-2">
-            <button
+            <AnimatedButton
               type="button"
               onClick={onCancel}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
             >
               <CircleXIcon size={16} />
               {cancelLabel}
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               type="button"
               onClick={onConfirm}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-red-700"
             >
               <CheckIcon size={16} />
               {confirmLabel}
-            </button>
+            </AnimatedButton>
           </div>
         </div>
       </div>

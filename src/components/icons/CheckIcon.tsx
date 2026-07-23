@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface CheckIconProps {
   size?: number;
@@ -11,9 +12,11 @@ const path: Variants = {
 };
 
 // Lucide "check", animiert mit Motion (Jonas' Vorgabe 2026-07-24) - fuer
-// "Ja, zurücksetzen" im Bestaetigungs-Dialog (KonfiguratorPage.tsx).
+// "Ja, zurücksetzen" im Bestaetigungs-Dialog (KonfiguratorPage.tsx). Kein
+// eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover() liest
+// den Zustand des umgebenden AnimatedButton-Wrappers.
 export function CheckIcon({ size = 20, className }: CheckIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -25,12 +28,8 @@ export function CheckIcon({ size = 20, className }: CheckIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.path d="m4 12 5 5L20 6" variants={path} initial="initial" animate={controls} />
+      <motion.path d="m4 12 5 5L20 6" variants={path} initial="initial" animate={hovered ? "animate" : "initial"} />
     </motion.svg>
   );
 }

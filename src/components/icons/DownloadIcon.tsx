@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface DownloadIconProps {
   size?: number;
@@ -12,9 +13,10 @@ const group: Variants = {
 
 // Lucide "download", animiert mit Motion (Jonas' Vorgabe 2026-07-24) - fuer
 // den "Speichern"-Button (KonfiguratorPage.tsx: laedt die Konfiguration als
-// Datei herunter).
+// Datei herunter). Kein eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) -
+// useIconHover() liest den Zustand des umgebenden AnimatedButton-Wrappers.
 export function DownloadIcon({ size = 20, className }: DownloadIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -26,12 +28,8 @@ export function DownloadIcon({ size = 20, className }: DownloadIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={hovered ? "animate" : "initial"}>
         <path d="M12 15V3" />
         <path d="m7 10 5 5 5-5" />
       </motion.g>

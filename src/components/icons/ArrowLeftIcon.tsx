@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface ArrowLeftIconProps {
   size?: number;
@@ -11,9 +12,11 @@ const group: Variants = {
 };
 
 // Lucide "arrow-left", animiert mit Motion, gespiegelt von ArrowRightIcon -
-// fuer "Zurück zum Projekt" (KonfiguratorPage.tsx, Baugruppen-Feature).
+// fuer "Zurück zum Projekt" (KonfiguratorPage.tsx, Baugruppen-Feature). Kein
+// eigener Hover/Tap-Trigger mehr (siehe PlusIcon.tsx) - useIconHover() liest
+// den Zustand des umgebenden AnimatedButton-Wrappers.
 export function ArrowLeftIcon({ size = 20, className }: ArrowLeftIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -25,12 +28,8 @@ export function ArrowLeftIcon({ size = 20, className }: ArrowLeftIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={hovered ? "animate" : "initial"}>
         <path d="M19 12H5" />
         <path d="m12 19-7-7 7-7" />
       </motion.g>

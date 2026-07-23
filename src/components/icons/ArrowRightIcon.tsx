@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface ArrowRightIconProps {
   size?: number;
@@ -11,9 +12,11 @@ const group: Variants = {
 };
 
 // Lucide "arrow-right", animiert mit Motion (Jonas' Vorgabe 2026-07-24) -
-// fuer "Konfiguration starten" (StartPage.tsx).
+// fuer "Konfiguration starten" (StartPage.tsx). Kein eigener Hover/Tap-
+// Trigger mehr (siehe PlusIcon.tsx) - useIconHover() liest den Zustand des
+// umgebenden AnimatedButton-Wrappers.
 export function ArrowRightIcon({ size = 20, className }: ArrowRightIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
   return (
     <motion.svg
       width={size}
@@ -25,12 +28,8 @@ export function ArrowRightIcon({ size = 20, className }: ArrowRightIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.g variants={group} initial="initial" animate={controls}>
+      <motion.g variants={group} initial="initial" animate={hovered ? "animate" : "initial"}>
         <path d="M5 12h14" />
         <path d="m12 5 7 7-7 7" />
       </motion.g>

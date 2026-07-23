@@ -1,4 +1,5 @@
-import { motion, useAnimation, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
+import { useIconHover } from "./IconHoverContext";
 
 interface PlusIconProps {
   size?: number;
@@ -16,11 +17,15 @@ const line2: Variants = {
 
 // Lucide "plus", animiert mit Motion (Jonas' Vorgabe 2026-07-24: "nutze
 // möglichst ausschließlich Icons von animate-ui.com/docs/icons.mdx") - Pfade
-// und Keyframes 1:1 von dort uebernommen; nur der Trigger-Mechanismus ist
-// vereinfacht (Hover/Tap direkt am SVG statt ueber einen globalen
-// Context-Provider, den dieses Projekt sonst nirgends braucht).
+// und Keyframes 1:1 von dort uebernommen. Kein eigener Hover/Tap-Trigger mehr
+// (Jonas' Fehlerbericht 2026-07-25: "Icons sollen animieren, wenn man ueber
+// den GANZEN Button hovert, nicht nur ueber das Icon") - useIconHover() liest
+// den Hover/Press-Zustand des umgebenden AnimatedButton-Wrappers (siehe
+// IconHoverContext.tsx: Motion/Reacts whileHover propagiert NICHT automatisch
+// an Kind-Komponenten, deshalb dieser Context statt Variant-Propagation).
 export function PlusIcon({ size = 20, className }: PlusIconProps) {
-  const controls = useAnimation();
+  const hovered = useIconHover();
+  const target = hovered ? "animate" : "initial";
   return (
     <motion.svg
       width={size}
@@ -32,13 +37,9 @@ export function PlusIcon({ size = 20, className }: PlusIconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      onMouseEnter={() => controls.start("animate")}
-      onMouseLeave={() => controls.start("initial")}
-      onPointerDown={() => controls.start("animate")}
-      onPointerUp={() => controls.start("initial")}
     >
-      <motion.line x1={12} y1={19} x2={12} y2={5} variants={line1} initial="initial" animate={controls} />
-      <motion.line x1={5} y1={12} x2={19} y2={12} variants={line2} initial="initial" animate={controls} />
+      <motion.line x1={12} y1={19} x2={12} y2={5} variants={line1} initial="initial" animate={target} />
+      <motion.line x1={5} y1={12} x2={19} y2={12} variants={line2} initial="initial" animate={target} />
     </motion.svg>
   );
 }

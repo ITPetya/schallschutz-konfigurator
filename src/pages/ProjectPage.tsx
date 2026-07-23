@@ -15,6 +15,7 @@ import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { useModeSwitch } from "../context/ModeSwitchContext";
 import { AccordionSection } from "../components/AccordionSection";
+import { AnimatedButton } from "../components/AnimatedButton";
 
 // Mindestabstand zwischen zwei Container-Grundrissen (siehe docs/baugruppen-
 // architektur.md - "reale Container brauchen Zugangsraum, nicht nur
@@ -416,7 +417,7 @@ export function ProjectPage() {
                         onClick={(e) => e.stopPropagation()}
                         className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none"
                       />
-                      <button
+                      <AnimatedButton
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -426,8 +427,8 @@ export function ProjectPage() {
                         className="shrink-0 text-slate-400 hover:text-brand"
                       >
                         <RotateCcwIcon size={15} />
-                      </button>
-                      <button
+                      </AnimatedButton>
+                      <AnimatedButton
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -437,12 +438,12 @@ export function ProjectPage() {
                         className="shrink-0 text-slate-400 hover:text-red-500"
                       >
                         <TrashIcon size={15} />
-                      </button>
+                      </AnimatedButton>
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
                       {inst.config.size.length} × {inst.config.size.width} mm · {inst.rotationY}°
                     </p>
-                    <button
+                    <AnimatedButton
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -452,7 +453,7 @@ export function ProjectPage() {
                     >
                       Detail bearbeiten
                       <ArrowRightIcon size={13} />
-                    </button>
+                    </AnimatedButton>
                   </div>
                 ))}
               </div>
@@ -576,22 +577,22 @@ export function ProjectPage() {
             <div className="mt-4 space-y-2 pt-1">
               <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Laden</p>
               <div className="flex gap-2">
-                <button
+                <AnimatedButton
                   type="button"
                   onClick={handleDownloadProject}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
                 >
                   <DownloadIcon size={16} />
                   Speichern
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-full border-2 border-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white"
                 >
                   <UploadIcon size={16} />
                   Laden
-                </button>
+                </AnimatedButton>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -604,14 +605,14 @@ export function ProjectPage() {
             </div>
           </div>
           <div className="border-t border-slate-200 p-3">
-            <button
+            <AnimatedButton
               type="button"
               onClick={() => setShowResetConfirm(true)}
               className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
             >
               <RotateCcwIcon size={16} />
               Projekt zurücksetzen
-            </button>
+            </AnimatedButton>
           </div>
         </aside>
 
@@ -623,7 +624,7 @@ export function ProjectPage() {
               Konfigurator (oben links im Viewer) - hier zwei Knoepfe: neuer
               leerer Container und aus gespeicherter Datei laden. */}
           <div className="absolute left-4 top-4 z-10 flex gap-2">
-            <button
+            <AnimatedButton
               type="button"
               onClick={handleAddInstance}
               aria-label="Container hinzufügen"
@@ -631,8 +632,8 @@ export function ProjectPage() {
               className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
             >
               <PlusIcon size={20} />
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               type="button"
               onClick={() => configFileInputRef.current?.click()}
               aria-label="Container aus Datei laden"
@@ -640,7 +641,7 @@ export function ProjectPage() {
               className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-brand bg-white text-brand shadow-md hover:bg-brand hover:text-white"
             >
               <UploadIcon size={16} />
-            </button>
+            </AnimatedButton>
             <input
               ref={configFileInputRef}
               type="file"
