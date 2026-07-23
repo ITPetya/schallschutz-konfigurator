@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { ContainerInstance, ProjectConfig } from "../config/projectTypes";
 import { loadProjectDraft, saveProjectDraft } from "../config/projectDraftStore";
 import { PROJECT_FILE_EXTENSION, decodeProject, encodeProject } from "../config/projectFileCodec";
-import { downloadBlob, sanitizeFileName } from "../config/configFileCodec";
+import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, sanitizeFileName } from "../config/configFileCodec";
 import { rectsOverlap, type OrientedRect } from "../utils/collision";
 import { defaultConfig } from "../config/defaultContainerConfig";
 import { PlusIcon } from "../components/icons/PlusIcon";
@@ -12,6 +12,8 @@ import { RotateCcwIcon } from "../components/icons/RotateCcwIcon";
 import { DownloadIcon } from "../components/icons/DownloadIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
+import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
+import { useModeSwitch } from "../context/ModeSwitchContext";
 
 // Mindestabstand zwischen zwei Container-Grundrissen (siehe docs/baugruppen-
 // architektur.md - "reale Container brauchen Zugangsraum, nicht nur
@@ -60,6 +62,58 @@ function screenToWorld(svg: SVGSVGElement, clientX: number, clientY: number): { 
   return { x: transformed.x, z: transformed.y };
 }
 
+// Fuer "Passend"/"Fluchtend" (Jonas' Vorgabe 2026-07-25, Inventor-Begriffe):
+// weil rotationY immer ein Vielfaches von 90 Grad ist (siehe handleRotate),
+// bleibt der Grundriss nach der Rotation IMMER achsparallel zur Welt - bei
+// 90/270 Grad tauschen Laenge und Breite nur ihre Rolle bezueglich der
+// Welt-Achsen. Das nutzt diese Funktion aus, statt allgemeine (teurere)
+// Rotationsgeometrie zu brauchen.
+function worldHalfExtents(inst: ContainerInstance): { hw: number; hd: number } {
+  const swapped = Math.abs(inst.rotationY % 180) === 90;
+  return swapped
+    ? { hw: inst.config.size.width / 2, hd: inst.config.size.length / 2 }
+    : { hw: inst.config.size.length / 2, hd: inst.config.size.width / 2 };
+}
+
+type MateSide = "left" | "right" | "top" | "bottom";
+
+// "Passend": target beruehrt ref an der angegebenen SEITE VON TARGET, mit
+// gap Millimetern Abstand dazwischen (0 = beruehren sich exakt) - bewusst
+// KEIN persistenter, live nachgefuehrter Constraint wie in Inventor, nur
+// eine einmalige Positionsberechnung ("jetzt einrasten"), siehe
+// docs/baugruppen-architektur.md fuer die Abgrenzung.
+function computeMatePosition(
+  ref: ContainerInstance,
+  target: ContainerInstance,
+  sideOfTarget: MateSide,
+  gap: number,
+): { x: number; z: number } {
+  const extRef = worldHalfExtents(ref);
+  const extTarget = worldHalfExtents(target);
+  switch (sideOfTarget) {
+    case "left":
+      return { x: ref.position.x + extRef.hw + gap + extTarget.hw, z: target.position.z };
+    case "right":
+      return { x: ref.position.x - extRef.hw - gap - extTarget.hw, z: target.position.z };
+    case "top":
+      return { x: target.position.x, z: ref.position.z + extRef.hd + gap + extTarget.hd };
+    case "bottom":
+      return { x: target.position.x, z: ref.position.z - extRef.hd - gap - extTarget.hd };
+  }
+}
+
+// "Fluchtend": target auf derselben Achse wie ref zentrieren (plus
+// optionalem Versatz) - die jeweils ANDERE Koordinate bleibt unveraendert.
+function computeFlushPosition(
+  ref: ContainerInstance,
+  target: ContainerInstance,
+  axis: "x" | "z",
+  offset: number,
+): { x: number; z: number } {
+  if (axis === "x") return { x: ref.position.x + offset, z: target.position.z };
+  return { x: target.position.x, z: ref.position.z + offset };
+}
+
 interface DragState {
   id: string;
   offsetX: number;
@@ -80,6 +134,33 @@ export function ProjectPage() {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const configFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Ausrichten-Werkzeug ("Passend"/"Fluchtend", Jonas' Vorgabe 2026-07-25).
+  const [alignRefId, setAlignRefId] = useState<string | null>(null);
+  const [alignTargetId, setAlignTargetId] = useState<string | null>(null);
+  const [alignMode, setAlignMode] = useState<"mate" | "flush">("mate");
+  const [alignSide, setAlignSide] = useState<MateSide>("left");
+  const [alignAxis, setAlignAxis] = useState<"x" | "z">("x");
+  const [alignDistance, setAlignDistance] = useState(500);
+  const [alignError, setAlignError] = useState<string | null>(null);
+
+  // Moduswechsel-Sicherheitshinweis (Jonas' Vorgabe 2026-07-25) - analog zu
+  // KonfiguratorPage.tsx: nur nachfragen, wenn schon Container im Projekt
+  // sind, sonst direkt wechseln.
+  const { registerGuard } = useModeSwitch();
+  const [modeSwitchTarget, setModeSwitchTarget] = useState<string | null>(null);
+  useEffect(() => {
+    registerGuard((targetPath) => {
+      if (project.instances.length === 0) {
+        navigate(targetPath);
+      } else {
+        setModeSwitchTarget(targetPath);
+      }
+    });
+    return () => registerGuard(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
 
   useEffect(() => {
     saveProjectDraft(project);
@@ -139,6 +220,70 @@ export function ProjectPage() {
 
   function handleEdit(instance: ContainerInstance) {
     navigate("/konfigurator", { state: { config: instance.config, returnToProject: { instanceId: instance.id } } });
+  }
+
+  // Jonas' Vorgabe 2026-07-25: "vorherig konfigurierte Container über die
+  // gespeicherten Dateien in den Baugruppen-Konfigurator geladen werden
+  // können" - liest eine bestehende .sszkonfig (identisches Format zum
+  // Einzelcontainer-Konfigurator, decodeConfig wird 1:1 wiederverwendet) und
+  // legt sie als neue Instanz an, die man danach frei platzieren kann.
+  async function handleLoadConfigFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const config = await decodeConfig(file);
+      const instance: ContainerInstance = {
+        id: crypto.randomUUID(),
+        label: file.name.replace(new RegExp(`${CONFIG_FILE_EXTENSION}$`), ""),
+        config,
+        position: findFreePosition(project.instances, config.size.length),
+        rotationY: 0,
+      };
+      setProject((p) => ({ ...p, instances: [...p.instances, instance] }));
+      setSelectedId(instance.id);
+      setError(null);
+    } catch {
+      setError("Datei konnte nicht geladen werden – ist es eine gültige Konfigurationsdatei (.sszkonfig)?");
+    }
+  }
+
+  // "Passend"/"Fluchtend" (Jonas' Vorgabe 2026-07-25, siehe computeMate-/
+  // computeFlushPosition oben) - berechnet die neue Position von alignTarget
+  // relativ zu alignRef und wendet sie an, sofern das nicht zu einer
+  // Ueberschneidung mit einem DRITTEN Container fuehren wuerde (gegen
+  // alignRef selbst kann es per Konstruktion nicht ueberlappen).
+  function handleApplyAlign() {
+    setAlignError(null);
+    const ref = project.instances.find((i) => i.id === alignRefId);
+    const target = project.instances.find((i) => i.id === alignTargetId);
+    if (!ref || !target || ref.id === target.id) {
+      setAlignError("Bitte zwei unterschiedliche Container auswählen.");
+      return;
+    }
+
+    const newPos =
+      alignMode === "mate"
+        ? computeMatePosition(ref, target, alignSide, alignDistance)
+        : computeFlushPosition(ref, target, alignAxis, alignDistance);
+
+    const candidate: OrientedRect = {
+      x: newPos.x,
+      z: newPos.z,
+      halfWidth: target.config.size.length / 2,
+      halfDepth: target.config.size.width / 2,
+      rotationDeg: target.rotationY,
+    };
+    const others = project.instances.filter((i) => i.id !== target.id && i.id !== ref.id);
+    if (collidesWithAny(candidate, others)) {
+      setAlignError("Diese Ausrichtung würde zu einer Überschneidung mit einem anderen Container führen.");
+      return;
+    }
+
+    setProject((p) => ({
+      ...p,
+      instances: p.instances.map((i) => (i.id === target.id ? { ...i, position: newPos } : i)),
+    }));
   }
 
   function handlePointerDown(e: React.PointerEvent, inst: ContainerInstance) {
@@ -227,14 +372,33 @@ export function ProjectPage() {
 
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-widest text-brand">Container</p>
-              <button
-                type="button"
-                onClick={handleAddInstance}
-                aria-label="Container hinzufügen"
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white hover:bg-brand-dark"
-              >
-                <PlusIcon size={16} />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => configFileInputRef.current?.click()}
+                  aria-label="Container aus Datei laden"
+                  title="Aus gespeicherter Konfigurationsdatei laden"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-brand text-brand hover:bg-brand hover:text-white"
+                >
+                  <UploadIcon size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddInstance}
+                  aria-label="Container hinzufügen"
+                  title="Neuen leeren Container hinzufügen"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white hover:bg-brand-dark"
+                >
+                  <PlusIcon size={16} />
+                </button>
+                <input
+                  ref={configFileInputRef}
+                  type="file"
+                  accept={CONFIG_FILE_EXTENSION}
+                  onChange={handleLoadConfigFile}
+                  className="hidden"
+                />
+              </div>
             </div>
 
             {project.instances.length === 0 && (
@@ -298,6 +462,120 @@ export function ProjectPage() {
                 </div>
               ))}
             </div>
+
+            {/* "Passend"/"Fluchtend" (Jonas' Vorgabe 2026-07-25, Inventor-
+                Begriffe) - einmalige Ausrichtung statt eines live
+                nachgefuehrten Constraints, siehe computeMate-/
+                computeFlushPosition weiter oben fuer die Abgrenzung. Nur ab
+                zwei Containern sinnvoll. */}
+            {project.instances.length >= 2 && (
+              <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
+                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Ausrichten</p>
+
+                <label className="block text-xs text-slate-500">
+                  Container
+                  <select
+                    value={alignTargetId ?? ""}
+                    onChange={(e) => setAlignTargetId(e.target.value || null)}
+                    className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                  >
+                    <option value="">– auswählen –</option>
+                    {project.instances.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-xs text-slate-500">
+                  relativ zu
+                  <select
+                    value={alignRefId ?? ""}
+                    onChange={(e) => setAlignRefId(e.target.value || null)}
+                    className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                  >
+                    <option value="">– auswählen –</option>
+                    {project.instances
+                      .filter((i) => i.id !== alignTargetId)
+                      .map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setAlignMode("mate")}
+                    className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
+                      alignMode === "mate" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    Passend
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAlignMode("flush")}
+                    className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
+                      alignMode === "flush" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    Fluchtend
+                  </button>
+                </div>
+
+                {alignMode === "mate" ? (
+                  <label className="block text-xs text-slate-500">
+                    Position
+                    <select
+                      value={alignSide}
+                      onChange={(e) => setAlignSide(e.target.value as MateSide)}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                    >
+                      <option value="left">rechts daneben</option>
+                      <option value="right">links daneben</option>
+                      <option value="top">darunter</option>
+                      <option value="bottom">darüber</option>
+                    </select>
+                  </label>
+                ) : (
+                  <label className="block text-xs text-slate-500">
+                    Achse
+                    <select
+                      value={alignAxis}
+                      onChange={(e) => setAlignAxis(e.target.value as "x" | "z")}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                    >
+                      <option value="x">horizontal (X)</option>
+                      <option value="z">vertikal (Z)</option>
+                    </select>
+                  </label>
+                )}
+
+                <label className="block text-xs text-slate-500">
+                  Abstand (mm)
+                  <input
+                    type="number"
+                    step={10}
+                    value={alignDistance}
+                    onChange={(e) => setAlignDistance(Number(e.target.value) || 0)}
+                    className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleApplyAlign}
+                  className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+                >
+                  Anwenden
+                </button>
+                {alignError && <p className="text-xs text-red-600">{alignError}</p>}
+              </div>
+            )}
 
             <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
               <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Laden</p>
@@ -385,6 +663,23 @@ export function ProjectPage() {
           </svg>
         </main>
       </div>
+
+      {/* Moduswechsel-Sicherheitshinweis (Jonas' Vorgabe 2026-07-25) - siehe
+          registerGuard-Effekt oben, gleiches Muster wie KonfiguratorPage.tsx. */}
+      {modeSwitchTarget && (
+        <ThreeOptionConfirmDialog
+          title="Modus wechseln"
+          message="Dieses Projekt enthält bereits Container. Beim Wechsel bleibt es zwar als Entwurf erhalten, aber falls du es behalten willst, lade es dir vorher als Datei herunter."
+          primaryLabel="Speichern & wechseln"
+          onPrimary={async () => {
+            await handleDownloadProject();
+            navigate(modeSwitchTarget);
+          }}
+          confirmLabel="Ja, wechseln"
+          onConfirm={() => navigate(modeSwitchTarget)}
+          onCancel={() => setModeSwitchTarget(null)}
+        />
+      )}
     </div>
   );
 }

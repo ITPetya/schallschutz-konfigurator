@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useModeSwitch } from "../context/ModeSwitchContext";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -39,18 +40,22 @@ export function AppShell() {
               Schallschutz-Sondercontainer
             </Link>
 
-            <HelpMenu
-              open={helpMenuOpen}
-              onToggle={() => setHelpMenuOpen((v) => !v)}
-              onClose={() => setHelpMenuOpen(false)}
-              onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
-              onHilfe={() => navigate("/hilfe")}
-            />
+            <div className="flex items-center gap-2">
+              <ModeSwitchButton />
+              <HelpMenu
+                open={helpMenuOpen}
+                onToggle={() => setHelpMenuOpen((v) => !v)}
+                onClose={() => setHelpMenuOpen(false)}
+                onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
+                onHilfe={() => navigate("/hilfe")}
+              />
+            </div>
           </header>
         </>
       )}
       {embed && (
-        <div className="absolute right-3 top-3 z-40">
+        <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
+          <ModeSwitchButton />
           <HelpMenu
             open={helpMenuOpen}
             onToggle={() => setHelpMenuOpen((v) => !v)}
@@ -68,6 +73,43 @@ export function AppShell() {
       </div>
       <TourOverlay />
     </div>
+  );
+}
+
+// Moduswechsel (Jonas' Vorgabe 2026-07-25): "oben rechts, links neben dem
+// Fragezeichen" zwischen Einzelcontainer- und Baugruppen-Konfigurator
+// umschalten koennen. Nur auf den beiden betroffenen Routen sichtbar - auf
+// allen anderen Seiten (Start, Hilfe, intern) ergibt ein Moduswechsel keinen
+// Sinn. Navigiert NIE direkt (siehe ModeSwitchContext) - falls die aktuelle
+// Seite eine Guard-Funktion registriert hat (Einzelcontainer-Konfigurator
+// oder Baugruppen-Projekt mit nicht-leerem Zustand), entscheidet die anhand
+// ihres eigenen Zustands, ob zuerst eine Speichern/Verwerfen-Erinnerung
+// noetig ist.
+function ModeSwitchButton() {
+  const location = useLocation();
+  const { requestSwitch } = useModeSwitch();
+  const embedSuffix = new URLSearchParams(location.search).get("embed") === "1" ? "?embed=1" : "";
+
+  let label: string;
+  let target: string;
+  if (location.pathname === "/konfigurator") {
+    label = "Baugruppe";
+    target = `/projekt${embedSuffix}`;
+  } else if (location.pathname === "/projekt") {
+    label = "Einzelcontainer";
+    target = `/konfigurator${embedSuffix}`;
+  } else {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => requestSwitch(target)}
+      className="rounded-full border-2 border-slate-300 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand hover:text-brand"
+    >
+      {label}
+    </button>
   );
 }
 

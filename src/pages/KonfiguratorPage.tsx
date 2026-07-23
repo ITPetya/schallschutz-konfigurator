@@ -24,8 +24,8 @@ import { PlusIcon } from "../components/icons/PlusIcon";
 import { RotateCcwIcon } from "../components/icons/RotateCcwIcon";
 import { DownloadIcon } from "../components/icons/DownloadIcon";
 import { SendIcon } from "../components/icons/SendIcon";
-import { CheckIcon } from "../components/icons/CheckIcon";
-import { CircleXIcon } from "../components/icons/CircleXIcon";
+import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
+import { useModeSwitch } from "../context/ModeSwitchContext";
 
 interface KonfiguratorPageProps {
   // "readonly" ersetzt die editierbare Seitenleiste durch eine reine
@@ -83,8 +83,46 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
   // Jonas' Vorgabe 2026-07-24: statt window.confirm() ein richtiger Dialog
   // mit drei Optionen (Ja / Nein / Speichern-und-Ja).
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Ziel eines angefragten Moduswechsels, waehrend die Sicherheitsabfrage
+  // sichtbar ist (Jonas' Vorgabe 2026-07-25) - null heisst "kein Wechsel
+  // angefragt/Dialog zu".
+  const [modeSwitchTarget, setModeSwitchTarget] = useState<string | null>(null);
 
   const { start: startTour } = useTour();
+  const { registerGuard } = useModeSwitch();
+  // Registriert bei JEDER relevanten Zustandsaenderung neu (gleiche
+  // Abhaengigkeiten wie der Autosave-Effekt darunter), damit der Guard immer
+  // den AKTUELLEN Stand sieht: nur wenn die Konfiguration von der leeren
+  // Default-Konfiguration abweicht, wird der Moduswechsel-Dialog gezeigt -
+  // ein frisch geoeffneter, unveraenderter Konfigurator wechselt sofort ohne
+  // Nachfrage.
+  useEffect(() => {
+    if (mode !== "edit") return;
+    registerGuard((targetPath) => {
+      const isDefault = JSON.stringify(currentConfig()) === JSON.stringify(defaultConfig());
+      if (isDefault) {
+        navigate(targetPath);
+      } else {
+        setModeSwitchTarget(targetPath);
+      }
+    });
+    return () => registerGuard(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    mode,
+    size,
+    wallThickness,
+    openings,
+    viewStyle,
+    background,
+    insideColor,
+    outsideColor,
+    shadowsEnabled,
+    insideUnpainted,
+    outsideNotes,
+    insideNotes,
+  ]);
+
   useEffect(() => {
     // Automatisch nur beim allerersten Aufruf des Konfigurators (Jonas'
     // Vorgabe 2026-07-22) - danach nur noch ueber den "?"-Button.
@@ -444,42 +482,34 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
           Dialog mit drei Optionen - Nein (abbrechen), Ja (nur zuruecksetzen),
           Speichern & Zuruecksetzen (erst als Datei sichern, dann zuruecksetzen). */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Zurücksetzen</p>
-            <p className="mb-4 text-sm text-slate-600">
-              Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren.
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleResetAndSave}
-                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-              >
-                <DownloadIcon size={16} />
-                Speichern &amp; zurücksetzen
-              </button>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
-                >
-                  <CircleXIcon size={16} />
-                  Nein
-                </button>
-                <button
-                  type="button"
-                  onClick={applyReset}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-red-700"
-                >
-                  <CheckIcon size={16} />
-                  Ja, zurücksetzen
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ThreeOptionConfirmDialog
+          title="Zurücksetzen"
+          message="Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren."
+          primaryLabel="Speichern & zurücksetzen"
+          onPrimary={handleResetAndSave}
+          confirmLabel="Ja, zurücksetzen"
+          onConfirm={applyReset}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+
+      {/* Moduswechsel-Sicherheitshinweis (Jonas' Vorgabe 2026-07-25): wenn
+          man schon eine nicht-triviale Einzelcontainer-Konfiguration hat und
+          in den Baugruppen-Modus wechseln will, dieselbe Speichern/Verwerfen-
+          Erinnerung wie beim Zuruecksetzen - siehe registerGuard-Effekt oben. */}
+      {modeSwitchTarget && (
+        <ThreeOptionConfirmDialog
+          title="Modus wechseln"
+          message="Du hast bereits einen Container konfiguriert. Beim Wechsel bleibt die Konfiguration zwar als Entwurf erhalten, aber falls du sie behalten willst, lade sie dir vorher als Datei herunter."
+          primaryLabel="Speichern & wechseln"
+          onPrimary={async () => {
+            await handleDownload();
+            navigate(modeSwitchTarget);
+          }}
+          confirmLabel="Ja, wechseln"
+          onConfirm={() => navigate(modeSwitchTarget)}
+          onCancel={() => setModeSwitchTarget(null)}
+        />
       )}
     </div>
   );

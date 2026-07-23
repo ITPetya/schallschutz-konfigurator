@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TourProvider } from "./tour/TourContext";
+import { ModeSwitchProvider } from "./context/ModeSwitchContext";
 import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
 
@@ -31,17 +32,19 @@ function App() {
   return (
     <BrowserRouter>
       <TourProvider>
-        <Suspense fallback={<RouteLoadingFallback />}>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<StartPage />} />
-              <Route path="/konfigurator" element={<KonfiguratorPage />} />
-              <Route path="/projekt" element={<ProjectPage />} />
-              <Route path="/intern" element={<InternalPage />} />
-              <Route path="/hilfe" element={<HilfePage />} />
-            </Route>
-          </Routes>
-        </Suspense>
+        <ModeSwitchProvider>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<StartPage />} />
+                <Route path="/konfigurator" element={<KonfiguratorPage />} />
+                <Route path="/projekt" element={<ProjectPage />} />
+                <Route path="/intern" element={<InternalPage />} />
+                <Route path="/hilfe" element={<HilfePage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </ModeSwitchProvider>
       </TourProvider>
     </BrowserRouter>
   );
