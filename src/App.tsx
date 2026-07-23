@@ -15,6 +15,10 @@ import { StartPage } from "./pages/StartPage";
 const KonfiguratorPage = lazy(() => import("./pages/KonfiguratorPage").then((m) => ({ default: m.KonfiguratorPage })));
 const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
 const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
+// ProjectPage (Baugruppen-Feature) ist reines SVG/DOM, kein 3D-Import - ein
+// eigener lazy-Chunk lohnt sich trotzdem, damit StartPage/HilfePage sie
+// nicht mitladen muessen, obwohl die meisten Besucher sie nie besuchen.
+const ProjectPage = lazy(() => import("./pages/ProjectPage").then((m) => ({ default: m.ProjectPage })));
 
 // Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
 // Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
@@ -32,6 +36,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<StartPage />} />
               <Route path="/konfigurator" element={<KonfiguratorPage />} />
+              <Route path="/projekt" element={<ProjectPage />} />
               <Route path="/intern" element={<InternalPage />} />
               <Route path="/hilfe" element={<HilfePage />} />
             </Route>

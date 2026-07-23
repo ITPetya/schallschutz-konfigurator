@@ -71,6 +71,18 @@ export function StartPage() {
         <input ref={fileInputRef} type="file" accept=".sszkonfig" onChange={handleFileSelected} className="hidden" />
       </div>
       {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}
+
+      {/* Baugruppen-Feature (Nacht-Session 2026-07-23): bewusst als
+          unauffaelliger Textlink statt gleichwertiger dritter Haupt-Button -
+          neu und noch nicht so ausgereift wie der Einzelcontainer-
+          Konfigurator, soll den nicht optisch verdraengen. */}
+      <button
+        type="button"
+        onClick={() => navigate("/projekt")}
+        className="text-sm font-medium text-slate-500 underline decoration-slate-300 hover:text-brand"
+      >
+        Baugruppen-Projekt (mehrere Container) starten
+      </button>
     </div>
   );
 }

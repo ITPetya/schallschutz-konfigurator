@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { OpeningsPanel } from "../components/OpeningsPanel";
 import { OpeningsSummary } from "../components/OpeningsSummary";
@@ -7,14 +7,16 @@ import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { AccordionSection } from "../components/AccordionSection";
-import { RAL_STANDARD_COLORS } from "../constants/ralColors";
-import { DEFAULT_CONTAINER_SIZE, DEFAULT_WALL_THICKNESS, type ContainerSize } from "../constants/containerSizes";
+import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { BackgroundStyle, ViewStyle } from "../context/DisplaySettingsContext";
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
 import { loadDraft, saveDraft } from "../config/draftStore";
+import { updateProjectInstanceConfig } from "../config/projectDraftStore";
+import { defaultConfig } from "../config/defaultContainerConfig";
+import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import { useTour } from "../tour/TourContext";
 import { hasSeenTour } from "../tour/tourStore";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
@@ -35,23 +37,6 @@ interface KonfiguratorPageProps {
   projectName?: string;
 }
 
-function defaultConfig(): ContainerConfig {
-  return {
-    size: DEFAULT_CONTAINER_SIZE,
-    wallThickness: DEFAULT_WALL_THICKNESS,
-    openings: [],
-    viewStyle: "realistic",
-    background: "studio",
-    // RAL 7004 Signalgrau.
-    insideColor: RAL_STANDARD_COLORS[1].hex,
-    outsideColor: RAL_STANDARD_COLORS[1].hex,
-    shadowsEnabled: true,
-    insideUnpainted: false,
-    outsideNotes: "",
-    insideNotes: "",
-  };
-}
-
 // Jonas' Vorgabe 2026-07-23: kein Server, kein Konto - eine Konfiguration
 // wird als verschluesselte Datei heruntergeladen/eingelesen statt in einer
 // Datenbank gespeichert. "Konfiguration laden" auf der Startseite navigiert
@@ -60,7 +45,16 @@ function defaultConfig(): ContainerConfig {
 // gezielt eine Konfiguration reinreicht.
 export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: KonfiguratorPageProps) {
   const location = useLocation();
-  const routeConfig = (location.state as { config?: ContainerConfig } | null)?.config;
+  const navigate = useNavigate();
+  const routeState = location.state as { config?: ContainerConfig; returnToProject?: { instanceId: string } } | null;
+  const routeConfig = routeState?.config;
+  // Baugruppen-Feature (Nacht-Session 2026-07-23): wenn ProjectPage hierher
+  // navigiert, um EINE Container-Instanz im normalen Konfigurator zu
+  // bearbeiten, haengt sie diese Info an den Router-State - "Zurück zum
+  // Projekt" schreibt dann die bearbeitete Config gezielt in genau diese
+  // Instanz zurueck (siehe projectDraftStore.ts), statt eine neue Instanz
+  // oder ein neues Projekt anzulegen.
+  const returnToProject = routeState?.returnToProject;
   // Zwischengespeicherter Entwurf (Jonas' Vorgabe 2026-07-23: "falls
   // irgendwas abstürzt immer ein Zwischenstand noch da") hat Vorrang vor dem
   // leeren Default, aber NICHT vor einer explizit uebergebenen/geladenen
@@ -188,6 +182,13 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
     };
   }
 
+  function handleBackToProject() {
+    if (returnToProject) {
+      updateProjectInstanceConfig(returnToProject.instanceId, currentConfig());
+    }
+    navigate("/projekt");
+  }
+
   function flashStatus(message: string) {
     setStatusMessage(message);
     window.setTimeout(() => setStatusMessage(null), 4000);
@@ -305,6 +306,16 @@ export function KonfiguratorPage({ mode = "edit", initialConfig, projectName }: 
             </>
           ) : (
             <>
+              {returnToProject && (
+                <button
+                  type="button"
+                  onClick={handleBackToProject}
+                  className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+                >
+                  <ArrowLeftIcon size={16} />
+                  Zurück zum Projekt
+                </button>
+              )}
               <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
                 <ContainerSizeControls
                   size={size}
