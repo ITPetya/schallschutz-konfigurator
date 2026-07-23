@@ -1,1 +1,8 @@
+# Beta-Vorschau (Nacht-Session 2026-07-23): proxied /beta/* transparent auf
+# den Netlify-Branch-Deploy von "night-2026-07-23-beta", URL-Leiste bleibt
+# bei hayse.de/beta (Status 200 = Proxy, kein sichtbarer Redirect). Muss VOR
+# der SPA-Catch-all-Regel stehen, sonst faengt die zuerst.
+/beta/*  https://night-2026-07-23-beta--containerconfigurator.netlify.app/:splat  200
+/beta    https://night-2026-07-23-beta--containerconfigurator.netlify.app/  200
+
 /*    /index.html   200
