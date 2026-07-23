@@ -33,7 +33,13 @@ export function ViewerToolbar({ onReset, onUndo, onRedo, canUndo, canRedo }: Vie
           </ToolButton>
         </div>
       )}
-      <div className="absolute bottom-[124px] right-[62px]">
+      {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
+          mit der rechten Außenkante des Würfels" - GizmoHelper platziert den
+          Wuerfel mit margin=[80,80] (Zentrum 80px von rechts/unten), die
+          Box selbst ist 60px breit -> rechte Kante liegt bei rechts ~35px
+          von der Canvas-Kante, obere Kante bei unten ~110-125px (die
+          Iso-Ansicht des Wuerfels ragt diagonal etwas darueber hinaus). */}
+      <div className="absolute bottom-[150px] right-[34px]">
         <ToolButton onClick={onReset} label="Ansicht zurücksetzen">
           <HomeIcon size={16} />
         </ToolButton>

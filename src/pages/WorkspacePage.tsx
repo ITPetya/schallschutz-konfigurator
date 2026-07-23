@@ -212,7 +212,7 @@ export function WorkspacePage() {
     setShowGrundeinstellungen(false);
   }
 
-  const { start: startTour } = useTour();
+  const { start: startTour, setSuppressed: setTourSuppressed } = useTour();
   useEffect(() => {
     // Die Tour zeigt ausschliesslich Einzelcontainer-UI-Elemente (siehe
     // tourDefinitions.ts) - nur automatisch starten, wenn der allererste
@@ -222,6 +222,20 @@ export function WorkspacePage() {
     if (mode === "single" && !hasSeenTour(CONFIGURATOR_TOUR_ID)) startTour(CONFIGURATOR_TOUR_ID);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tour und Grundeinstellungen-Overlay duerfen sich nie gleichzeitig
+  // ueberlagern (Jonas' Fehlerbericht 2026-07-25: "das Tutorial kollidiert
+  // ein bisschen mit dem Fenster ... wenn dann nachher das Tutorial
+  // irgendwo aufgerufen wird, soll auch dort weitergemacht werden, nicht
+  // einfach von vorne") - die Tour blendet sich waehrend des Overlays aus
+  // (suppressed), OHNE ihren Fortschritt zu verlieren: egal ob sie gerade
+  // erst startet (Erstbesuch) oder schon mitten in einem Schritt war (z. B.
+  // Zurücksetzen zeigt das Overlay erneut) - sie macht danach GENAU an
+  // dieser Stelle weiter statt bei Schritt 1 neu zu beginnen.
+  useEffect(() => {
+    setTourSuppressed(showGrundeinstellungen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGrundeinstellungen]);
 
   useEffect(() => {
     saveDraft({
@@ -490,6 +504,12 @@ export function WorkspacePage() {
     loadSingleConfig(defaultConfig());
     setShowResetConfirm(false);
     flashStatus("Konfiguration wurde zurückgesetzt.");
+    // Zurücksetzen ist genauso ein "selbst ein neues Projekt beginnen" wie
+    // der allererste Aufruf (Jonas' Vorgabe 2026-07-25: "die
+    // Grundeinstellungen sollen ... angezeigt werden, wenn der User im
+    // Configurator selber ein neues Projekt beginnt") - deshalb auch hier
+    // wieder abfragen, nicht nur beim ersten Laden ohne Cache.
+    setShowGrundeinstellungen(true);
   }
 
   async function handleResetAndSave() {
@@ -680,6 +700,9 @@ export function WorkspacePage() {
     setProject(emptyProject());
     setSelectedId(null);
     setShowResetProjectConfirm(false);
+    // Siehe applyReset() - "Projekt zurücksetzen" ist ebenfalls ein
+    // selbst-begonnenes neues Projekt.
+    setShowGrundeinstellungen(true);
   }
 
   async function handleResetProjectAndSave() {
