@@ -58,16 +58,23 @@ export const TOURS: Record<string, Tour> = {
       // also auch der ViewCube, Schnitte, Ansichte, vor und zurück, die
       // Steuerung etc. alles soll im Tutorial angezeigt werden").
       {
+        // Home-Button sitzt direkt neben diesem Anker (Jonas' Vorgabe
+        // 2026-07-25: "der Home Button sollte wie bei Inventor ausgeführt
+        // sein und auch da beim Viewcube") - deshalb hier mit erklaert,
+        // obwohl der Anker selbst nur den ViewCube markiert.
         selector: '[data-tour="viewcube-anchor"]',
         title: "Ansicht drehen & zurücksetzen",
-        body: "Mit der linken Maustaste drehst du die Ansicht, mit der mittleren Maustaste (oder zwei Fingern am Handy/Tablet) verschiebst du sie, und mit dem Mausrad (oder zwei Fingern zum Zoomen) vergrößerst/verkleinerst du. Der Würfel oben rechts springt zu einer Standardansicht (z. B. „Oben“), sobald du auf eine Seite klickst.",
+        body: "Mit der linken Maustaste drehst du die Ansicht, mit der mittleren Maustaste (oder zwei Fingern am Handy/Tablet) verschiebst du sie, und mit dem Mausrad (oder zwei Fingern zum Zoomen) vergrößerst/verkleinerst du. Der Würfel springt zu einer Standardansicht (z. B. „Oben“), sobald du auf eine Seite klickst – der Haus-Knopf daneben setzt die Kamera auf die Ausgangsansicht zurück.",
         placement: "top",
       },
       {
+        // Oben rechts im Viewer (Jonas' Vorgabe 2026-07-25: "die vor und
+        // zurück Buttons sollten oben rechts im Viewer sein") - bewusst
+        // getrennt vom Home-Button beim ViewCube, siehe ViewerToolbar.tsx.
         selector: '[data-tour="viewer-toolbar"]',
-        title: "Rückgängig, Wiederholen & Ansicht zurücksetzen",
-        body: "Diese drei Knöpfe machen Änderungen rückgängig (auch per Strg+Z) bzw. wiederholen sie (Strg+Y), oder setzen die Kameraansicht auf den Ausgangspunkt zurück – praktisch, nachdem du dich mit der mittleren Maustaste verschoben hast.",
-        placement: "top",
+        title: "Rückgängig & Wiederholen",
+        body: "Diese beiden Knöpfe machen Änderungen rückgängig (auch per Strg+Z) bzw. wiederholen sie (Strg+Y).",
+        placement: "bottom",
       },
       {
         selector: '[data-tour="save-project"]',

@@ -90,15 +90,21 @@ export function ProjectScene3D({
   canUndo,
   canRedo,
 }: ProjectScene3DProps) {
-  const cameraDistance = useMemo(() => {
-    if (instances.length === 0) return 14;
+  // Reichweite (Meter) der ganzen Baugruppe ab dem Ursprung - fuer die
+  // Kameradistanz UND fuer TerrainBackground's extentM (Jonas' Vorgabe
+  // 2026-07-25: "die Waldgrenzen sollen sich mit erweitern, wenn ... die
+  // Baugruppe größer wird"), damit Baumring/Wiese immer mitwachsen, statt
+  // bei einer ausgedehnten Baugruppe mitten im Gebaeude zu stehen.
+  const maxReachM = useMemo(() => {
+    if (instances.length === 0) return 6;
     let maxReach = 6;
     for (const inst of instances) {
       const reachMm = Math.hypot(inst.position.x, inst.position.z) + Math.hypot(inst.config.size.length, inst.config.size.width) / 2;
       maxReach = Math.max(maxReach, reachMm * MM_TO_M);
     }
-    return maxReach * 1.3 + 4;
+    return maxReach;
   }, [instances]);
+  const cameraDistance = instances.length === 0 ? 14 : maxReachM * 1.3 + 4;
 
   // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -168,7 +174,7 @@ export function ProjectScene3D({
 
         {isTerrain ? (
           <>
-            <TerrainBackground detail={terrainDetail} />
+            <TerrainBackground detail={terrainDetail} extentM={maxReachM} />
             <Environment preset="park" background={false} />
           </>
         ) : (

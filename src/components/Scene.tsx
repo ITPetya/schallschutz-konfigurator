@@ -87,6 +87,9 @@ export function Scene({
   const widthM = size.width * MM_TO_M;
   const heightM = size.height * MM_TO_M;
   const cameraDistance = Math.max(lengthM, widthM) * 1.6 + 4;
+  // Halbe Grundriss-Diagonale (Meter) - Reichweite des Containers ab dem
+  // Ursprung, siehe TerrainBackground.tsx's extentM.
+  const containerExtentM = Math.hypot(lengthM, widthM) / 2;
 
   // Fuer den Home-Button (Jonas' Vorgabe 2026-07-25: "wie bei Inventor")
   // neben dem ViewCube - OrbitControls' eingebautes reset() faehrt Kamera
@@ -126,7 +129,7 @@ export function Scene({
 
         {isTerrain ? (
           <>
-            <TerrainBackground detail={terrainDetail} />
+            <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
             <Environment preset="park" background={false} />
           </>
         ) : (

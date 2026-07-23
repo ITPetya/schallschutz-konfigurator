@@ -14,24 +14,26 @@ interface ViewerToolbarProps {
   canRedo?: boolean;
 }
 
-// Kleine Button-Gruppe oben-links neben dem ViewCube, gleicher Stil wie
-// dieser (halbtransparenter weisser Kreis) - Home ganz rechts (dort, wo der
-// Button vorher allein stand), Rückgängig/Wiederholen links davon, falls
-// vorhanden.
+// Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
+// Inventor ausgeführt ... auch da beim ViewCube") - Rückgängig/Wiederholen
+// dagegen bewusst NICHT dort, sondern oben rechts im Viewer (Jonas' Vorgabe
+// 2026-07-25: "die vor und zurück buttons sollten oben rechts im viewer
+// sein"), gleicher Button-Stil (halbtransparenter weisser Kreis) an beiden
+// Stellen.
 export function ViewerToolbar({ onReset, onUndo, onRedo, canUndo, canRedo }: ViewerToolbarProps) {
   return (
     <>
-      <div data-tour="viewer-toolbar" className="absolute bottom-[124px] right-[62px] flex gap-1.5">
-        {onUndo && onRedo && (
-          <>
-            <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
-              <UndoIcon size={15} />
-            </ToolButton>
-            <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
-              <RedoIcon size={15} />
-            </ToolButton>
-          </>
-        )}
+      {onUndo && onRedo && (
+        <div data-tour="viewer-toolbar" className="absolute right-4 top-4 flex gap-1.5">
+          <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
+            <UndoIcon size={15} />
+          </ToolButton>
+          <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
+            <RedoIcon size={15} />
+          </ToolButton>
+        </div>
+      )}
+      <div className="absolute bottom-[124px] right-[62px]">
         <ToolButton onClick={onReset} label="Ansicht zurücksetzen">
           <HomeIcon size={16} />
         </ToolButton>

@@ -37,30 +37,51 @@ const DETAIL_PARAMS: Record<TerrainDetail, DetailParams> = {
 // Sehr sanftes, rein prozedurales Bodenrelief (Summe zweier Sinuswellen
 // statt einer echten Noise-Textur) - bewusst dezent, damit der Container
 // selbst weiter sichtbar auf ebenem Grund zu stehen scheint; wird nur ab
-// "detailliert" ueberhaupt angewendet.
-function applyGroundRelief(geometry: THREE.CircleGeometry) {
+// "detailliert" ueberhaupt angewendet. flatRadius (Meter) haelt den Bereich
+// UNTER dem Container/der Baugruppe flach, statt einen festen Wert von 6m
+// anzunehmen - siehe extentM weiter unten.
+function applyGroundRelief(geometry: THREE.CircleGeometry, flatRadius: number) {
   const pos = geometry.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i); // vor der Rotation liegt die Kreisflaeche in der XY-Ebene
     const dist = Math.hypot(x, y);
-    // Nahe der Mitte (wo der Container steht) bleibt es flach, das Relief
-    // waechst erst ab einigem Abstand - kein hoeckriger Boden UNTER dem Container.
-    const falloff = Math.min(1, Math.max(0, (dist - 6) / 10));
+    // Nahe der Mitte (wo der Container/die Baugruppe steht) bleibt es flach,
+    // das Relief waechst erst ab einigem Abstand - kein hoeckriger Boden
+    // UNTER den Bauteilen.
+    const falloff = Math.min(1, Math.max(0, (dist - flatRadius) / 10));
     const height = (Math.sin(x * 0.18) * Math.cos(y * 0.15) * 0.35 + Math.sin(x * 0.4 + y * 0.3) * 0.12) * falloff;
     pos.setZ(i, height);
   }
   geometry.computeVertexNormals();
 }
 
-export function TerrainBackground({ detail = "low" }: { detail?: TerrainDetail }) {
+interface TerrainBackgroundProps {
+  detail?: TerrainDetail;
+  // Reichweite (Meter) des Containers bzw. der ganzen Baugruppe ab dem
+  // Ursprung (Jonas' Vorgabe 2026-07-25: "die Waldgrenzen sollen sich mit
+  // erweitern, wenn der Container oder die Baugruppe größer wird, damit der
+  // Rand immer weit genug von den Bauteilen entfernt ist") - Baumring und
+  // Wiesenflaeche wachsen mit, statt bei sehr grossen/ausgedehnten
+  // Konfigurationen ploetzlich mitten im oder direkt am Gebaeude zu stehen.
+  extentM?: number;
+}
+
+const BASE_TREE_RADIUS = 16;
+const TREE_CLEARANCE_M = 6;
+const BASE_GROUND_RADIUS = 60;
+const GROUND_MARGIN_BEYOND_TREES_M = 24;
+
+export function TerrainBackground({ detail = "low", extentM = 0 }: TerrainBackgroundProps) {
   const params = DETAIL_PARAMS[detail];
+  const treeInnerRadius = Math.max(BASE_TREE_RADIUS, extentM + TREE_CLEARANCE_M);
+  const groundRadius = Math.max(BASE_GROUND_RADIUS, treeInnerRadius + GROUND_MARGIN_BEYOND_TREES_M);
 
   const trees = useMemo(() => {
     const items: { x: number; z: number; scale: number }[] = [];
     for (let i = 0; i < params.treeCount; i++) {
       const angle = (i / params.treeCount) * Math.PI * 2 + (i % 2) * 0.15;
-      const radius = 16 + (i % 3) * 4;
+      const radius = treeInnerRadius + (i % 3) * 4;
       items.push({
         x: Math.cos(angle) * radius,
         z: Math.sin(angle) * radius,
@@ -68,13 +89,13 @@ export function TerrainBackground({ detail = "low" }: { detail?: TerrainDetail }
       });
     }
     return items;
-  }, [params.treeCount]);
+  }, [params.treeCount, treeInnerRadius]);
 
   const groundGeometry = useMemo(() => {
-    const geom = new THREE.CircleGeometry(60, params.groundSegments);
-    if (params.groundRelief) applyGroundRelief(geom);
+    const geom = new THREE.CircleGeometry(groundRadius, params.groundSegments);
+    if (params.groundRelief) applyGroundRelief(geom, Math.max(6, extentM));
     return geom;
-  }, [params.groundSegments, params.groundRelief]);
+  }, [params.groundSegments, params.groundRelief, groundRadius, extentM]);
 
   const cloudSeeds = useMemo(
     () =>
