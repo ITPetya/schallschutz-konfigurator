@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
@@ -41,7 +41,7 @@ export function AppShell() {
             </Link>
 
             <div className="flex items-center gap-2">
-              <ModeSwitchButton />
+              <ModeSwitchDropdown />
               <HelpMenu
                 open={helpMenuOpen}
                 onToggle={() => setHelpMenuOpen((v) => !v)}
@@ -55,7 +55,7 @@ export function AppShell() {
       )}
       {embed && (
         <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
-          <ModeSwitchButton />
+          <ModeSwitchDropdown />
           <HelpMenu
             open={helpMenuOpen}
             onToggle={() => setHelpMenuOpen((v) => !v)}
@@ -77,39 +77,30 @@ export function AppShell() {
 }
 
 // Moduswechsel (Jonas' Vorgabe 2026-07-25): "oben rechts, links neben dem
-// Fragezeichen" zwischen Einzelcontainer- und Baugruppen-Konfigurator
-// umschalten koennen. Nur auf den beiden betroffenen Routen sichtbar - auf
-// allen anderen Seiten (Start, Hilfe, intern) ergibt ein Moduswechsel keinen
-// Sinn. Navigiert NIE direkt (siehe ModeSwitchContext) - falls die aktuelle
-// Seite eine Guard-Funktion registriert hat (Einzelcontainer-Konfigurator
-// oder Baugruppen-Projekt mit nicht-leerem Zustand), entscheidet die anhand
-// ihres eigenen Zustands, ob zuerst eine Speichern/Verwerfen-Erinnerung
-// noetig ist.
-function ModeSwitchButton() {
-  const location = useLocation();
-  const { requestSwitch } = useModeSwitch();
-  const embedSuffix = new URLSearchParams(location.search).get("embed") === "1" ? "?embed=1" : "";
-
-  let label: string;
-  let target: string;
-  if (location.pathname === "/konfigurator") {
-    label = "Baugruppe";
-    target = `/projekt${embedSuffix}`;
-  } else if (location.pathname === "/projekt") {
-    label = "Einzelcontainer";
-    target = `/konfigurator${embedSuffix}`;
-  } else {
-    return null;
-  }
+// Fragezeichen ein Dropdown, um zwischen Einzel-Container-Konfiguration und
+// Mehrere-Container-Konfiguration zu wechseln - dabei sollen sich eigentlich
+// nur die Tools in der Seitenleiste ändern". Einzel- und Baugruppen-Modus
+// leben deshalb jetzt auf EINER Seite (WorkspacePage.tsx) mit einem
+// gemeinsamen, durchgehenden 3D-Viewer - dieses Dropdown sitzt im
+// gemeinsamen Header (unabhaengig von WorkspacePage gerendert) und wechselt
+// NIE direkt: WorkspacePage registriert per ModeSwitchContext ihren
+// aktuellen Modus + eine Wechsel-Funktion, die selbst entscheidet, ob eine
+// Speichern/Verwerfen-Erinnerung noetig ist (siehe dort). Ausserhalb der
+// Workspace-Seite (Start, Hilfe, intern) ist workspace null - kein Dropdown.
+function ModeSwitchDropdown() {
+  const { workspace } = useModeSwitch();
+  if (!workspace) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => requestSwitch(target)}
-      className="rounded-full border-2 border-slate-300 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand hover:text-brand"
+    <select
+      value={workspace.mode}
+      onChange={(e) => workspace.requestModeChange(e.target.value as "single" | "project")}
+      aria-label="Konfigurationsmodus"
+      className="rounded-full border-2 border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand hover:text-brand focus:border-brand focus:outline-none"
     >
-      {label}
-    </button>
+      <option value="single">Einzel-Container-Konfiguration</option>
+      <option value="project">Mehrere-Container-Konfiguration</option>
+    </select>
   );
 }
 

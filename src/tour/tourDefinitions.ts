@@ -11,8 +11,14 @@ export const TOURS: Record<string, Tour> = {
     id: CONFIGURATOR_TOUR_ID,
     steps: [
       {
+        // Kein "route" mehr hier (Nacht-Session 2026-07-25): /konfigurator
+        // und /projekt rendern seit dem Workspace-Merge dieselbe Seite ohne
+        // echte Navigation dazwischen - ein erzwungenes navigate() wuerde
+        // hier nur die URL-Leiste verstellen, ohne den tatsaechlichen Modus
+        // zu aendern (siehe WorkspacePage.tsx), also weglassen statt falsch
+        // benutzen. Der Auto-Start dieser Tour ist ohnehin auf den
+        // Einzelcontainer-Modus beschraenkt (siehe dort).
         selector: '[data-tour="tour-grundeinstellungen"]',
-        route: "/konfigurator",
         title: "Grundeinstellungen",
         body: "Hier legst du Länge, Breite, Höhe und Wandstärke des Containers fest – alles in Millimetern.",
         placement: "bottom",

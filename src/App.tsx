@@ -5,21 +5,23 @@ import { ModeSwitchProvider } from "./context/ModeSwitchContext";
 import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
 
-// KonfiguratorPage und InternalPage ziehen den gesamten three.js/r3f/drei/
-// three-bvh-csg-Stack nach (>1MB minifiziert) - per Performance-Audit
-// 2026-07-23 lag der VORHER 1,5MB-Bundle allein daran, dass App.tsx sie
-// eager importiert hat, wodurch schon die Startseite (StartPage) und die
-// Hilfeseite (die BEIDE gar keinen 3D-Viewer brauchen) den vollen 3D-Stack
-// mitladen mussten. React.lazy() teilt sie in eigene Chunks auf, die erst
-// beim tatsaechlichen Navigieren zu /konfigurator bzw. /intern nachgeladen
-// werden.
-const KonfiguratorPage = lazy(() => import("./pages/KonfiguratorPage").then((m) => ({ default: m.KonfiguratorPage })));
+// WorkspacePage (Einzelcontainer + Baugruppe, siehe dort) und InternalPage
+// ziehen den gesamten three.js/r3f/drei/three-bvh-csg-Stack nach (>1MB
+// minifiziert) - per Performance-Audit 2026-07-23 lag der VORHER 1,5MB-
+// Bundle allein daran, dass App.tsx sie eager importiert hat, wodurch schon
+// die Startseite (StartPage) und die Hilfeseite (die BEIDE gar keinen
+// 3D-Viewer brauchen) den vollen 3D-Stack mitladen mussten. React.lazy()
+// teilt sie in eigene Chunks auf, die erst beim tatsaechlichen Navigieren
+// nachgeladen werden.
+//
+// /konfigurator und /projekt rendern seit der Nacht-Session 2026-07-25
+// beide dieselbe WorkspacePage (Jonas' Vorgabe: "dann sollen sich eigentlich
+// nur die Tools in der Seitenleiste ändern") - WorkspacePage liest die
+// Route nur einmalig beim Mounten, um den ANFANGS-Modus zu bestimmen,
+// wechselt danach intern per Dropdown ohne weitere Navigation.
+const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage })));
 const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
 const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
-// ProjectPage (Baugruppen-Feature) ist reines SVG/DOM, kein 3D-Import - ein
-// eigener lazy-Chunk lohnt sich trotzdem, damit StartPage/HilfePage sie
-// nicht mitladen muessen, obwohl die meisten Besucher sie nie besuchen.
-const ProjectPage = lazy(() => import("./pages/ProjectPage").then((m) => ({ default: m.ProjectPage })));
 
 // Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
 // Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
@@ -37,8 +39,8 @@ function App() {
             <Routes>
               <Route element={<AppShell />}>
                 <Route path="/" element={<StartPage />} />
-                <Route path="/konfigurator" element={<KonfiguratorPage />} />
-                <Route path="/projekt" element={<ProjectPage />} />
+                <Route path="/konfigurator" element={<WorkspacePage />} />
+                <Route path="/projekt" element={<WorkspacePage />} />
                 <Route path="/intern" element={<InternalPage />} />
                 <Route path="/hilfe" element={<HilfePage />} />
               </Route>

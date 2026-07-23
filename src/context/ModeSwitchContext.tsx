@@ -1,39 +1,37 @@
-import { createContext, useContext, useRef, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
-type SwitchGuard = (targetPath: string) => void;
+export type WorkspaceMode = "single" | "project";
+
+interface WorkspaceModeAPI {
+  mode: WorkspaceMode;
+  requestModeChange: (mode: WorkspaceMode) => void;
+}
 
 interface ModeSwitchContextValue {
-  // Seiten mit eigenem, potenziell "nicht-leerem" Zustand (KonfiguratorPage,
-  // ProjectPage) registrieren hier eine Guard-Funktion, die VOR dem
-  // eigentlichen Navigieren entscheidet, ob eine Speichern/Verwerfen-
-  // Erinnerung noetig ist (Jonas' Vorgabe 2026-07-25) - AppShell.tsx kennt
-  // diese Zustaende nicht und ruft deshalb nie navigate() direkt auf,
-  // sondern immer requestSwitch().
-  registerGuard: (guard: SwitchGuard | null) => void;
-  requestSwitch: (targetPath: string) => void;
+  workspace: WorkspaceModeAPI | null;
+  registerWorkspace: (api: WorkspaceModeAPI | null) => void;
 }
 
 const ModeSwitchContext = createContext<ModeSwitchContextValue | null>(null);
 
+// Jonas' Vorgabe 2026-07-25: der Baugruppen- und der Einzelcontainer-
+// Konfigurator teilen sich jetzt EINE Seite (WorkspacePage.tsx) mit einem
+// gemeinsamen 3D-Viewer - nur die Werkzeuge in der Seitenleiste wechseln.
+// AppShell.tsx zeigt das Dropdown dafuer aber im GEMEINSAMEN Header, der
+// unabhaengig von WorkspacePage gerendert wird - dieser Context ist die
+// Bruecke dazwischen: WorkspacePage registriert bei jeder Aenderung ihren
+// aktuellen Modus + eine Wechsel-Funktion (die selbst entscheidet, ob eine
+// Speichern/Verwerfen-Erinnerung noetig ist, siehe dort), AppShell liest nur
+// das aktuelle `workspace`-Objekt, um das Dropdown zu befuellen/zu steuern.
+// Anders als der fruehere, rein Ref-basierte Guard (Navigation zwischen zwei
+// Routen) MUSS das hier echter React-State sein, damit das Dropdown reaktiv
+// den aktuell aktiven Modus anzeigt.
 export function ModeSwitchProvider({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
-  const guardRef = useRef<SwitchGuard | null>(null);
-
-  function registerGuard(guard: SwitchGuard | null) {
-    guardRef.current = guard;
-  }
-
-  function requestSwitch(targetPath: string) {
-    if (guardRef.current) {
-      guardRef.current(targetPath);
-    } else {
-      navigate(targetPath);
-    }
-  }
-
+  const [workspace, setWorkspace] = useState<WorkspaceModeAPI | null>(null);
   return (
-    <ModeSwitchContext.Provider value={{ registerGuard, requestSwitch }}>{children}</ModeSwitchContext.Provider>
+    <ModeSwitchContext.Provider value={{ workspace, registerWorkspace: setWorkspace }}>
+      {children}
+    </ModeSwitchContext.Provider>
   );
 }
 

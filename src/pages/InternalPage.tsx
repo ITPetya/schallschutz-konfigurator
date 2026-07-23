@@ -93,5 +93,5 @@ export function InternalPage() {
     );
   }
 
-  return <KonfiguratorPage mode="readonly" initialConfig={config} projectName={fileName ?? "Kundenkonfiguration"} />;
+  return <KonfiguratorPage initialConfig={config} projectName={fileName ?? "Kundenkonfiguration"} />;
 }
