@@ -573,7 +573,7 @@ export function WorkspacePage() {
                   />
                 </AccordionSection>
 
-                <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
+                <AccordionSection title="Einbauten" tourId="tour-einbauten">
                   <OpeningsPanel
                     size={editingInstance.config.size}
                     openings={editingInstance.config.openings}
@@ -622,7 +622,7 @@ export function WorkspacePage() {
                   </label>
                 </AccordionSection>
 
-                <AccordionSection title="Container" defaultOpen>
+                <AccordionSection title="Container">
                   {project.instances.length === 0 && (
                     <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Container im Projekt.</p>
                   )}

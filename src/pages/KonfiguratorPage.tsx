@@ -110,7 +110,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
                 </p>
               )}
             </AccordionSection>
-            <AccordionSection title="Einbauten" defaultOpen>
+            <AccordionSection title="Einbauten">
               <OpeningsSummary openings={openings} />
             </AccordionSection>
           </div>

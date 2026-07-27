@@ -37,7 +37,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
                 <dd>{project.instances.length}</dd>
               </dl>
             </AccordionSection>
-            <AccordionSection title="Container" defaultOpen>
+            <AccordionSection title="Container">
               {project.instances.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-slate-500">Keine Container in diesem Projekt.</p>
               ) : (

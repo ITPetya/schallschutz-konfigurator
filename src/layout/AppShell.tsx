@@ -129,7 +129,7 @@ function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        sideOffset={8}
+        sideOffset={14}
         className="w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
       >
         <DropdownMenuItem

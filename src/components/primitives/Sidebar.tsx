@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps, type CSSProperties } from "react";
+import { motion } from "motion/react";
 import { getStrictContext } from "../../lib/getStrictContext";
 import { cn } from "../../lib/utils";
 import { AnimatedButton } from "../AnimatedButton";
-import { Chevron } from "../icons/Chevron";
 
 // Von animate-ui.com uebernommen, siehe
 // https://animate-ui.com/docs/components/radix/sidebar - das Original ist
@@ -12,12 +12,14 @@ import { Chevron } from "../icons/Chevron";
 // Sektionen + Formulare statt Nav-Menü) nicht gibt - deshalb hier reduziert
 // auf die Struktur, die wir tatsaechlich nutzen (Provider, Sidebar-
 // Container, Trigger, Header/Content/Footer/Group), mit unseren eigenen
-// Tailwind-Farben statt shadcn's --sidebar-*-Variablen. Das eigentliche
-// Kollaps-Prinzip (reine CSS-transition auf Breite, gesteuert per
-// data-collapsible-Attribut) ist 1:1 vom Original uebernommen.
+// Tailwind-Farben statt shadcn's --sidebar-*-Variablen. Das Ein-/Ausfahren
+// selbst laeuft ueber Motion (siehe Sidebar()), nicht ueber reine CSS-
+// Transitions, damit es sich mit derselben Engine wie der Rest des Projekts
+// verhaelt.
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "20rem";
+const SIDEBAR_WIDTH_NEGATIVE = `-${SIDEBAR_WIDTH}`;
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 interface SidebarContextProps {
@@ -94,23 +96,36 @@ function Sidebar({ collapsible = "offcanvas", className, children, ...props }: S
     );
   }
 
+  const collapsed = state === "collapsed" && collapsible === "offcanvas";
+  // Ein-/Ausfahren jetzt per Motion animiert statt per CSS-Transition auf
+  // Tailwinds group-data-[...]-Varianten (Jonas' Fehlerbericht 2026-07-27:
+  // "das ein und ausfahren der sidebar ist noch nicht animiert") - dieselbe
+  // Animations-Engine wie ueberall sonst im Projekt.
+  const collapseTransition = { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const };
+
   return (
-    <div className="group" data-state={state} data-collapsible={state === "collapsed" ? collapsible : ""} data-slot="sidebar">
+    <div data-state={state} data-slot="sidebar">
       {/* Reserviert den Platz im Flex-Layout, schrumpft beim Einklappen auf 0 -
           der eigentlich sichtbare, gleitende Container liegt absolut darueber
           (siehe sidebar-container unten). */}
-      <div
+      <motion.div
         data-slot="sidebar-gap"
-        className="relative w-(--sidebar-width) bg-transparent transition-[width] duration-300 ease-[cubic-bezier(0.7,-0.15,0.25,1.15)] group-data-[collapsible=offcanvas]:w-0"
+        className="relative bg-transparent"
+        initial={false}
+        animate={{ width: collapsed ? "0rem" : SIDEBAR_WIDTH }}
+        transition={collapseTransition}
       />
-      <div
+      <motion.div
         data-slot="sidebar-container"
-        className="absolute inset-y-0 left-0 z-10 flex h-full w-(--sidebar-width) border-r border-slate-200 transition-[left,width] duration-300 ease-[cubic-bezier(0.75,0,0.25,1)] group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] dark:border-slate-700"
+        className="absolute inset-y-0 left-0 z-10 flex h-full w-(--sidebar-width) border-r border-slate-200 dark:border-slate-700"
+        initial={false}
+        animate={{ left: collapsed ? SIDEBAR_WIDTH_NEGATIVE : "0rem" }}
+        transition={collapseTransition}
       >
         <div data-slot="sidebar-inner" className={cn("flex h-full w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-800", className)} {...props}>
           {children}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -124,6 +139,7 @@ function SidebarTrigger({ className, onClick, ...props }: SidebarTriggerProps) {
     <AnimatedButton
       type="button"
       data-slot="sidebar-trigger"
+      data-state={state}
       aria-label={state === "expanded" ? "Seitenleiste einklappen" : "Seitenleiste ausklappen"}
       title={`Seitenleiste ${state === "expanded" ? "einklappen" : "ausklappen"} (Strg+B)`}
       hoverScale={1.1}
@@ -133,12 +149,27 @@ function SidebarTrigger({ className, onClick, ...props }: SidebarTriggerProps) {
         toggleSidebar();
       }}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400",
+        "flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400 [&[data-state=collapsed]>svg]:rotate-180",
         className,
       )}
       {...props}
     >
-      <Chevron direction={state === "expanded" ? "left" : "right"} />
+      {/* Basis zeigt nach links ("einklappen"), dreht sich per reinem CSS am
+          data-state-Attribut auf "rechts" ("ausklappen") - dieselbe Technik
+          wie beim Accordion-Chevron (Jonas' Vorgabe: Icon muss sich drehen). */}
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="transition-transform duration-200"
+      >
+        <path d="m15 18-6-6 6-6" />
+      </svg>
     </AnimatedButton>
   );
 }
@@ -154,7 +185,17 @@ function SidebarFooter({ className, ...props }: ComponentProps<"div">) {
 }
 
 function SidebarContent({ className, ...props }: ComponentProps<"div">) {
-  return <div data-slot="sidebar-content" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4", className)} {...props} />;
+  return (
+    <div
+      data-slot="sidebar-content"
+      // scrollbar-gutter:stable reserviert den Platz fuer die Scrollbar immer,
+      // auch wenn (noch) nicht gescrollt werden muss (Jonas' Fehlerbericht
+      // 2026-07-27: die Scrollbar soll die Breite der Inhalte nicht
+      // beeinflussen/"herumbuggen").
+      className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 [scrollbar-gutter:stable]", className)}
+      {...props}
+    />
+  );
 }
 
 function SidebarGroup({ className, ...props }: ComponentProps<"div">) {
