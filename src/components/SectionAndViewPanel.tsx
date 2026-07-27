@@ -203,16 +203,21 @@ export function SectionAndViewPanel({
           {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
               "nicht durch so ein Checkfeld", stattdessen ein sich drehender
               Pfeil/Ecke) - zeigt nach oben, solange geschlossen (dahin klappt
-              der Inhalt beim Oeffnen auf), nach unten sobald offen. */}
+              der Inhalt beim Oeffnen auf), nach unten sobald offen. Rotation
+              rein per CSS am data-state-Attribut, das Radix per asChild auf
+              den Button durchreicht (Jonas' Fehlerbericht 2026-07-27: die
+              alte, React-State-gesteuerte Chevron-Komponente hat sich
+              sichtbar nicht gedreht - dieselbe Technik wie beim
+              Accordion-/Sidebar-Chevron). */}
           <CollapsibleTrigger asChild>
             <AnimatedButton
               type="button"
               hoverScale={1}
               tapScale={1}
-              className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light"
+              className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light [&[data-state=closed]>svg]:rotate-180"
             >
               Schnitt
-              <Chevron direction={sectionEnabled ? "down" : "up"} />
+              <ChevronDownGlyph />
             </AnimatedButton>
           </CollapsibleTrigger>
         </div>
@@ -325,10 +330,10 @@ export function SectionAndViewPanel({
                 type="button"
                 hoverScale={1}
                 tapScale={1}
-                className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light"
+                className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light [&[data-state=closed]>svg]:rotate-180"
               >
                 Ansicht
-                <Chevron direction={viewPanelOpen ? "down" : "up"} />
+                <ChevronDownGlyph />
               </AnimatedButton>
             </CollapsibleTrigger>
           </div>
@@ -409,6 +414,27 @@ function UpDownAxisIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="22" viewBox="0 0 18 22" fill="none" stroke={color} strokeWidth="2" aria-hidden>
       <path d="M9 2v18M9 2l-4 4M9 2l4 4M9 20l-4-4M9 20l4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Reines, zustandsloses Chevron-Icon fuer die Schnitt-/Ansicht-Trigger -
+// die Drehrichtung kommt ausschliesslich von der [&[data-state=closed]...]-
+// Klasse am umgebenden Button (siehe SectionAndViewPanel oben).
+function ChevronDownGlyph() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 transition-transform duration-200"
+    >
+      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }
