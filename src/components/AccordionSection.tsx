@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
 import { AnimatePresence, motion, type TargetAndTransition } from "motion/react";
-import { Chevron } from "./icons/Chevron";
 
 interface AccordionSectionProps {
   title: string;
@@ -26,9 +25,24 @@ export function AccordionSection({ title, defaultOpen = false, children, tourId 
     <AccordionPrimitive.Root type="single" collapsible value={open ? "item" : ""} onValueChange={(v) => setOpen(v === "item")}>
       <AccordionPrimitive.Item value="item" data-tour={tourId} className="border-b border-slate-200 py-3 dark:border-slate-700">
         <AccordionPrimitive.Header>
-          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-widest text-brand">
+          {/* Rotation rein ueber CSS am data-state-Attribut statt React-State
+              (Jonas' Vorgabe: 1:1 wie https://animate-ui.com/docs/components/radix/accordion,
+              dort dreht sich das Chevron per "[&[data-state=open]>svg]:rotate-180"). */}
+          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-widest text-brand [&[data-state=open]>svg]:rotate-180">
             {title}
-            <Chevron direction={open ? "up" : "down"} className="text-brand-light" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0 text-brand-light transition-transform duration-200"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
         <AnimatePresence initial={false}>
