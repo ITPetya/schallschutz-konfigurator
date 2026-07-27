@@ -34,8 +34,6 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarSeparator,
   SidebarTrigger,
 } from "../components/primitives/Sidebar";
 
@@ -539,64 +537,52 @@ export function WorkspacePage() {
           <SidebarContent>
             {editingInstance ? (
               <>
-                <SidebarGroup>
-                  <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
-                    <label className="mb-3 block text-xs text-slate-500 dark:text-slate-400">
-                      Bezeichnung
-                      <input
-                        type="text"
-                        value={editingInstance.label}
-                        onChange={(e) => handleLabelChange(editingInstance.id, e.target.value)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </label>
-                    <ContainerSizeControls
-                      size={editingInstance.config.size}
-                      wallThickness={editingInstance.config.wallThickness}
-                      onSizeChange={(size) => {
-                        updateEditingConfig({ size });
-                        notifyEvent("size-changed");
-                      }}
-                      onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
+                <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
+                  <label className="mb-3 block text-xs text-slate-500 dark:text-slate-400">
+                    Bezeichnung
+                    <input
+                      type="text"
+                      value={editingInstance.label}
+                      onChange={(e) => handleLabelChange(editingInstance.id, e.target.value)}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
-                  </AccordionSection>
-                </SidebarGroup>
+                  </label>
+                  <ContainerSizeControls
+                    size={editingInstance.config.size}
+                    wallThickness={editingInstance.config.wallThickness}
+                    onSizeChange={(size) => {
+                      updateEditingConfig({ size });
+                      notifyEvent("size-changed");
+                    }}
+                    onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
+                  />
+                </AccordionSection>
 
-                <SidebarSeparator />
+                <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
+                  <DisplaySettingsPanel
+                    insideColor={editingInstance.config.insideColor}
+                    onInsideColorChange={(insideColor) => updateEditingConfig({ insideColor })}
+                    outsideColor={editingInstance.config.outsideColor}
+                    onOutsideColorChange={(outsideColor) => updateEditingConfig({ outsideColor })}
+                    insideUnpainted={editingInstance.config.insideUnpainted ?? false}
+                    onInsideUnpaintedChange={(insideUnpainted) => updateEditingConfig({ insideUnpainted })}
+                    outsideNotes={editingInstance.config.outsideNotes ?? ""}
+                    onOutsideNotesChange={(outsideNotes) => updateEditingConfig({ outsideNotes })}
+                    insideNotes={editingInstance.config.insideNotes ?? ""}
+                    onInsideNotesChange={(insideNotes) => updateEditingConfig({ insideNotes })}
+                  />
+                </AccordionSection>
 
-                <SidebarGroup>
-                  <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
-                    <DisplaySettingsPanel
-                      insideColor={editingInstance.config.insideColor}
-                      onInsideColorChange={(insideColor) => updateEditingConfig({ insideColor })}
-                      outsideColor={editingInstance.config.outsideColor}
-                      onOutsideColorChange={(outsideColor) => updateEditingConfig({ outsideColor })}
-                      insideUnpainted={editingInstance.config.insideUnpainted ?? false}
-                      onInsideUnpaintedChange={(insideUnpainted) => updateEditingConfig({ insideUnpainted })}
-                      outsideNotes={editingInstance.config.outsideNotes ?? ""}
-                      onOutsideNotesChange={(outsideNotes) => updateEditingConfig({ outsideNotes })}
-                      insideNotes={editingInstance.config.insideNotes ?? ""}
-                      onInsideNotesChange={(insideNotes) => updateEditingConfig({ insideNotes })}
-                    />
-                  </AccordionSection>
-                </SidebarGroup>
+                <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
+                  <OpeningsPanel
+                    size={editingInstance.config.size}
+                    openings={editingInstance.config.openings}
+                    onUpdate={handleUpdateOpening}
+                    onRemove={handleRemoveOpening}
+                  />
+                </AccordionSection>
 
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                  <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
-                    <OpeningsPanel
-                      size={editingInstance.config.size}
-                      openings={editingInstance.config.openings}
-                      onUpdate={handleUpdateOpening}
-                      onRemove={handleRemoveOpening}
-                    />
-                  </AccordionSection>
-                </SidebarGroup>
-
-                <SidebarSeparator />
-
-                <SidebarGroup data-tour="save-project">
+                <div data-tour="save-project" className="mt-6 space-y-2">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
                   <AnimatedButton
                     type="button"
@@ -606,42 +592,37 @@ export function WorkspacePage() {
                     <DownloadIcon size={16} />
                     Speichern
                   </AnimatedButton>
-                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     „Speichern“ lädt diesen Container als Datei herunter, um ihn später wieder zu laden.
                   </p>
-                  {statusMessage && <p className="mt-2 text-xs text-brand-dark">{statusMessage}</p>}
-                </SidebarGroup>
+                  {statusMessage && <p className="text-xs text-brand-dark">{statusMessage}</p>}
+                </div>
               </>
             ) : (
               <>
-                <SidebarGroup>
-                  <AccordionSection title="Grundeinstellungen" defaultOpen>
-                    <label className="block text-xs text-slate-500 dark:text-slate-400">
-                      Projektname
-                      <input
-                        type="text"
-                        value={project.name}
-                        onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </label>
-                    <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
-                      Standort (optional)
-                      <input
-                        type="text"
-                        value={project.standort ?? ""}
-                        onChange={(e) => setProject((p) => ({ ...p, standort: e.target.value || undefined }))}
-                        placeholder="z. B. Musterstadt"
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </label>
-                  </AccordionSection>
-                </SidebarGroup>
+                <AccordionSection title="Grundeinstellungen" defaultOpen>
+                  <label className="block text-xs text-slate-500 dark:text-slate-400">
+                    Projektname
+                    <input
+                      type="text"
+                      value={project.name}
+                      onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </label>
+                  <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
+                    Standort (optional)
+                    <input
+                      type="text"
+                      value={project.standort ?? ""}
+                      onChange={(e) => setProject((p) => ({ ...p, standort: e.target.value || undefined }))}
+                      placeholder="z. B. Musterstadt"
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </label>
+                </AccordionSection>
 
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                  <AccordionSection title="Container" defaultOpen>
+                <AccordionSection title="Container" defaultOpen>
                   {project.instances.length === 0 && (
                     <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Container im Projekt.</p>
                   )}
@@ -705,14 +686,10 @@ export function WorkspacePage() {
                       </div>
                     ))}
                   </div>
-                  </AccordionSection>
-                </SidebarGroup>
+                </AccordionSection>
 
                 {project.instances.length >= 2 && (
-                  <>
-                    <SidebarSeparator />
-                    <SidebarGroup>
-                      <AccordionSection title="Ausrichten">
+                  <AccordionSection title="Ausrichten">
                     <label className="block text-xs text-slate-500 dark:text-slate-400">
                       Container
                       <select
@@ -815,14 +792,10 @@ export function WorkspacePage() {
                       Anwenden
                     </button>
                     {alignError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{alignError}</p>}
-                    </AccordionSection>
-                  </SidebarGroup>
-                  </>
+                  </AccordionSection>
                 )}
 
-                <SidebarSeparator />
-
-                <SidebarGroup>
+                <div className="mt-6 space-y-2">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
                   <div className="flex gap-2">
                     <AnimatedButton
@@ -862,7 +835,7 @@ export function WorkspacePage() {
                     zusätzlich eine E-Mail-Anfrage.
                   </p>
                   {projectError && <p className="text-xs text-red-600 dark:text-red-400">{projectError}</p>}
-                </SidebarGroup>
+                </div>
               </>
             )}
           </SidebarContent>
