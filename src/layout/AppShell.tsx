@@ -125,9 +125,9 @@ function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe, onDeleteData }
         type="button"
         onClick={onToggle}
         aria-label="Hilfe"
-        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-400 hover:border-brand hover:text-brand"
+        className="flex items-center justify-center text-slate-400 hover:text-brand"
       >
-        <CircleHelpIcon size={18} />
+        <CircleHelpIcon size={30} />
       </AnimatedButton>
       {open && (
         <>
