@@ -62,13 +62,13 @@ export function StartPage() {
         className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
         style={{ backgroundImage: "url(/start-background.svg)" }}
       />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
 
       <div>
-        <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark">
+        <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
           Schallschutz-Sondercontainer
         </h1>
-        <p className="mt-2 text-slate-500">3D-Konfigurator für individuelle Sondercontainer</p>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">3D-Konfigurator für individuelle Sondercontainer</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -103,17 +103,17 @@ export function StartPage() {
             <DropdownMenuContent
               align="center"
               sideOffset={8}
-              className="w-56 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg"
+              className="w-56 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
             >
               <DropdownMenuItem
                 onSelect={handleLoadFromCache}
-                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
               >
                 Aus Cache laden
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => fileInputRef.current?.click()}
-                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
               >
                 Aus Datei laden
               </DropdownMenuItem>
@@ -133,7 +133,7 @@ export function StartPage() {
           className="hidden"
         />
       </div>
-      {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}
+      {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

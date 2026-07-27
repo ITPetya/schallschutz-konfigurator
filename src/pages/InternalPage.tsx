@@ -7,7 +7,7 @@ import { KonfiguratorPage } from "./KonfiguratorPage";
 import { InternalProjectViewer } from "./InternalProjectViewer";
 
 const inputClass =
-  "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none";
+  "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
 
 // "Geheime" interne Seite fuer Mitarbeiter (Jonas' Vorgabe 2026-07-23) - NICHT
 // in Menü/Navigation verlinkt, nur ueber die direkte URL (/intern) erreichbar.
@@ -75,9 +75,9 @@ export function InternalPage() {
   if (!unlocked) {
     return (
       <div className="flex h-full items-center justify-center px-6">
-        <div className="w-full max-w-sm space-y-3 rounded-lg border border-slate-200 bg-white p-6 shadow-md">
+        <div className="w-full max-w-sm space-y-3 rounded-lg border border-slate-200 bg-white p-6 shadow-md dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-bold uppercase tracking-widest text-brand">Interner Bereich</p>
-          <p className="text-sm text-slate-500">Nur für Mitarbeiter.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Nur für Mitarbeiter.</p>
           <input
             type="password"
             value={codeInput}
@@ -86,7 +86,7 @@ export function InternalPage() {
             placeholder="Zugangscode"
             className={inputClass}
           />
-          {accessError && <p className="text-xs text-red-600">{accessError}</p>}
+          {accessError && <p className="text-xs text-red-600 dark:text-red-400">{accessError}</p>}
           <button
             type="button"
             onClick={handleUnlock}
@@ -102,7 +102,7 @@ export function InternalPage() {
   if (!config && !project) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Konfigurationsdatei (.sszkonfig) oder Baugruppen-Projekt (.sszprojekt) laden, um die Details anzusehen.
         </p>
         <button
@@ -119,7 +119,7 @@ export function InternalPage() {
           onChange={handleFileSelected}
           className="hidden"
         />
-        {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+        {loadError && <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>}
       </div>
     );
   }

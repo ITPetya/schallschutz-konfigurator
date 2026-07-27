@@ -11,6 +11,7 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
 import { TrashIcon } from "../components/icons/TrashIcon";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -42,7 +43,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="relative flex h-full flex-col bg-white text-ink">
+    <div className="relative flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
       {!embed && (
         <>
           {/* Nur EINE horizontale Linie am oberen Rand (Jonas' Fehlerbericht
@@ -50,11 +51,12 @@ export function AppShell() {
               mehr, das war die zweite Linie direkt darunter. */}
           <div className="h-1.5 bg-brand-light" />
           <header className="flex items-center justify-between px-4 py-2.5">
-            <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark">
+            <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
               Schallschutz-Sondercontainer
             </Link>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
               <HelpMenu
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => navigate("/hilfe")}
@@ -65,7 +67,8 @@ export function AppShell() {
         </>
       )}
       {embed && (
-        <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
+        <div className="absolute right-3 top-3 z-40 flex items-center gap-3">
+          <ThemeToggle />
           <HelpMenu
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => navigate("/hilfe?embed=1")}
@@ -127,17 +130,23 @@ function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg"
+        className="w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
       >
-        <DropdownMenuItem onSelect={onTutorial} className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100">
+        <DropdownMenuItem
+          onSelect={onTutorial}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
           Tutorial
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onHilfe} className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100">
+        <DropdownMenuItem
+          onSelect={onHilfe}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
           Hilfe
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={onDeleteData}
-          className="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+          className="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
         >
           <TrashIcon size={15} />
           Meine Daten löschen

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TourProvider } from "./tour/TourContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
 import { Progress, ProgressIndicator } from "./components/primitives/Progress";
@@ -26,20 +27,22 @@ const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default:
 // im Branch "archiv/rollen-mitarbeiter-backend-2026-07-23" erhalten.
 function App() {
   return (
-    <BrowserRouter>
-      <TourProvider>
-        <Suspense fallback={<RouteLoadingFallback />}>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<StartPage />} />
-              <Route path="/projekt" element={<WorkspacePage />} />
-              <Route path="/intern" element={<InternalPage />} />
-              <Route path="/hilfe" element={<HilfePage />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </TourProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <TourProvider>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<StartPage />} />
+                <Route path="/projekt" element={<WorkspacePage />} />
+                <Route path="/intern" element={<InternalPage />} />
+                <Route path="/hilfe" element={<HilfePage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </TourProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
@@ -61,8 +64,8 @@ function RouteLoadingFallback() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-400">
-      <Progress value={value} className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-400 dark:text-slate-500">
+      <Progress value={value} className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         <ProgressIndicator className="h-full w-full bg-brand" />
       </Progress>
       Lädt…

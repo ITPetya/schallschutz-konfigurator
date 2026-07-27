@@ -16,7 +16,7 @@ interface OpeningsPanelProps {
 }
 
 const inputClass =
-  "w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none";
+  "w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
 // min-h-[2rem] (Jonas' Fehlerbericht 2026-07-25: "Eingabefelder nicht auf
 // einer Höhe, nur weil der Titel darüber zweizeilig ist") - reserviert IMMER
 // zwei Zeilen Platz fuer die Beschriftung, egal ob sie ein- oder zweizeilig
@@ -24,7 +24,7 @@ const inputClass =
 // alle Eingabefelder in derselben Grid-Zeile auf gleicher Hoehe landen -
 // items-end richtet kurze Beschriftungen unten buendig aus, direkt ueber dem
 // Eingabefeld, genau wie bei den zweizeiligen von selbst der Fall ist.
-const labelClass = "flex flex-col gap-0.5 text-xs text-slate-500";
+const labelClass = "flex flex-col gap-0.5 text-xs text-slate-500 dark:text-slate-400";
 const labelTextClass = "flex min-h-[2rem] items-end";
 
 // Reine Liste der platzierten Durchbrueche (Jonas' Vorgabe 2026-07-24: "bei
@@ -37,7 +37,7 @@ export function OpeningsPanel({ size, openings, onUpdate, onRemove }: OpeningsPa
   return (
     <div className="space-y-2">
       {openings.length === 0 && (
-        <p className="text-sm text-slate-400">Noch keine Durchbrüche platziert.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Durchbrüche platziert.</p>
       )}
       {openings.map((o) => (
         <OpeningRow key={o.id} opening={o} size={size} onUpdate={onUpdate} onRemove={onRemove} />
@@ -65,7 +65,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
   const heightMax = typeDef.maxHeight ?? typeDef.maxSize;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -73,12 +73,12 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
           className="flex flex-1 items-center justify-between text-left"
         >
           <span className="font-medium text-brand-dark">{typeDef.label}</span>
-          <span className="text-xs text-slate-500">{PANEL_LABELS[o.panel]}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{PANEL_LABELS[o.panel]}</span>
         </button>
         <AnimatedButton
           type="button"
           onClick={() => onRemove(o.id)}
-          className="shrink-0 text-slate-400 hover:text-red-500"
+          className="shrink-0 text-slate-400 hover:text-red-500 dark:text-slate-500"
           aria-label={`${typeDef.label} entfernen`}
         >
           <TrashIcon size={16} />
@@ -88,7 +88,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
       {expanded && (
         <div className="mt-2 space-y-2">
           {typeDef.category === "standard" && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               Feste Maße: {typeDef.fixedWidth} × {typeDef.fixedHeight} mm
             </p>
           )}
@@ -108,7 +108,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
           )}
 
           {vBounds.impossible && (
-            <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
+            <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
               Passt bei dieser Containerhöhe nicht: Mindestabstand Boden
               (170mm) und Mindestabstand Oberkante (150mm) zusammen brauchen
               mehr Höhe als der Container hat.

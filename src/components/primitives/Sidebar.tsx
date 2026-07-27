@@ -105,9 +105,9 @@ function Sidebar({ collapsible = "offcanvas", className, children, ...props }: S
       />
       <div
         data-slot="sidebar-container"
-        className="absolute inset-y-0 left-0 z-10 flex h-full w-(--sidebar-width) border-r border-slate-200 transition-[left,width] duration-300 ease-[cubic-bezier(0.75,0,0.25,1)] group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
+        className="absolute inset-y-0 left-0 z-10 flex h-full w-(--sidebar-width) border-r border-slate-200 transition-[left,width] duration-300 ease-[cubic-bezier(0.75,0,0.25,1)] group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] dark:border-slate-700"
       >
-        <div data-slot="sidebar-inner" className={cn("flex h-full w-full flex-col overflow-hidden bg-slate-50", className)} {...props}>
+        <div data-slot="sidebar-inner" className={cn("flex h-full w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-800", className)} {...props}>
           {children}
         </div>
       </div>
@@ -132,7 +132,10 @@ function SidebarTrigger({ className, onClick, ...props }: SidebarTriggerProps) {
         onClick?.(e);
         toggleSidebar();
       }}
-      className={cn("flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand", className)}
+      className={cn(
+        "flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400",
+        className,
+      )}
       {...props}
     >
       <Chevron direction={state === "expanded" ? "left" : "right"} />
@@ -141,11 +144,13 @@ function SidebarTrigger({ className, onClick, ...props }: SidebarTriggerProps) {
 }
 
 function SidebarHeader({ className, ...props }: ComponentProps<"div">) {
-  return <div data-slot="sidebar-header" className={cn("flex flex-col gap-2 border-b border-slate-200 p-4", className)} {...props} />;
+  return (
+    <div data-slot="sidebar-header" className={cn("flex flex-col gap-2 border-b border-slate-200 p-4 dark:border-slate-700", className)} {...props} />
+  );
 }
 
 function SidebarFooter({ className, ...props }: ComponentProps<"div">) {
-  return <div data-slot="sidebar-footer" className={cn("border-t border-slate-200 p-3", className)} {...props} />;
+  return <div data-slot="sidebar-footer" className={cn("border-t border-slate-200 p-3 dark:border-slate-700", className)} {...props} />;
 }
 
 function SidebarContent({ className, ...props }: ComponentProps<"div">) {
@@ -167,7 +172,7 @@ function SidebarGroupLabel({ className, ...props }: ComponentProps<"div">) {
 }
 
 function SidebarSeparator({ className, ...props }: ComponentProps<"div">) {
-  return <div data-slot="sidebar-separator" className={cn("mx-1 my-2 h-px bg-slate-200", className)} {...props} />;
+  return <div data-slot="sidebar-separator" className={cn("mx-1 my-2 h-px bg-slate-200 dark:bg-slate-700", className)} {...props} />;
 }
 
 export {

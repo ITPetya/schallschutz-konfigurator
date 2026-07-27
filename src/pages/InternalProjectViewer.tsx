@@ -24,22 +24,22 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
-    <div className="flex h-full flex-col bg-white text-ink">
+    <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
       <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {fileName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{fileName}</p>}
             <AccordionSection title="Grundeinstellungen" defaultOpen>
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
-                <dt className="text-slate-400">Projektname</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Projektname</dt>
                 <dd>{project.name}</dd>
-                <dt className="text-slate-400">Container</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Container</dt>
                 <dd>{project.instances.length}</dd>
               </dl>
             </AccordionSection>
             <AccordionSection title="Container" defaultOpen>
               {project.instances.length === 0 ? (
-                <p className="text-sm text-slate-400">Keine Container in diesem Projekt.</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">Keine Container in diesem Projekt.</p>
               ) : (
                 <div className="space-y-2">
                   {project.instances.map((inst) => (
@@ -47,11 +47,13 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
                       key={inst.id}
                       onClick={() => setSelectedId(inst.id)}
                       className={`cursor-pointer rounded-lg border p-2 text-sm ${
-                        selectedId === inst.id ? "border-brand bg-brand/5" : "border-slate-200 bg-white"
+                        selectedId === inst.id
+                          ? "border-brand bg-brand/5"
+                          : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
                       }`}
                     >
                       <p className="font-bold">{inst.label}</p>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                         {inst.config.size.length} × {inst.config.size.width} × {inst.config.size.height} mm · {inst.rotationY}°
                       </p>
                       <AnimatedButton

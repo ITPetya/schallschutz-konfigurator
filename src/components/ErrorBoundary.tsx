@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark">
             Etwas ist schiefgelaufen
           </p>
-          <p className="max-w-sm text-sm text-slate-500">
+          <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Die Ansicht ist abgestürzt. Dein letzter Bearbeitungsstand wurde automatisch
             zwischengespeichert und wird beim Neuladen wiederhergestellt.
           </p>

@@ -44,7 +44,7 @@ export function AlertDialogShell({ open, onOpenChange, title, message, children 
                 transition={{ duration: 0.2, ease: "easeInOut" }}
               >
                 <motion.div
-                  className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+                  className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl dark:bg-slate-800"
                   initial={{ opacity: 0, scale: 0.9, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: 10 }}
@@ -53,7 +53,7 @@ export function AlertDialogShell({ open, onOpenChange, title, message, children 
                   <AlertDialogPrimitive.Title className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">
                     {title}
                   </AlertDialogPrimitive.Title>
-                  <AlertDialogPrimitive.Description className="mb-4 text-sm text-slate-600">
+                  <AlertDialogPrimitive.Description className="mb-4 text-sm text-slate-600 dark:text-slate-300">
                     {message}
                   </AlertDialogPrimitive.Description>
                   {children}

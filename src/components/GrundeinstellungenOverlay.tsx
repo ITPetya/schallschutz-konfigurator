@@ -42,28 +42,28 @@ export function GrundeinstellungenOverlay({ open, onSubmit }: Grundeinstellungen
           onPointerDownOutside={(e) => e.preventDefault()}
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
         >
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-5 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-5 shadow-xl dark:bg-slate-800">
             <DialogTitle className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">
               Grundeinstellungen
             </DialogTitle>
-            <DialogDescription className="mb-4 text-sm text-slate-600">Wie soll dein Projekt heißen?</DialogDescription>
+            <DialogDescription className="mb-4 text-sm text-slate-600 dark:text-slate-300">Wie soll dein Projekt heißen?</DialogDescription>
 
             <label className="mb-4 block">
-              <span className="mb-1 block text-xs font-semibold text-slate-500">Bezeichnung</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Bezeichnung</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </label>
 
             <label className="mb-5 block">
-              <span className="mb-1 block text-xs font-semibold text-slate-500">Standort (optional)</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Standort (optional)</span>
               <input
                 value={standort}
                 onChange={(e) => setStandort(e.target.value)}
                 placeholder="z. B. Musterstadt"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </label>
 

@@ -31,6 +31,7 @@ import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import {
   SidebarProvider,
   Sidebar,
+  SidebarHeader,
   SidebarContent,
   SidebarFooter,
   SidebarTrigger,
@@ -517,30 +518,33 @@ export function WorkspacePage() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white text-ink">
+    <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
       <SidebarProvider defaultOpen className="flex-1 overflow-hidden">
         <Sidebar>
+          {editingInstance && (
+            <SidebarHeader>
+              <AnimatedButton
+                type="button"
+                data-tour="back-to-project"
+                onClick={handleBackToBaugruppe}
+                className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+              >
+                <ArrowLeftIcon size={16} />
+                Zurück zur Baugruppe
+              </AnimatedButton>
+            </SidebarHeader>
+          )}
           <SidebarContent>
             {editingInstance ? (
               <>
-                <AnimatedButton
-                  type="button"
-                  data-tour="back-to-project"
-                  onClick={handleBackToBaugruppe}
-                  className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
-                >
-                  <ArrowLeftIcon size={16} />
-                  Zurück zur Baugruppe
-                </AnimatedButton>
-
                 <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
-                  <label className="mb-3 block text-xs text-slate-500">
+                  <label className="mb-3 block text-xs text-slate-500 dark:text-slate-400">
                     Bezeichnung
                     <input
                       type="text"
                       value={editingInstance.label}
                       onChange={(e) => handleLabelChange(editingInstance.id, e.target.value)}
-                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </label>
                   <ContainerSizeControls
@@ -583,12 +587,12 @@ export function WorkspacePage() {
                   <AnimatedButton
                     type="button"
                     onClick={handleDownloadInstance}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
                     <DownloadIcon size={16} />
                     Speichern
                   </AnimatedButton>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     „Speichern“ lädt diesen Container als Datei herunter, um ihn später wieder zu laden.
                   </p>
                   {statusMessage && <p className="text-xs text-brand-dark">{statusMessage}</p>}
@@ -597,30 +601,30 @@ export function WorkspacePage() {
             ) : (
               <>
                 <AccordionSection title="Grundeinstellungen" defaultOpen>
-                  <label className="block text-xs text-slate-500">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400">
                     Projektname
                     <input
                       type="text"
                       value={project.name}
                       onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
-                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </label>
-                  <label className="mt-2 block text-xs text-slate-500">
+                  <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
                     Standort (optional)
                     <input
                       type="text"
                       value={project.standort ?? ""}
                       onChange={(e) => setProject((p) => ({ ...p, standort: e.target.value || undefined }))}
                       placeholder="z. B. Musterstadt"
-                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </label>
                 </AccordionSection>
 
                 <AccordionSection title="Container" defaultOpen>
                   {project.instances.length === 0 && (
-                    <p className="text-sm text-slate-400">Noch keine Container im Projekt.</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Container im Projekt.</p>
                   )}
                   <div className="space-y-2">
                     {project.instances.map((inst) => (
@@ -628,7 +632,9 @@ export function WorkspacePage() {
                         key={inst.id}
                         onClick={() => setSelectedId(inst.id)}
                         className={`cursor-pointer rounded-lg border p-2.5 text-sm shadow-sm ${
-                          selectedId === inst.id ? "border-brand bg-white" : "border-slate-200 bg-white"
+                          selectedId === inst.id
+                            ? "border-brand bg-white dark:bg-slate-900"
+                            : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -637,7 +643,7 @@ export function WorkspacePage() {
                             value={inst.label}
                             onChange={(e) => handleLabelChange(inst.id, e.target.value)}
                             onClick={(e) => e.stopPropagation()}
-                            className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                            className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           />
                           <AnimatedButton
                             type="button"
@@ -646,7 +652,7 @@ export function WorkspacePage() {
                               handleRotate(inst.id);
                             }}
                             aria-label={`${inst.label} drehen`}
-                            className="shrink-0 text-slate-400 hover:text-brand"
+                            className="shrink-0 text-slate-400 hover:text-brand dark:text-slate-500"
                           >
                             <RotateCcwIcon size={15} />
                           </AnimatedButton>
@@ -657,12 +663,12 @@ export function WorkspacePage() {
                               handleRemoveInstance(inst.id);
                             }}
                             aria-label={`${inst.label} entfernen`}
-                            className="shrink-0 text-slate-400 hover:text-red-500"
+                            className="shrink-0 text-slate-400 hover:text-red-500 dark:text-slate-500"
                           >
                             <TrashIcon size={15} />
                           </AnimatedButton>
                         </div>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                           {inst.config.size.length} × {inst.config.size.width} mm · {inst.rotationY}°
                         </p>
                         <AnimatedButton
@@ -684,12 +690,12 @@ export function WorkspacePage() {
 
                 {project.instances.length >= 2 && (
                   <AccordionSection title="Ausrichten">
-                    <label className="block text-xs text-slate-500">
+                    <label className="block text-xs text-slate-500 dark:text-slate-400">
                       Container
                       <select
                         value={alignTargetId ?? ""}
                         onChange={(e) => setAlignTargetId(e.target.value || null)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                       >
                         <option value="">– auswählen –</option>
                         {project.instances.map((i) => (
@@ -700,12 +706,12 @@ export function WorkspacePage() {
                       </select>
                     </label>
 
-                    <label className="mt-2 block text-xs text-slate-500">
+                    <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
                       relativ zu
                       <select
                         value={alignRefId ?? ""}
                         onChange={(e) => setAlignRefId(e.target.value || null)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                       >
                         <option value="">– auswählen –</option>
                         {project.instances
@@ -723,7 +729,7 @@ export function WorkspacePage() {
                         type="button"
                         onClick={() => setAlignMode("mate")}
                         className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
-                          alignMode === "mate" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                          alignMode === "mate" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
                         Passend
@@ -732,7 +738,7 @@ export function WorkspacePage() {
                         type="button"
                         onClick={() => setAlignMode("flush")}
                         className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
-                          alignMode === "flush" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                          alignMode === "flush" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
                         Fluchtend
@@ -740,12 +746,12 @@ export function WorkspacePage() {
                     </div>
 
                     {alignMode === "mate" ? (
-                      <label className="mt-2 block text-xs text-slate-500">
+                      <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
                         Position
                         <select
                           value={alignSide}
                           onChange={(e) => setAlignSide(e.target.value as MateSide)}
-                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                         >
                           <option value="left">rechts daneben</option>
                           <option value="right">links daneben</option>
@@ -754,12 +760,12 @@ export function WorkspacePage() {
                         </select>
                       </label>
                     ) : (
-                      <label className="mt-2 block text-xs text-slate-500">
+                      <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
                         Achse
                         <select
                           value={alignAxis}
                           onChange={(e) => setAlignAxis(e.target.value as "x" | "z")}
-                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                         >
                           <option value="x">horizontal (X)</option>
                           <option value="z">vertikal (Z)</option>
@@ -767,14 +773,14 @@ export function WorkspacePage() {
                       </label>
                     )}
 
-                    <label className="mt-2 block text-xs text-slate-500">
+                    <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
                       Abstand (mm)
                       <input
                         type="number"
                         step={10}
                         value={alignDistance}
                         onChange={(e) => setAlignDistance(Number(e.target.value) || 0)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none"
+                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                       />
                     </label>
 
@@ -785,7 +791,7 @@ export function WorkspacePage() {
                     >
                       Anwenden
                     </button>
-                    {alignError && <p className="mt-1 text-xs text-red-600">{alignError}</p>}
+                    {alignError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{alignError}</p>}
                   </AccordionSection>
                 )}
 
@@ -795,7 +801,7 @@ export function WorkspacePage() {
                     <AnimatedButton
                       type="button"
                       onClick={handleDownloadProject}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     >
                       <DownloadIcon size={16} />
                       Speichern
@@ -824,11 +830,11 @@ export function WorkspacePage() {
                     <SendIcon size={16} />
                     Anfragen
                   </AnimatedButton>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     „Speichern“ lädt die Baugruppe als Datei herunter, um sie später wieder zu laden. „Anfragen“ öffnet
                     zusätzlich eine E-Mail-Anfrage.
                   </p>
-                  {projectError && <p className="text-xs text-red-600">{projectError}</p>}
+                  {projectError && <p className="text-xs text-red-600 dark:text-red-400">{projectError}</p>}
                 </div>
               </>
             )}
@@ -839,7 +845,7 @@ export function WorkspacePage() {
               <AnimatedButton
                 type="button"
                 onClick={() => setShowResetConfirm(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 <RotateCcwIcon size={16} />
                 Zurücksetzen
@@ -848,7 +854,7 @@ export function WorkspacePage() {
               <AnimatedButton
                 type="button"
                 onClick={() => setShowResetProjectConfirm(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+                className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 <RotateCcwIcon size={16} />
                 Projekt zurücksetzen
@@ -918,7 +924,7 @@ export function WorkspacePage() {
                   onClick={() => document.getElementById("workspace-config-file-input")?.click()}
                   aria-label="Container aus Datei laden"
                   title="Aus gespeicherter Konfigurationsdatei laden"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-brand bg-white text-brand shadow-md hover:bg-brand hover:text-white"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-brand bg-white text-brand shadow-md hover:bg-brand hover:text-white dark:bg-slate-800"
                 >
                   <UploadIcon size={16} />
                 </AnimatedButton>

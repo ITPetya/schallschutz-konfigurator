@@ -15,7 +15,7 @@ interface AddOpeningPopupProps {
 }
 
 const inputClass =
-  "w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none";
+  "w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
 
 // Popup zum Anlegen eines neuen Durchbruchs - liegt IM Viewer an der linken
 // Seite (Jonas' Vorgabe 2026-07-22), nicht mehr als Dauerformular oben in
@@ -67,7 +67,10 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
   }
 
   return (
-    <div data-tour="add-opening" className="absolute left-4 top-4 w-72 space-y-2 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-md">
+    <div
+      data-tour="add-opening"
+      className="absolute left-4 top-4 w-72 space-y-2 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-md dark:border-slate-700 dark:bg-slate-800/95"
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-brand">
           Neuer Durchbruch
@@ -75,7 +78,7 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
         <AnimatedButton
           type="button"
           onClick={onClose}
-          className="text-slate-400 hover:text-red-500"
+          className="text-slate-400 hover:text-red-500 dark:text-slate-500"
           aria-label="Schließen"
         >
           <XIcon size={16} />

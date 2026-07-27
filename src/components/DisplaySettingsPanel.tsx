@@ -15,7 +15,7 @@ interface DisplaySettingsPanelProps {
 }
 
 const toggleBtn = (active: boolean) =>
-  `flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${active ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`;
+  `flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${active ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"}`;
 
 // "Erweiterte Einstellungen" (Jonas' Vorgabe 2026-07-24, vorher "Darstellung")
 // - der Ansicht-Stil (Realistisch/Schattiert mit Kanten), Hintergrund
@@ -43,7 +43,7 @@ export function DisplaySettingsPanel({
 
       <div>
         {/* Jonas' Vorgabe 2026-07-24: Alternative zur Innenfarbe. */}
-        <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-500">
+        <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <input
             type="checkbox"
             checked={insideUnpainted}
@@ -75,12 +75,12 @@ function NoteField({ label, value, onChange }: { label: string; value: string; o
 
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-semibold text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={2}
-        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
       />
     </label>
   );
@@ -95,7 +95,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
 
   return (
     <div>
-      <p className="mb-1.5 text-xs font-semibold text-slate-500">{label}</p>
+      <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
       <div className="mb-1.5 flex gap-1">
         <button
           type="button"
@@ -113,14 +113,14 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
       </div>
       <div className="flex items-center gap-2">
         <span
-          className="h-6 w-6 shrink-0 rounded-full border border-slate-300"
+          className="h-6 w-6 shrink-0 rounded-full border border-slate-300 dark:border-slate-600"
           style={{ backgroundColor: value }}
           aria-hidden
         />
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
         >
           {options.map((c: RalColor) => (
             <option key={c.code} value={c.hex}>
@@ -129,7 +129,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           ))}
         </select>
       </div>
-      {!current && <p className="mt-1 text-xs text-slate-400">Aktuell: {value}</p>}
+      {!current && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Aktuell: {value}</p>}
     </div>
   );
 }

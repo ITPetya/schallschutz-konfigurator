@@ -24,7 +24,7 @@ export function AccordionSection({ title, defaultOpen = false, children, tourId 
 
   return (
     <AccordionPrimitive.Root type="single" collapsible value={open ? "item" : ""} onValueChange={(v) => setOpen(v === "item")}>
-      <AccordionPrimitive.Item value="item" data-tour={tourId} className="border-b border-slate-200 py-3">
+      <AccordionPrimitive.Item value="item" data-tour={tourId} className="border-b border-slate-200 py-3 dark:border-slate-700">
         <AccordionPrimitive.Header>
           <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-widest text-brand">
             {title}

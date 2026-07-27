@@ -25,7 +25,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Ja", cance
         <AnimatedButton
           type="button"
           onClick={onCancel}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
         >
           <CircleXIcon size={16} />
           {cancelLabel}
