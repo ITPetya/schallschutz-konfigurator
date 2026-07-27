@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { motion } from "motion/react";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { OpeningsPanel } from "../components/OpeningsPanel";
@@ -28,6 +29,7 @@ import { UploadIcon } from "../components/icons/UploadIcon";
 import { SendIcon } from "../components/icons/SendIcon";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
+import { Chevron } from "../components/icons/Chevron";
 
 // Mindestabstand zwischen zwei Container-Grundrissen (siehe docs/baugruppen-
 // architektur.md - "reale Container brauchen Zugangsraum, nicht nur
@@ -158,6 +160,27 @@ export function WorkspacePage() {
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Ein-/ausklappbare Seitenleiste (Jonas' Vorgabe: das Sidebar-Bauteil von
+  // animate-ui.com uebernehmen, siehe
+  // https://animate-ui.com/docs/components/radix/sidebar) - deren Sidebar
+  // ist allerdings eine Navigations-/Menü-Sidebar mit eigenem Farbschema,
+  // Sheet/Tooltip/Skeleton-Unterbausteinen fuer Dinge, die es hier gar nicht
+  // gibt. Uebernommen wird deshalb nur der eigentliche Kern - animiertes
+  // Ein-/Ausklappen inkl. Tastaturkuerzel Strg/Cmd+B -, angewandt auf unser
+  // bestehendes Bearbeitungs-Panel.
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setSidebarOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Falls die gerade bearbeitete Instanz nicht mehr existiert (z. B. durch
   // Rueckgaengig/Wiederholen entfernt) - zurueck zur Uebersicht statt eines
@@ -511,8 +534,12 @@ export function WorkspacePage() {
   return (
     <div className="flex h-full flex-col bg-white text-ink">
       <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+        <motion.aside
+          animate={{ width: sidebarOpen ? 320 : 0 }}
+          transition={{ type: "spring", stiffness: 350, damping: 35 }}
+          className="flex shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-slate-50"
+        >
+          <div className="w-80 flex-1 overflow-y-auto px-4 py-4">
             {editingInstance ? (
               <>
                 <AnimatedButton
@@ -570,7 +597,7 @@ export function WorkspacePage() {
                   />
                 </AccordionSection>
 
-                <div data-tour="save-project" className="mt-6 space-y-2 border-t border-slate-200 pt-4">
+                <div data-tour="save-project" className="mt-6 space-y-2">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
                   <AnimatedButton
                     type="button"
@@ -781,7 +808,7 @@ export function WorkspacePage() {
                   </AccordionSection>
                 )}
 
-                <div className="mt-6 space-y-2 border-t border-slate-200 pt-4">
+                <div className="mt-6 space-y-2">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
                   <div className="flex gap-2">
                     <AnimatedButton
@@ -847,9 +874,20 @@ export function WorkspacePage() {
               </AnimatedButton>
             )}
           </div>
-        </aside>
+        </motion.aside>
 
         <main className="relative min-h-0 min-w-0 flex-1">
+          <AnimatedButton
+            type="button"
+            hoverScale={1.1}
+            tapScale={0.9}
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? "Seitenleiste einklappen" : "Seitenleiste ausklappen"}
+            title={`Seitenleiste ${sidebarOpen ? "einklappen" : "ausklappen"} (Strg+B)`}
+            className="absolute left-2 top-16 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand"
+          >
+            <Chevron direction={sidebarOpen ? "left" : "right"} />
+          </AnimatedButton>
           {editingInstance ? (
             <>
               <Scene

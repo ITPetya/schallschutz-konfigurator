@@ -13,19 +13,33 @@ import { IconHoverContext } from "./icons/IconHoverContext";
 // whileHover propagiert naemlich NICHT automatisch an Kind-Komponenten,
 // deshalb reicht dieser Wrapper den Hover-Zustand weiterhin per
 // IconHoverContext durch (siehe dort).
+interface AnimatedButtonOwnProps {
+  // Wie im Original-Primitive ueberschreibbar (Standard 1.05/0.95) - auf 1
+  // gesetzt fuer Buttons, bei denen eine unabhaengige Skalierung optisch
+  // bricht: z. B. zwei nahtlos aneinanderliegende Haelften eines
+  // zusammengesetzten Buttons (StartPage.tsx: "Projekt laden" + Pfeil) oder
+  // volle Breite einnehmende Umschalt-Leisten in einem eigenen Rahmen
+  // (SectionAndViewPanel.tsx: "Schnitt"/"Ansicht"), wo ein hochskalierter
+  // Button ueber den Rahmen des umgebenden Containers hinausragen wuerde.
+  hoverScale?: number;
+  tapScale?: number;
+}
+
 export function AnimatedButton({
   children,
   onMouseEnter,
   onMouseLeave,
   onPointerDown,
   onPointerUp,
+  hoverScale = 1.05,
+  tapScale = 0.95,
   ...rest
-}: Omit<HTMLMotionProps<"button">, "children"> & { children?: ReactNode }) {
+}: Omit<HTMLMotionProps<"button">, "children"> & { children?: ReactNode } & AnimatedButtonOwnProps) {
   const [hovered, setHovered] = useState(false);
   return (
     <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: hoverScale }}
+      whileTap={{ scale: tapScale }}
       {...rest}
       onMouseEnter={(e) => {
         setHovered(true);

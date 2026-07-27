@@ -196,6 +196,8 @@ export function SectionAndViewPanel({
             der Inhalt beim Oeffnen auf), nach unten sobald offen. */}
         <AnimatedButton
           type="button"
+          hoverScale={1}
+          tapScale={1}
           onClick={() => setSectionEnabled((v) => !v)}
           className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
         >
@@ -294,6 +296,8 @@ export function SectionAndViewPanel({
           )}
           <AnimatedButton
             type="button"
+            hoverScale={1}
+            tapScale={1}
             onClick={() => setViewPanelOpen((v) => !v)}
             className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
           >

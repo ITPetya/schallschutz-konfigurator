@@ -103,6 +103,8 @@ export function StartPage() {
         <div className="relative flex items-stretch">
           <AnimatedButton
             type="button"
+            hoverScale={1}
+            tapScale={1}
             onClick={handleLoadButtonClick}
             className={`flex items-center justify-center gap-2 border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white ${
               hasCache ? "rounded-l-full" : "rounded-full"
@@ -114,6 +116,8 @@ export function StartPage() {
           {hasCache && (
             <AnimatedButton
               type="button"
+              hoverScale={1}
+              tapScale={1}
               onClick={handleLoadButtonClick}
               aria-label="Ladeoptionen anzeigen"
               className="flex items-center rounded-r-full border-2 border-l-0 border-brand px-3 py-3 text-brand hover:bg-brand hover:text-white"
