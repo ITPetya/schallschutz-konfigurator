@@ -53,6 +53,7 @@ export function GrundeinstellungenOverlay({ onSubmit }: GrundeinstellungenOverla
 
         <AnimatedButton
           type="button"
+          data-tour="grundeinstellungen-submit"
           onClick={handleSubmit}
           className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-2 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
         >

@@ -6,6 +6,7 @@ import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { Chevron } from "../components/icons/Chevron";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { useTour } from "../tour/TourContext";
 
 // Zentrierter Startbildschirm: "Konfiguration starten" + "Projekt laden".
 // Seit dem Zusammenlegen von Einzel-/Ensemble-Modus (siehe WorkspacePage.tsx)
@@ -13,6 +14,7 @@ import { AnimatedButton } from "../components/AnimatedButton";
 // Container angelegt werden koennen - deshalb kein Umschalt-Button mehr.
 export function StartPage() {
   const navigate = useNavigate();
+  const { notifyEvent } = useTour();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
@@ -87,7 +89,11 @@ export function StartPage() {
       <div className="flex flex-col gap-3 sm:flex-row">
         <AnimatedButton
           type="button"
-          onClick={() => navigate("/projekt", { state: { fresh: true } })}
+          data-tour="start-configuration"
+          onClick={() => {
+            notifyEvent("project-started");
+            navigate("/projekt", { state: { fresh: true } });
+          }}
           className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
         >
           Konfiguration starten

@@ -67,7 +67,7 @@ export function AddOpeningPopup({ size, onAdd, onClose }: AddOpeningPopupProps) 
   }
 
   return (
-    <div className="absolute left-4 top-4 w-72 space-y-2 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-md">
+    <div data-tour="add-opening" className="absolute left-4 top-4 w-72 space-y-2 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-md">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-brand">
           Neuer Durchbruch

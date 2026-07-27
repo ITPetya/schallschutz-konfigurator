@@ -181,9 +181,10 @@ export function WorkspacePage() {
   function handleGrundeinstellungenSubmit(result: GrundeinstellungenResult) {
     setProject((p) => ({ ...p, name: result.name, standort: result.standort }));
     setShowGrundeinstellungen(false);
+    notifyEvent("project-created");
   }
 
-  const { setSuppressed: setTourSuppressed } = useTour();
+  const { setSuppressed: setTourSuppressed, notifyEvent } = useTour();
 
   // Tour und Grundeinstellungen-Overlay duerfen sich nie gleichzeitig
   // ueberlagern (Jonas' Fehlerbericht 2026-07-25) - die Tour blendet sich
@@ -293,6 +294,7 @@ export function WorkspacePage() {
   function handleAddOpening(opening: Opening) {
     if (!editingInstance) return;
     updateEditingConfig({ openings: [...editingInstance.config.openings, opening] });
+    notifyEvent("opening-added");
   }
   function handleUpdateOpening(id: string, patch: Partial<Opening>) {
     if (!editingInstance) return;
@@ -340,6 +342,7 @@ export function WorkspacePage() {
     };
     setProject((p) => ({ ...p, instances: [...p.instances, instance] }));
     setSelectedId(instance.id);
+    notifyEvent("container-added");
   }
 
   function handleRemoveInstance(id: string) {
@@ -364,6 +367,7 @@ export function WorkspacePage() {
 
   function handleEditInstance(instance: ContainerInstance) {
     setEditingInstanceId(instance.id);
+    notifyEvent("instance-editing-opened");
   }
 
   async function handleLoadConfigFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -495,6 +499,7 @@ export function WorkspacePage() {
               <>
                 <AnimatedButton
                   type="button"
+                  data-tour="back-to-project"
                   onClick={handleBackToBaugruppe}
                   className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
                 >
@@ -515,7 +520,10 @@ export function WorkspacePage() {
                   <ContainerSizeControls
                     size={editingInstance.config.size}
                     wallThickness={editingInstance.config.wallThickness}
-                    onSizeChange={(size) => updateEditingConfig({ size })}
+                    onSizeChange={(size) => {
+                      updateEditingConfig({ size });
+                      notifyEvent("size-changed");
+                    }}
                     onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
                   />
                 </AccordionSection>
@@ -544,8 +552,8 @@ export function WorkspacePage() {
                   />
                 </AccordionSection>
 
-                <div data-tour="save-project" className="mt-4 space-y-2 pt-1">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
+                <div data-tour="save-project" className="mt-6 space-y-2 border-t border-slate-200 pt-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
                   <AnimatedButton
                     type="button"
                     onClick={handleDownloadInstance}
@@ -633,6 +641,7 @@ export function WorkspacePage() {
                         </p>
                         <AnimatedButton
                           type="button"
+                          data-tour="edit-instance"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditInstance(inst);
@@ -754,8 +763,8 @@ export function WorkspacePage() {
                   </AccordionSection>
                 )}
 
-                <div className="mt-4 space-y-2 pt-1">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
+                <div className="mt-6 space-y-2 border-t border-slate-200 pt-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
                   <div className="flex gap-2">
                     <AnimatedButton
                       type="button"
@@ -869,6 +878,7 @@ export function WorkspacePage() {
               <div className="absolute left-4 top-4 z-10 flex gap-2">
                 <AnimatedButton
                   type="button"
+                  data-tour="add-container"
                   onClick={handleAddInstance}
                   aria-label="Container hinzufügen"
                   title="Neuen leeren Container hinzufügen"

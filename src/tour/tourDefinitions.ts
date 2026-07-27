@@ -4,6 +4,14 @@ import type { Tour } from "./types";
 // also gibt es auch keine rollenspezifischen "erste Anmeldung"-Touren mehr -
 // nur noch der Konfigurator selbst braucht eine Einfuehrung). Zeigt auf echte
 // UI-Elemente ueber data-tour-Attribute, siehe TourOverlay.tsx.
+//
+// Fuehrt seit dem Projekt-Refactor (siehe WorkspacePage.tsx) den kompletten
+// echten Ablauf vor: Projekt anlegen -> Container hinzufuegen -> Detail
+// bearbeiten -> Groesse aendern -> Tuer hinzufuegen. Schritte mit
+// waitForEvent warten auf die ECHTE Aktion des Nutzers (per notifyEvent aus
+// StartPage.tsx/WorkspacePage.tsx), statt nur per "Weiter"-Klick
+// durchgeklickt zu werden - "Weiter" funktioniert trotzdem weiterhin als
+// manueller Ausweg (z. B. wenn schon ein Projekt/Container existiert).
 export const CONFIGURATOR_TOUR_ID = "configurator";
 
 export const TOURS: Record<string, Tour> = {
@@ -11,10 +19,40 @@ export const TOURS: Record<string, Tour> = {
     id: CONFIGURATOR_TOUR_ID,
     steps: [
       {
-        selector: '[data-tour="tour-grundeinstellungen"]',
-        title: "Grundeinstellungen",
-        body: "Hier legst du Länge, Breite, Höhe und Wandstärke des Containers fest – alles in Millimetern.",
+        route: "/",
+        selector: '[data-tour="start-configuration"]',
+        title: "Projekt starten",
+        body: "Klicke auf „Konfiguration starten“, um ein neues Projekt zu beginnen.",
         placement: "bottom",
+        waitForEvent: "project-started",
+      },
+      {
+        selector: '[data-tour="grundeinstellungen-submit"]',
+        title: "Projekt benennen",
+        body: "Vergib eine Bezeichnung (und optional einen Standort) für dein Projekt und klicke auf „Weiter“.",
+        placement: "top",
+        waitForEvent: "project-created",
+      },
+      {
+        selector: '[data-tour="add-container"]',
+        title: "Container hinzufügen",
+        body: "Über dieses Plus fügst du einen neuen Container zu deinem Projekt hinzu. Probier es gleich aus.",
+        placement: "bottom",
+        waitForEvent: "container-added",
+      },
+      {
+        selector: '[data-tour="edit-instance"]',
+        title: "Container bearbeiten",
+        body: "Klicke auf „Detail bearbeiten“, um diesen Container im Detail zu konfigurieren.",
+        placement: "bottom",
+        waitForEvent: "instance-editing-opened",
+      },
+      {
+        selector: '[data-tour="tour-grundeinstellungen"]',
+        title: "Größe ändern",
+        body: "Hier legst du Länge, Breite, Höhe und Wandstärke des Containers fest – alles in Millimetern. Ändere probeweise einen der Werte.",
+        placement: "bottom",
+        waitForEvent: "size-changed",
       },
       {
         selector: '[data-tour="tour-darstellung"]',
@@ -31,8 +69,9 @@ export const TOURS: Record<string, Tour> = {
       {
         selector: '[data-tour="add-opening"]',
         title: "Durchbruch hinzufügen",
-        body: "Über dieses Plus öffnest du ein Formular, um Wand, Typ und Position eines neuen Durchbruchs festzulegen.",
+        body: "Über dieses Plus öffnest du ein Formular, um Wand, Typ und Position eines neuen Durchbruchs festzulegen. Füge probeweise eine Tür hinzu.",
         placement: "bottom",
+        waitForEvent: "opening-added",
       },
       {
         selector: '[data-tour="section-view"]',
@@ -74,6 +113,12 @@ export const TOURS: Record<string, Tour> = {
         title: "Speichern",
         body: "„Speichern“ lädt diesen Container als Datei herunter – die kannst du später wieder laden.",
         placement: "top",
+      },
+      {
+        selector: '[data-tour="back-to-project"]',
+        title: "Zurück zur Baugruppe",
+        body: "Über diesen Button kommst du jederzeit zurück zur Projekt-Übersicht mit allen Containern – deine Änderungen sind dabei schon automatisch übernommen.",
+        placement: "bottom",
       },
     ],
   },

@@ -82,6 +82,11 @@ export function TourOverlay() {
           {currentStep.title} · {stepIndex + 1}/{stepCount}
         </p>
         <p className="mb-3 text-slate-600">{currentStep.body}</p>
+        {currentStep.waitForEvent && (
+          <p className="mb-3 text-xs font-medium text-brand-dark">
+            → Führe die Aktion aus, dann geht's automatisch weiter.
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <button type="button" onClick={stop} className="text-xs font-medium text-slate-400 hover:text-slate-600">
             Überspringen

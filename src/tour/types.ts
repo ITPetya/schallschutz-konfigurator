@@ -11,6 +11,12 @@ export interface TourStep {
   // AppShell muss sein Menü-Dropdown waehrend dieses Schritts offen halten,
   // auch wenn der Nutzer es nicht selbst geoeffnet hat.
   forceMenuOpen?: boolean;
+  // Wenn gesetzt, geht die Tour automatisch zum naechsten Schritt weiter,
+  // sobald die App per notifyEvent() genau dieses Ereignis meldet - z. B.
+  // erst weiter, NACHDEM der Nutzer tatsaechlich einen Container hinzugefuegt
+  // hat, statt nur zuzuschauen. Der "Weiter"-Button bleibt trotzdem als
+  // manueller Ausweg nutzbar (z. B. falls schon ein Container existiert).
+  waitForEvent?: string;
 }
 
 export interface Tour {
