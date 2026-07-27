@@ -14,7 +14,7 @@ interface State {
 // technisch erlaubten Kombination aus Containermassen und Durchbruch-
 // Position) hat die komplette Seite weiss/leer gerissen, ohne
 // Wiederherstellungsmoeglichkeit ausser manuellem Neuladen. Die
-// automatische Zwischensicherung (draftStore.ts) macht ein Neuladen
+// automatische Zwischensicherung (projectDraftStore.ts) macht ein Neuladen
 // aber bereits sicher - diese Boundary faengt den Absturz ab und bietet
 // genau diesen Reload direkt als Knopf an, statt einer leeren Seite.
 export class ErrorBoundary extends Component<Props, State> {

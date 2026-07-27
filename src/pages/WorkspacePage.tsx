@@ -10,22 +10,16 @@ import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
-import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
-import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
-import { loadDraft, saveDraft } from "../config/draftStore";
 import { defaultConfig } from "../config/defaultContainerConfig";
 import type { ContainerInstance, ProjectConfig } from "../config/projectTypes";
 import { loadProjectDraft, saveProjectDraft } from "../config/projectDraftStore";
 import { PROJECT_FILE_EXTENSION, decodeProject, encodeProject } from "../config/projectFileCodec";
 import { rectsOverlap, type OrientedRect } from "../utils/collision";
-import { useModeSwitch, type WorkspaceMode } from "../context/ModeSwitchContext";
 import { useTour } from "../tour/TourContext";
-import { hasSeenTour } from "../tour/tourStore";
-import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { PlusIcon } from "../components/icons/PlusIcon";
 import { TrashIcon } from "../components/icons/TrashIcon";
 import { RotateCcwIcon } from "../components/icons/RotateCcwIcon";
@@ -120,55 +114,15 @@ interface DragState {
   lastValidMm: { x: number; z: number };
 }
 
-// Einzelcontainer- und Baugruppen-Konfigurator teilen sich jetzt EINE Seite
-// mit einem gemeinsamen 3D-Viewer (Jonas' Vorgabe 2026-07-25: "soll auch
-// einen 3D Viewer haben nicht so komisch 2D" + "dann sollen sich eigentlich
-// nur die Tools in der Seitenleiste ändern") - das Dropdown dafuer sitzt im
-// gemeinsamen AppShell-Header, siehe ModeSwitchContext.tsx fuer die Bruecke
-// dazwischen. Wechselt man von "single" zu "project", wird eine bereits
-// begonnene Einzelcontainer-Konfiguration automatisch als neue Instanz in
-// die Baugruppe uebernommen (Jonas' Vorgabe: "es soll der vorher
-// konfigurierte Container ... darein geladen werden").
+// Ein Projekt (Baugruppe) mit einem gemeinsamen 3D-Viewer - man legt ein
+// Projekt an und darin einen oder mehrere Container. "Detail bearbeiten"
+// oeffnet einen Container zur Bearbeitung auf DERSELBEN Seite (kein
+// separater Modus/keine Route mehr) und schreibt jede Aenderung sofort
+// zurueck in die jeweilige ContainerInstance des Projekts.
 export function WorkspacePage() {
   const location = useLocation();
-  // "project" hier zusaetzlich zu "config" (Jonas' Vorgabe 2026-07-25:
-  // "Konfiguration laden soll natürlich für einzelne Container als auch
-  // Baugruppen gehen") - StartPage.tsx erkennt anhand der Dateiendung, ob
-  // eine .sszkonfig- oder .sszprojekt-Datei geladen wurde, und uebergibt
-  // entsprechend "config" ODER "project" ueber location.state.
-  const routeState = location.state as { config?: ContainerConfig; project?: ProjectConfig } | null;
-  const routeConfig = routeState?.config;
-  const routeProject = routeState?.project;
-  const draftConfig = loadDraft();
-  const seed = routeConfig ?? draftConfig ?? defaultConfig();
+  const routeProject = (location.state as { project?: ProjectConfig } | null)?.project;
 
-  const [mode, setMode] = useState<WorkspaceMode>(() => (location.pathname === "/projekt" ? "project" : "single"));
-  // Falls gesetzt: der Einzelcontainer-Modus zeigt gerade eine BESTEHENDE
-  // Baugruppen-Instanz zur Detailbearbeitung an (statt einer freien neuen
-  // Konfiguration) - "Zurück zur Baugruppe" schreibt dann gezielt in genau
-  // diese Instanz zurueck, statt eine neue anzulegen.
-  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
-  const [pendingModeSwitch, setPendingModeSwitch] = useState<WorkspaceMode | null>(null);
-
-  // ---------- Einzelcontainer-Zustand ----------
-  const [size, setSize] = useState<ContainerSize>(seed.size);
-  const [wallThickness, setWallThickness] = useState(seed.wallThickness);
-  const [openings, setOpenings] = useState<Opening[]>(seed.openings);
-  const [showAddPopup, setShowAddPopup] = useState(false);
-  const [viewStyle, setViewStyle] = useState<ViewStyle>(seed.viewStyle);
-  const [background, setBackground] = useState<BackgroundStyle>(seed.background);
-  const [outsideColor, setOutsideColor] = useState(seed.outsideColor);
-  const [insideColor, setInsideColor] = useState(seed.insideColor);
-  const [shadowsEnabled, setShadowsEnabled] = useState(seed.shadowsEnabled ?? true);
-  const [terrainDetail, setTerrainDetail] = useState<TerrainDetail>(seed.terrainDetail ?? "low");
-  const [insideUnpainted, setInsideUnpainted] = useState(seed.insideUnpainted ?? false);
-  const [outsideNotes, setOutsideNotes] = useState(seed.outsideNotes ?? "");
-  const [insideNotes, setInsideNotes] = useState(seed.insideNotes ?? "");
-  const [fileName, setFileName] = useState("Container-Konfiguration");
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  // ---------- Baugruppen-Zustand ----------
   const [project, setProject] = useState<ProjectConfig>(() => routeProject ?? loadProjectDraft() ?? emptyProject());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -184,123 +138,60 @@ export function WorkspacePage() {
   const [showResetProjectConfirm, setShowResetProjectConfirm] = useState(false);
   const workspaceDragRef = useRef<DragState | null>(null);
 
+  // Falls gesetzt: zeigt die Detailbearbeitung EINER Container-Instanz statt
+  // der Projekt-Uebersicht - "Zurück zur Baugruppe" schaltet einfach wieder
+  // zurueck, ohne dass dabei irgendetwas gesondert uebernommen werden muss
+  // (die Instanz wurde waehrend der Bearbeitung schon laufend aktualisiert).
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
+  const editingInstance = project.instances.find((i) => i.id === editingInstanceId) ?? null;
+  const [showAddPopup, setShowAddPopup] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Falls die gerade bearbeitete Instanz nicht mehr existiert (z. B. durch
+  // Rueckgaengig/Wiederholen entfernt) - zurueck zur Uebersicht statt eines
+  // kaputten Editors.
+  useEffect(() => {
+    if (editingInstanceId && !editingInstance) setEditingInstanceId(null);
+  }, [editingInstanceId, editingInstance]);
+
   // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
   // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
   // aufploppen, welches ein paar Grundeinstellungen abfragt") - erscheint
-  // NICHT, wenn eine konkrete Datei geladen wurde (routeConfig) oder bereits
-  // eine SINNVOLLE (nicht-leere/nicht-Standard) Konfiguration im Cache liegt
-  // ("Das Fenster soll nicht kommen, wenn man noch ein Projekt im Cache
-  // hat") - sonst wuerde man bei jedem Neuladen wieder gefragt, obwohl schon
-  // gearbeitet wurde.
+  // NICHT, wenn ein konkretes Projekt geladen wurde (routeProject) oder
+  // bereits ein sinnvolles (nicht-leeres) Projekt im Cache liegt.
   const [showGrundeinstellungen, setShowGrundeinstellungen] = useState(() => {
-    if (routeConfig || routeProject) return false;
-    if (location.pathname === "/projekt") {
-      const projectDraft = loadProjectDraft();
-      return !projectDraft || projectDraft.instances.length === 0;
-    }
-    return !draftConfig || JSON.stringify(draftConfig) === JSON.stringify(defaultConfig());
+    if (routeProject) return false;
+    const projectDraft = loadProjectDraft();
+    return !projectDraft || projectDraft.instances.length === 0;
   });
 
   function handleGrundeinstellungenSubmit(result: GrundeinstellungenResult) {
-    if (mode === "project") {
-      setProject((p) => ({ ...p, name: result.name }));
-    } else {
-      setFileName(result.name);
-      if (result.size) setSize(result.size);
-      if (result.outsideColor) setOutsideColor(result.outsideColor);
-    }
+    setProject((p) => ({ ...p, name: result.name, standort: result.standort }));
     setShowGrundeinstellungen(false);
   }
 
-  const { start: startTour, setSuppressed: setTourSuppressed } = useTour();
-  useEffect(() => {
-    // Die Tour zeigt ausschliesslich Einzelcontainer-UI-Elemente (siehe
-    // tourDefinitions.ts) - nur automatisch starten, wenn der allererste
-    // Aufruf tatsaechlich im Einzelcontainer-Modus landet (z. B. direkter
-    // Erstbesuch von /projekt bleibt ohne Auto-Tour, "Tutorial" im
-    // "?"-Menü funktioniert trotzdem jederzeit manuell).
-    if (mode === "single" && !hasSeenTour(CONFIGURATOR_TOUR_ID)) startTour(CONFIGURATOR_TOUR_ID);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { setSuppressed: setTourSuppressed } = useTour();
 
   // Tour und Grundeinstellungen-Overlay duerfen sich nie gleichzeitig
-  // ueberlagern (Jonas' Fehlerbericht 2026-07-25: "das Tutorial kollidiert
-  // ein bisschen mit dem Fenster ... wenn dann nachher das Tutorial
-  // irgendwo aufgerufen wird, soll auch dort weitergemacht werden, nicht
-  // einfach von vorne") - die Tour blendet sich waehrend des Overlays aus
-  // (suppressed), OHNE ihren Fortschritt zu verlieren: egal ob sie gerade
-  // erst startet (Erstbesuch) oder schon mitten in einem Schritt war (z. B.
-  // Zurücksetzen zeigt das Overlay erneut) - sie macht danach GENAU an
-  // dieser Stelle weiter statt bei Schritt 1 neu zu beginnen.
+  // ueberlagern (Jonas' Fehlerbericht 2026-07-25) - die Tour blendet sich
+  // waehrend des Overlays aus (suppressed), ohne ihren Fortschritt zu
+  // verlieren.
   useEffect(() => {
     setTourSuppressed(showGrundeinstellungen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGrundeinstellungen]);
 
   useEffect(() => {
-    saveDraft({
-      size,
-      wallThickness,
-      openings,
-      viewStyle,
-      background,
-      insideColor,
-      outsideColor,
-      shadowsEnabled,
-      terrainDetail,
-      insideUnpainted,
-      outsideNotes,
-      insideNotes,
-    });
-  }, [
-    size,
-    wallThickness,
-    openings,
-    viewStyle,
-    background,
-    insideColor,
-    outsideColor,
-    shadowsEnabled,
-    terrainDetail,
-    insideUnpainted,
-    outsideNotes,
-    insideNotes,
-  ]);
-
-  useEffect(() => {
     saveProjectDraft(project);
   }, [project]);
 
-  function currentSingleConfig(): ContainerConfig {
-    return {
-      size,
-      wallThickness,
-      openings,
-      viewStyle,
-      background,
-      insideColor,
-      outsideColor,
-      shadowsEnabled,
-      terrainDetail,
-      insideUnpainted,
-      outsideNotes,
-      insideNotes,
-    };
-  }
-
-  function loadSingleConfig(config: ContainerConfig) {
-    setSize(config.size);
-    setWallThickness(config.wallThickness);
-    setOpenings(config.openings);
-    setViewStyle(config.viewStyle);
-    setBackground(config.background);
-    setInsideColor(config.insideColor);
-    setOutsideColor(config.outsideColor);
-    setShadowsEnabled(config.shadowsEnabled ?? true);
-    setTerrainDetail(config.terrainDetail ?? "low");
-    setInsideUnpainted(config.insideUnpainted ?? false);
-    setOutsideNotes(config.outsideNotes ?? "");
-    setInsideNotes(config.insideNotes ?? "");
+  function updateEditingConfig(patch: Partial<ContainerConfig>) {
+    if (!editingInstanceId) return;
+    setProject((p) => ({
+      ...p,
+      instances: p.instances.map((i) => (i.id === editingInstanceId ? { ...i, config: { ...i.config, ...patch } } : i)),
+    }));
   }
 
   // ---------- Rückgängig/Wiederholen (Jonas' Vorgabe 2026-07-25: "vor und
@@ -309,93 +200,53 @@ export function WorkspacePage() {
   // Schritt: die Effekte unten schreiben den Snapshot VOR der Aenderung erst
   // nach einer kurzen Ruhephase (DEBOUNCE_MS) auf den Undo-Stack, sodass
   // z. B. das Tippen einer ganzen Zahl oder ein komplettes Ziehen EIN
-  // Rueckgaengig-Schritt ist statt vieler winziger. skipHistory* unterdrueckt
-  // das erneute Aufzeichnen der eigenen Undo/Redo-Anwendung.
+  // Rueckgaengig-Schritt ist statt vieler winziger. skipHistory unterdrueckt
+  // das erneute Aufzeichnen der eigenen Undo/Redo-Anwendung. Eine einzige
+  // Historie für das gesamte Projekt deckt sowohl die Uebersicht als auch
+  // die Detailbearbeitung ab, da eine bearbeitete Instanz Teil von
+  // `project` ist.
   const DEBOUNCE_MS = 600;
   const HISTORY_LIMIT = 50;
 
-  const [singleUndoStack, setSingleUndoStack] = useState<ContainerConfig[]>([]);
-  const [singleRedoStack, setSingleRedoStack] = useState<ContainerConfig[]>([]);
-  const singleSkipHistoryRef = useRef(false);
-  const singleLastSnapshotRef = useRef<string | null>(null);
-  const singleHistoryTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const json = JSON.stringify(currentSingleConfig());
-    if (singleSkipHistoryRef.current) {
-      singleSkipHistoryRef.current = false;
-      singleLastSnapshotRef.current = json;
-      return;
-    }
-    if (singleLastSnapshotRef.current === json) return;
-    const previousJson = singleLastSnapshotRef.current;
-    singleLastSnapshotRef.current = json;
-    if (previousJson === null) return; // erster Aufruf, noch kein "davor"
-    if (singleHistoryTimerRef.current) window.clearTimeout(singleHistoryTimerRef.current);
-    singleHistoryTimerRef.current = window.setTimeout(() => {
-      setSingleUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
-      setSingleRedoStack([]);
-    }, DEBOUNCE_MS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled, terrainDetail, insideUnpainted, outsideNotes, insideNotes]);
-
-  function handleUndoSingle() {
-    if (singleUndoStack.length === 0) return;
-    const prev = singleUndoStack[singleUndoStack.length - 1];
-    setSingleUndoStack((s) => s.slice(0, -1));
-    setSingleRedoStack((s) => [...s, currentSingleConfig()]);
-    singleSkipHistoryRef.current = true;
-    loadSingleConfig(prev);
-  }
-
-  function handleRedoSingle() {
-    if (singleRedoStack.length === 0) return;
-    const next = singleRedoStack[singleRedoStack.length - 1];
-    setSingleRedoStack((s) => s.slice(0, -1));
-    setSingleUndoStack((s) => [...s, currentSingleConfig()]);
-    singleSkipHistoryRef.current = true;
-    loadSingleConfig(next);
-  }
-
-  const [projectUndoStack, setProjectUndoStack] = useState<ProjectConfig[]>([]);
-  const [projectRedoStack, setProjectRedoStack] = useState<ProjectConfig[]>([]);
-  const projectSkipHistoryRef = useRef(false);
-  const projectLastSnapshotRef = useRef<string | null>(null);
-  const projectHistoryTimerRef = useRef<number | null>(null);
+  const [undoStack, setUndoStack] = useState<ProjectConfig[]>([]);
+  const [redoStack, setRedoStack] = useState<ProjectConfig[]>([]);
+  const skipHistoryRef = useRef(false);
+  const lastSnapshotRef = useRef<string | null>(null);
+  const historyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const json = JSON.stringify(project);
-    if (projectSkipHistoryRef.current) {
-      projectSkipHistoryRef.current = false;
-      projectLastSnapshotRef.current = json;
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      lastSnapshotRef.current = json;
       return;
     }
-    if (projectLastSnapshotRef.current === json) return;
-    const previousJson = projectLastSnapshotRef.current;
-    projectLastSnapshotRef.current = json;
-    if (previousJson === null) return;
-    if (projectHistoryTimerRef.current) window.clearTimeout(projectHistoryTimerRef.current);
-    projectHistoryTimerRef.current = window.setTimeout(() => {
-      setProjectUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
-      setProjectRedoStack([]);
+    if (lastSnapshotRef.current === json) return;
+    const previousJson = lastSnapshotRef.current;
+    lastSnapshotRef.current = json;
+    if (previousJson === null) return; // erster Aufruf, noch kein "davor"
+    if (historyTimerRef.current) window.clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = window.setTimeout(() => {
+      setUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
+      setRedoStack([]);
     }, DEBOUNCE_MS);
   }, [project]);
 
-  function handleUndoProject() {
-    if (projectUndoStack.length === 0) return;
-    const prev = projectUndoStack[projectUndoStack.length - 1];
-    setProjectUndoStack((s) => s.slice(0, -1));
-    setProjectRedoStack((s) => [...s, project]);
-    projectSkipHistoryRef.current = true;
+  function handleUndo() {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack((s) => s.slice(0, -1));
+    setRedoStack((s) => [...s, project]);
+    skipHistoryRef.current = true;
     setProject(prev);
   }
 
-  function handleRedoProject() {
-    if (projectRedoStack.length === 0) return;
-    const next = projectRedoStack[projectRedoStack.length - 1];
-    setProjectRedoStack((s) => s.slice(0, -1));
-    setProjectUndoStack((s) => [...s, project]);
-    projectSkipHistoryRef.current = true;
+  function handleRedo() {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((s) => s.slice(0, -1));
+    setUndoStack((s) => [...s, project]);
+    skipHistoryRef.current = true;
     setProject(next);
   }
 
@@ -411,110 +262,45 @@ export function WorkspacePage() {
       const key = e.key.toLowerCase();
       if (key === "z" && !e.shiftKey) {
         e.preventDefault();
-        mode === "single" ? handleUndoSingle() : handleUndoProject();
+        handleUndo();
       } else if (key === "y" || (key === "z" && e.shiftKey)) {
         e.preventDefault();
-        mode === "single" ? handleRedoSingle() : handleRedoProject();
+        handleRedo();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, singleUndoStack, singleRedoStack, projectUndoStack, projectRedoStack]);
-
-  // ---------- Moduswechsel (siehe ModeSwitchContext.tsx) ----------
-  const { registerWorkspace } = useModeSwitch();
-  useEffect(() => {
-    registerWorkspace({ mode, requestModeChange });
-    return () => registerWorkspace(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, size, wallThickness, openings, viewStyle, background, insideColor, outsideColor, shadowsEnabled, terrainDetail, insideUnpainted, outsideNotes, insideNotes, project, editingInstanceId]);
-
-  function requestModeChange(newMode: WorkspaceMode) {
-    if (newMode === mode) return;
-    if (mode === "single") {
-      if (editingInstanceId) {
-        applyModeSwitch(newMode);
-        return;
-      }
-      const isDefault = JSON.stringify(currentSingleConfig()) === JSON.stringify(defaultConfig());
-      if (isDefault) applyModeSwitch(newMode);
-      else setPendingModeSwitch(newMode);
-    } else {
-      if (project.instances.length === 0) applyModeSwitch(newMode);
-      else setPendingModeSwitch(newMode);
-    }
-  }
-
-  // Jonas' Vorgabe 2026-07-25: "es soll der vorher konfigurierte Container,
-  // falls einer konfiguriert wurde, [in die Baugruppe] geladen werden" -
-  // beim Wechsel von "single" zu "project" wird eine nicht-triviale
-  // Konfiguration automatisch als neue Instanz uebernommen (oder, falls
-  // gerade eine bestehende Instanz bearbeitet wurde, gezielt in DIESE
-  // zurueckgeschrieben statt eine neue anzulegen). Einzelcontainer-Zustand
-  // wird danach auf den leeren Standard zurueckgesetzt, damit eine spaetere
-  // Einzelcontainer-Sitzung nicht versehentlich noch einmal dieselbe
-  // Konfiguration uebernimmt.
-  function applyModeSwitch(newMode: WorkspaceMode) {
-    if (mode === "single" && newMode === "project") {
-      if (editingInstanceId) {
-        const instanceId = editingInstanceId;
-        const finishedConfig = currentSingleConfig();
-        setProject((p) => ({
-          ...p,
-          instances: p.instances.map((i) => (i.id === instanceId ? { ...i, config: finishedConfig } : i)),
-        }));
-        setEditingInstanceId(null);
-      } else {
-        const config = currentSingleConfig();
-        const isDefault = JSON.stringify(config) === JSON.stringify(defaultConfig());
-        if (!isDefault) {
-          const instance: ContainerInstance = {
-            id: crypto.randomUUID(),
-            label: `Container ${project.instances.length + 1}`,
-            config,
-            position: findFreePosition(project.instances, config.size.length),
-            rotationY: 0,
-          };
-          setProject((p) => ({ ...p, instances: [...p.instances, instance] }));
-        }
-      }
-      loadSingleConfig(defaultConfig());
-    }
-    setMode(newMode);
-    setPendingModeSwitch(null);
-  }
+  }, [undoStack, redoStack]);
 
   function handleBackToBaugruppe() {
-    applyModeSwitch("project");
+    setEditingInstanceId(null);
   }
 
-  // ---------- Einzelcontainer-Handler ----------
+  // ---------- Detailbearbeitung einer Instanz ----------
   function handleAddOpening(opening: Opening) {
-    setOpenings((prev) => [...prev, opening]);
+    if (!editingInstance) return;
+    updateEditingConfig({ openings: [...editingInstance.config.openings, opening] });
   }
   function handleUpdateOpening(id: string, patch: Partial<Opening>) {
-    setOpenings((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+    if (!editingInstance) return;
+    updateEditingConfig({ openings: editingInstance.config.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
   }
   function handleRemoveOpening(id: string) {
-    setOpenings((prev) => prev.filter((o) => o.id !== id));
+    if (!editingInstance) return;
+    updateEditingConfig({ openings: editingInstance.config.openings.filter((o) => o.id !== id) });
   }
 
-  function applyReset() {
-    loadSingleConfig(defaultConfig());
+  function applyResetInstance() {
+    if (!editingInstanceId) return;
+    updateEditingConfig(defaultConfig());
     setShowResetConfirm(false);
-    flashStatus("Konfiguration wurde zurückgesetzt.");
-    // Zurücksetzen ist genauso ein "selbst ein neues Projekt beginnen" wie
-    // der allererste Aufruf (Jonas' Vorgabe 2026-07-25: "die
-    // Grundeinstellungen sollen ... angezeigt werden, wenn der User im
-    // Configurator selber ein neues Projekt beginnt") - deshalb auch hier
-    // wieder abfragen, nicht nur beim ersten Laden ohne Cache.
-    setShowGrundeinstellungen(true);
+    flashStatus("Container wurde zurückgesetzt.");
   }
 
-  async function handleResetAndSave() {
-    await handleDownload();
-    applyReset();
+  async function handleResetInstanceAndSave() {
+    await handleDownloadInstance();
+    applyResetInstance();
   }
 
   function flashStatus(message: string) {
@@ -522,43 +308,12 @@ export function WorkspacePage() {
     window.setTimeout(() => setStatusMessage(null), 4000);
   }
 
-  async function handleDownload() {
-    const safeName = sanitizeFileName(fileName);
-    const blob = await encodeConfig(currentSingleConfig());
+  async function handleDownloadInstance() {
+    if (!editingInstance) return;
+    const safeName = sanitizeFileName(editingInstance.label);
+    const blob = await encodeConfig(editingInstance.config);
     downloadBlob(blob, `${safeName}${CONFIG_FILE_EXTENSION}`);
     flashStatus("Konfigurationsdatei wurde heruntergeladen.");
-  }
-
-  async function handleRequest() {
-    const safeName = sanitizeFileName(fileName);
-    const downloadFirst = window.confirm(
-      "Soll die Konfigurationsdatei jetzt heruntergeladen werden, damit du sie der E-Mail anhängen kannst?",
-    );
-    if (downloadFirst) {
-      const blob = await encodeConfig(currentSingleConfig());
-      downloadBlob(blob, `${safeName}${CONFIG_FILE_EXTENSION}`);
-    }
-
-    const subject = `Anfrage Container-Konfiguration: ${safeName}`;
-    const body = [
-      "Hallo,",
-      "",
-      "ich möchte folgende Container-Konfiguration anfragen.",
-      `Bitte die Datei "${safeName}${CONFIG_FILE_EXTENSION}" ${downloadFirst ? "(gerade heruntergeladen)" : "aus dem Konfigurator"} manuell an diese E-Mail anhängen, bevor du sie abschickst.`,
-      "",
-      `Containergröße: ${size.length} × ${size.width} × ${size.height} mm`,
-      `Wandstärke: ${wallThickness} mm`,
-      `Durchbrüche: ${openings.length}`,
-      insideUnpainted ? "Innen: unlackiert" : null,
-      outsideNotes.trim() ? `Sonderheiten Außen: ${outsideNotes.trim()}` : null,
-      insideNotes.trim() ? `Sonderheiten Innen: ${insideNotes.trim()}` : null,
-      "",
-      "Mit freundlichen Grüßen",
-    ]
-      .filter((line): line is string => line !== null)
-      .join("\n");
-
-    window.location.href = `mailto:${REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
 
   // ---------- Baugruppen-Handler ----------
@@ -595,14 +350,8 @@ export function WorkspacePage() {
     });
   }
 
-  // Jonas' Vorgabe 2026-07-25: statt einer Seitennavigation schaltet
-  // "Detail bearbeiten" jetzt einfach in den Einzelcontainer-Modus derselben
-  // Seite um, mit der Instanz-Konfiguration vorgeladen - "Zurück zur
-  // Baugruppe" (siehe handleBackToBaugruppe) schreibt gezielt wieder zurueck.
   function handleEditInstance(instance: ContainerInstance) {
-    loadSingleConfig(instance.config);
     setEditingInstanceId(instance.id);
-    setMode("single");
   }
 
   async function handleLoadConfigFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -664,10 +413,8 @@ export function WorkspacePage() {
     downloadBlob(blob, `${sanitizeFileName(project.name)}${PROJECT_FILE_EXTENSION}`);
   }
 
-  // Baugruppen-Pendant zu handleRequest (Jonas' Vorgabe 2026-07-25: "Baugruppen
-  // soll man auch anfragen können, genauso wie da jetzt ein Laden-Button ist,
-  // kann auch genauso der Anfragen-Button [sein]") - gleiche Mechanik
-  // (Datei zum Anhaengen herunterladen, dann mailto: mit Zusammenfassung).
+  // Anfragen gibt es nur noch auf Projekt-Ebene, nicht mehr pro einzelnem
+  // Container (siehe Detailbearbeitung, dort nur noch "Speichern").
   async function handleRequestProject() {
     const safeName = sanitizeFileName(project.name);
     const downloadFirst = window.confirm(
@@ -678,20 +425,23 @@ export function WorkspacePage() {
       downloadBlob(blob, `${safeName}${PROJECT_FILE_EXTENSION}`);
     }
 
-    const subject = `Anfrage Baugruppen-Projekt: ${safeName}`;
+    const subject = `Anfrage Projekt: ${safeName}`;
     const body = [
       "Hallo,",
       "",
-      "ich möchte folgende Baugruppe (mehrere Container) anfragen.",
+      "ich möchte folgendes Projekt anfragen.",
       `Bitte die Datei "${safeName}${PROJECT_FILE_EXTENSION}" ${downloadFirst ? "(gerade heruntergeladen)" : "aus dem Konfigurator"} manuell an diese E-Mail anhängen, bevor du sie abschickst.`,
       "",
+      project.standort ? `Standort: ${project.standort}` : null,
       `Anzahl Container: ${project.instances.length}`,
       ...project.instances.map(
         (inst, i) => `Container ${i + 1} (${inst.label}): ${inst.config.size.length} × ${inst.config.size.width} × ${inst.config.size.height} mm`,
       ),
       "",
       "Mit freundlichen Grüßen",
-    ].join("\n");
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n");
 
     window.location.href = `mailto:${REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
@@ -700,7 +450,7 @@ export function WorkspacePage() {
     setProject(emptyProject());
     setSelectedId(null);
     setShowResetProjectConfirm(false);
-    // Siehe applyReset() - "Projekt zurücksetzen" ist ebenfalls ein
+    // Siehe applyResetInstance() - "Projekt zurücksetzen" ist ebenfalls ein
     // selbst-begonnenes neues Projekt.
     setShowGrundeinstellungen(true);
   }
@@ -729,76 +479,71 @@ export function WorkspacePage() {
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {mode === "single" ? (
+            {editingInstance ? (
               <>
-                {editingInstanceId && (
-                  <AnimatedButton
-                    type="button"
-                    onClick={handleBackToBaugruppe}
-                    className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
-                  >
-                    <ArrowLeftIcon size={16} />
-                    Zurück zur Baugruppe
-                  </AnimatedButton>
-                )}
+                <AnimatedButton
+                  type="button"
+                  onClick={handleBackToBaugruppe}
+                  className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+                >
+                  <ArrowLeftIcon size={16} />
+                  Zurück zur Baugruppe
+                </AnimatedButton>
+
                 <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
+                  <label className="mb-3 block text-xs text-slate-500">
+                    Bezeichnung
+                    <input
+                      type="text"
+                      value={editingInstance.label}
+                      onChange={(e) => handleLabelChange(editingInstance.id, e.target.value)}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </label>
                   <ContainerSizeControls
-                    size={size}
-                    wallThickness={wallThickness}
-                    onSizeChange={setSize}
-                    onWallThicknessChange={setWallThickness}
+                    size={editingInstance.config.size}
+                    wallThickness={editingInstance.config.wallThickness}
+                    onSizeChange={(size) => updateEditingConfig({ size })}
+                    onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
                   />
                 </AccordionSection>
 
                 <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
                   <DisplaySettingsPanel
-                    insideColor={insideColor}
-                    onInsideColorChange={setInsideColor}
-                    outsideColor={outsideColor}
-                    onOutsideColorChange={setOutsideColor}
-                    insideUnpainted={insideUnpainted}
-                    onInsideUnpaintedChange={setInsideUnpainted}
-                    outsideNotes={outsideNotes}
-                    onOutsideNotesChange={setOutsideNotes}
-                    insideNotes={insideNotes}
-                    onInsideNotesChange={setInsideNotes}
+                    insideColor={editingInstance.config.insideColor}
+                    onInsideColorChange={(insideColor) => updateEditingConfig({ insideColor })}
+                    outsideColor={editingInstance.config.outsideColor}
+                    onOutsideColorChange={(outsideColor) => updateEditingConfig({ outsideColor })}
+                    insideUnpainted={editingInstance.config.insideUnpainted ?? false}
+                    onInsideUnpaintedChange={(insideUnpainted) => updateEditingConfig({ insideUnpainted })}
+                    outsideNotes={editingInstance.config.outsideNotes ?? ""}
+                    onOutsideNotesChange={(outsideNotes) => updateEditingConfig({ outsideNotes })}
+                    insideNotes={editingInstance.config.insideNotes ?? ""}
+                    onInsideNotesChange={(insideNotes) => updateEditingConfig({ insideNotes })}
                   />
                 </AccordionSection>
 
                 <AccordionSection title="Einbauten" defaultOpen tourId="tour-einbauten">
-                  <OpeningsPanel size={size} openings={openings} onUpdate={handleUpdateOpening} onRemove={handleRemoveOpening} />
+                  <OpeningsPanel
+                    size={editingInstance.config.size}
+                    openings={editingInstance.config.openings}
+                    onUpdate={handleUpdateOpening}
+                    onRemove={handleRemoveOpening}
+                  />
                 </AccordionSection>
 
                 <div data-tour="save-project" className="mt-4 space-y-2 pt-1">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern &amp; Anfragen</p>
-                  <input
-                    type="text"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    placeholder="Dateiname"
-                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
-                  />
-                  <div className="flex gap-2">
-                    <AnimatedButton
-                      type="button"
-                      onClick={handleDownload}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
-                    >
-                      <DownloadIcon size={16} />
-                      Speichern
-                    </AnimatedButton>
-                    <AnimatedButton
-                      type="button"
-                      onClick={handleRequest}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-                    >
-                      <SendIcon size={16} />
-                      Anfragen
-                    </AnimatedButton>
-                  </div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
+                  <AnimatedButton
+                    type="button"
+                    onClick={handleDownloadInstance}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
+                  >
+                    <DownloadIcon size={16} />
+                    Speichern
+                  </AnimatedButton>
                   <p className="text-xs text-slate-400">
-                    „Speichern“ lädt die Konfiguration als Datei herunter, um sie später wieder zu laden. „Anfragen“ öffnet
-                    zusätzlich eine E-Mail-Anfrage.
+                    „Speichern“ lädt diesen Container als Datei herunter, um ihn später wieder zu laden.
                   </p>
                   {statusMessage && <p className="text-xs text-brand-dark">{statusMessage}</p>}
                 </div>
@@ -812,6 +557,16 @@ export function WorkspacePage() {
                       type="text"
                       value={project.name}
                       onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+                      className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
+                    />
+                  </label>
+                  <label className="mt-2 block text-xs text-slate-500">
+                    Standort (optional)
+                    <input
+                      type="text"
+                      value={project.standort ?? ""}
+                      onChange={(e) => setProject((p) => ({ ...p, standort: e.target.value || undefined }))}
+                      placeholder="z. B. Musterstadt"
                       className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none"
                     />
                   </label>
@@ -1014,9 +769,6 @@ export function WorkspacePage() {
                       className="hidden"
                     />
                   </div>
-                  {/* Baugruppen-Pendant zum Einzel-Modus (Jonas' Vorgabe
-                      2026-07-25: "Baugruppen soll man auch anfragen können,
-                      genauso wie da jetzt ein Laden-Button ist"). */}
                   <AnimatedButton
                     type="button"
                     onClick={handleRequestProject}
@@ -1036,7 +788,7 @@ export function WorkspacePage() {
           </div>
 
           <div className="border-t border-slate-200 p-3">
-            {mode === "single" ? (
+            {editingInstance ? (
               <AnimatedButton
                 type="button"
                 onClick={() => setShowResetConfirm(true)}
@@ -1059,27 +811,27 @@ export function WorkspacePage() {
         </aside>
 
         <main className="relative min-h-0 min-w-0 flex-1">
-          {mode === "single" ? (
+          {editingInstance ? (
             <>
               <Scene
-                size={size}
-                wallThickness={wallThickness}
-                openings={openings}
-                viewStyle={viewStyle}
-                background={background}
-                insideColor={insideColor}
-                outsideColor={outsideColor}
-                insideUnpainted={insideUnpainted}
-                shadowsEnabled={shadowsEnabled}
-                terrainDetail={terrainDetail}
-                onViewStyleChange={setViewStyle}
-                onBackgroundChange={setBackground}
-                onShadowsEnabledChange={setShadowsEnabled}
-                onTerrainDetailChange={setTerrainDetail}
-                onUndo={handleUndoSingle}
-                onRedo={handleRedoSingle}
-                canUndo={singleUndoStack.length > 0}
-                canRedo={singleRedoStack.length > 0}
+                size={editingInstance.config.size}
+                wallThickness={editingInstance.config.wallThickness}
+                openings={editingInstance.config.openings}
+                viewStyle={editingInstance.config.viewStyle}
+                background={editingInstance.config.background}
+                insideColor={editingInstance.config.insideColor}
+                outsideColor={editingInstance.config.outsideColor}
+                insideUnpainted={editingInstance.config.insideUnpainted ?? false}
+                shadowsEnabled={editingInstance.config.shadowsEnabled ?? true}
+                terrainDetail={editingInstance.config.terrainDetail ?? "low"}
+                onViewStyleChange={(viewStyle) => updateEditingConfig({ viewStyle })}
+                onBackgroundChange={(background) => updateEditingConfig({ background })}
+                onShadowsEnabledChange={(shadowsEnabled) => updateEditingConfig({ shadowsEnabled })}
+                onTerrainDetailChange={(terrainDetail) => updateEditingConfig({ terrainDetail })}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
               />
               {!showAddPopup && (
                 <AnimatedButton
@@ -1093,7 +845,11 @@ export function WorkspacePage() {
                 </AnimatedButton>
               )}
               {showAddPopup && (
-                <AddOpeningPopup size={size} onAdd={handleAddOpening} onClose={() => setShowAddPopup(false)} />
+                <AddOpeningPopup
+                  size={editingInstance.config.size}
+                  onAdd={handleAddOpening}
+                  onClose={() => setShowAddPopup(false)}
+                />
               )}
             </>
           ) : (
@@ -1134,10 +890,10 @@ export function WorkspacePage() {
                 onSetAllViewStyle={(v) =>
                   setProject((p) => ({ ...p, instances: p.instances.map((i) => ({ ...i, config: { ...i.config, viewStyle: v } })) }))
                 }
-                onUndo={handleUndoProject}
-                onRedo={handleRedoProject}
-                canUndo={projectUndoStack.length > 0}
-                canRedo={projectRedoStack.length > 0}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
                 onPointerDown={(id, ground) => {
                   const inst = project.instances.find((i) => i.id === id);
                   if (!inst) return;
@@ -1190,16 +946,16 @@ export function WorkspacePage() {
         </main>
       </div>
 
-      {showGrundeinstellungen && <GrundeinstellungenOverlay mode={mode} onSubmit={handleGrundeinstellungenSubmit} />}
+      {showGrundeinstellungen && <GrundeinstellungenOverlay onSubmit={handleGrundeinstellungenSubmit} />}
 
       {showResetConfirm && (
         <ThreeOptionConfirmDialog
           title="Zurücksetzen"
-          message="Konfiguration wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren."
+          message="Container wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren."
           primaryLabel="Speichern & zurücksetzen"
-          onPrimary={handleResetAndSave}
+          onPrimary={handleResetInstanceAndSave}
           confirmLabel="Ja, zurücksetzen"
-          onConfirm={applyReset}
+          onConfirm={applyResetInstance}
           onCancel={() => setShowResetConfirm(false)}
         />
       )}
@@ -1213,26 +969,6 @@ export function WorkspacePage() {
           confirmLabel="Ja, zurücksetzen"
           onConfirm={applyResetProject}
           onCancel={() => setShowResetProjectConfirm(false)}
-        />
-      )}
-
-      {pendingModeSwitch && (
-        <ThreeOptionConfirmDialog
-          title="Modus wechseln"
-          message={
-            mode === "single"
-              ? "Deine aktuelle Container-Konfiguration wird beim Wechsel automatisch als neuer Container in die Baugruppe übernommen. Falls du sie zusätzlich als eigene Datei sichern willst, tu das vorher."
-              : "Dieses Projekt enthält bereits Container. Beim Wechsel bleibt es als Entwurf erhalten, aber falls du es behalten willst, lade es dir vorher als Datei herunter."
-          }
-          primaryLabel={mode === "single" ? "Speichern & übernehmen" : "Speichern & wechseln"}
-          onPrimary={async () => {
-            if (mode === "single") await handleDownload();
-            else await handleDownloadProject();
-            applyModeSwitch(pendingModeSwitch);
-          }}
-          confirmLabel={mode === "single" ? "Ja, übernehmen" : "Ja, wechseln"}
-          onConfirm={() => applyModeSwitch(pendingModeSwitch)}
-          onCancel={() => setPendingModeSwitch(null)}
         />
       )}
     </div>

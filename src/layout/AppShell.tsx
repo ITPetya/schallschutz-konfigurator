@@ -4,7 +4,6 @@ import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { useModeSwitch } from "../context/ModeSwitchContext";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -41,7 +40,6 @@ export function AppShell() {
             </Link>
 
             <div className="flex items-center gap-2">
-              <ModeSwitchDropdown />
               <HelpMenu
                 open={helpMenuOpen}
                 onToggle={() => setHelpMenuOpen((v) => !v)}
@@ -55,7 +53,6 @@ export function AppShell() {
       )}
       {embed && (
         <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
-          <ModeSwitchDropdown />
           <HelpMenu
             open={helpMenuOpen}
             onToggle={() => setHelpMenuOpen((v) => !v)}
@@ -73,34 +70,6 @@ export function AppShell() {
       </div>
       <TourOverlay />
     </div>
-  );
-}
-
-// Moduswechsel (Jonas' Vorgabe 2026-07-25): "oben rechts, links neben dem
-// Fragezeichen ein Dropdown, um zwischen Einzel-Container-Konfiguration und
-// Mehrere-Container-Konfiguration zu wechseln - dabei sollen sich eigentlich
-// nur die Tools in der Seitenleiste ändern". Einzel- und Baugruppen-Modus
-// leben deshalb jetzt auf EINER Seite (WorkspacePage.tsx) mit einem
-// gemeinsamen, durchgehenden 3D-Viewer - dieses Dropdown sitzt im
-// gemeinsamen Header (unabhaengig von WorkspacePage gerendert) und wechselt
-// NIE direkt: WorkspacePage registriert per ModeSwitchContext ihren
-// aktuellen Modus + eine Wechsel-Funktion, die selbst entscheidet, ob eine
-// Speichern/Verwerfen-Erinnerung noetig ist (siehe dort). Ausserhalb der
-// Workspace-Seite (Start, Hilfe, intern) ist workspace null - kein Dropdown.
-function ModeSwitchDropdown() {
-  const { workspace } = useModeSwitch();
-  if (!workspace) return null;
-
-  return (
-    <select
-      value={workspace.mode}
-      onChange={(e) => workspace.requestModeChange(e.target.value as "single" | "project")}
-      aria-label="Konfigurationsmodus"
-      className="rounded-full border-2 border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand hover:text-brand focus:border-brand focus:outline-none"
-    >
-      <option value="single">Einzel-Container-Konfiguration</option>
-      <option value="project">Mehrere-Container-Konfiguration</option>
-    </select>
   );
 }
 
