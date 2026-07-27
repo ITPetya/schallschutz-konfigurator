@@ -18,17 +18,13 @@ function loadStoredTheme(): Theme | null {
 
 // Hell/Dunkel-Umschalter (Jonas' Vorgabe: Switch-Bauteil von animate-ui.com,
 // siehe https://animate-ui.com/docs/components/radix/switch, oben rechts im
-// Header). Ohne gespeicherte Praeferenz folgt die App zunaechst der
-// System-Einstellung (prefers-color-scheme) - Tailwind v4 braucht dafuer die
-// "@custom-variant dark" Definition in index.css, die die "dark:"-Variante
-// an eine echte CSS-Klasse statt nur die Media Query bindet, damit ein
-// manueller Wechsel die System-Einstellung ueberstimmen kann.
+// Header). Ohne gespeicherte Praeferenz startet die App IMMER im Hellmodus
+// (Jonas' Vorgabe: bewusst NICHT die System-Einstellung uebernehmen) -
+// Tailwind v4 braucht fuer den manuellen Umschalter die "@custom-variant
+// dark"-Definition in index.css, die die "dark:"-Variante an eine echte
+// CSS-Klasse statt an prefers-color-scheme bindet.
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = loadStoredTheme();
-    if (stored) return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
+  const [theme, setTheme] = useState<Theme>(() => loadStoredTheme() ?? "light");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");

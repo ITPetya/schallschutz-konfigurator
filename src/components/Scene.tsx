@@ -10,6 +10,7 @@ import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
+import { useTheme } from "../context/ThemeContext";
 import {
   DisplaySettingsProvider,
   type BackgroundStyle,
@@ -103,6 +104,7 @@ export function Scene({
   // ProjectScene3D.tsx dieselbe Logik fuer den ausgewaehlten Baugruppen-
   // Container wiederverwenden kann, siehe SectionAndViewPanel.tsx.
   const section = useSectionPlane(size);
+  const { theme } = useTheme();
 
   const isTerrain = background === "terrain";
 
@@ -113,7 +115,7 @@ export function Scene({
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
       >
-        {!isTerrain && <color attach="background" args={["#eef2f5"]} />}
+        {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight
           position={[10, 12, 6]}
