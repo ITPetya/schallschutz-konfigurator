@@ -4,6 +4,7 @@ import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { StorageConsentBanner } from "../components/StorageConsentBanner";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -69,6 +70,7 @@ export function AppShell() {
         </ErrorBoundary>
       </div>
       <TourOverlay />
+      <StorageConsentBanner />
     </div>
   );
 }

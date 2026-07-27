@@ -16,7 +16,7 @@ import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, saniti
 import { REQUEST_EMAIL } from "../config/requestEmail";
 import { defaultConfig } from "../config/defaultContainerConfig";
 import type { ContainerInstance, ProjectConfig } from "../config/projectTypes";
-import { loadProjectDraft, saveProjectDraft } from "../config/projectDraftStore";
+import { hasMeaningfulProjectDraft, loadProjectDraft, saveProjectDraft } from "../config/projectDraftStore";
 import { PROJECT_FILE_EXTENSION, decodeProject, encodeProject } from "../config/projectFileCodec";
 import { rectsOverlap, type OrientedRect } from "../utils/collision";
 import { useTour } from "../tour/TourContext";
@@ -121,9 +121,20 @@ interface DragState {
 // zurueck in die jeweilige ContainerInstance des Projekts.
 export function WorkspacePage() {
   const location = useLocation();
-  const routeProject = (location.state as { project?: ProjectConfig } | null)?.project;
+  const routeState = location.state as { project?: ProjectConfig; fresh?: boolean } | null;
+  const routeProject = routeState?.project;
+  // "Konfiguration starten" auf der Startseite setzt "fresh", damit IMMER
+  // ein neues, leeres Projekt beginnt statt (versehentlich) den Cache
+  // wiederherzustellen - der Cache bleibt dem expliziten "Aus Cache laden"
+  // vorbehalten. Ohne jeden State (z. B. Neuladen der Seite waehrend der
+  // Arbeit) greift weiterhin der Cache als Absturz-Sicherheitsnetz.
+  const forceFresh = routeState?.fresh === true;
 
-  const [project, setProject] = useState<ProjectConfig>(() => routeProject ?? loadProjectDraft() ?? emptyProject());
+  const [project, setProject] = useState<ProjectConfig>(() => {
+    if (routeProject) return routeProject;
+    if (forceFresh) return emptyProject();
+    return loadProjectDraft() ?? emptyProject();
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragValid, setDragValid] = useState(true);
@@ -158,12 +169,13 @@ export function WorkspacePage() {
   // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
   // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
   // aufploppen, welches ein paar Grundeinstellungen abfragt") - erscheint
-  // NICHT, wenn ein konkretes Projekt geladen wurde (routeProject) oder
-  // bereits ein sinnvolles (nicht-leeres) Projekt im Cache liegt.
+  // NICHT, wenn ein konkretes Projekt geladen wurde (routeProject), IMMER bei
+  // "fresh" (bewusster Neustart), sonst nur wenn noch kein sinnvolles
+  // (nicht-leeres) Projekt im Cache liegt.
   const [showGrundeinstellungen, setShowGrundeinstellungen] = useState(() => {
     if (routeProject) return false;
-    const projectDraft = loadProjectDraft();
-    return !projectDraft || projectDraft.instances.length === 0;
+    if (forceFresh) return true;
+    return !hasMeaningfulProjectDraft();
   });
 
   function handleGrundeinstellungenSubmit(result: GrundeinstellungenResult) {

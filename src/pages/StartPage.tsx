@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
-import { loadProjectDraft } from "../config/projectDraftStore";
+import { hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectDraftStore";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { Chevron } from "../components/icons/Chevron";
@@ -16,7 +16,7 @@ export function StartPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLoadMenu, setShowLoadMenu] = useState(false);
-  const hasCache = loadProjectDraft() !== null;
+  const hasCache = hasMeaningfulProjectDraft();
 
   async function loadProjectFile(file: File) {
     try {
@@ -87,7 +87,7 @@ export function StartPage() {
       <div className="flex flex-col gap-3 sm:flex-row">
         <AnimatedButton
           type="button"
-          onClick={() => navigate("/projekt")}
+          onClick={() => navigate("/projekt", { state: { fresh: true } })}
           className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
         >
           Konfiguration starten
