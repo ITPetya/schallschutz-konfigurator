@@ -7,6 +7,9 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { StorageConsentBanner } from "../components/StorageConsentBanner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { clearProjectDraft } from "../config/projectDraftStore";
+import { AnimatedButton } from "../components/AnimatedButton";
+import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
+import { TrashIcon } from "../components/icons/TrashIcon";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -118,14 +121,14 @@ interface HelpMenuProps {
 function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
   return (
     <div className="relative">
-      <button
+      <AnimatedButton
         type="button"
         onClick={onToggle}
         aria-label="Hilfe"
-        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-xs font-bold text-slate-400 hover:border-brand hover:text-brand"
+        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-400 hover:border-brand hover:text-brand"
       >
-        ?
-      </button>
+        <CircleHelpIcon size={18} />
+      </AnimatedButton>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -150,16 +153,17 @@ function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe, onDeleteData }
             >
               Hilfe
             </button>
-            <button
+            <AnimatedButton
               type="button"
               onClick={() => {
                 onClose();
                 onDeleteData();
               }}
-              className="block w-full rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+              className="flex w-full items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
             >
+              <TrashIcon size={15} />
               Meine Daten löschen
-            </button>
+            </AnimatedButton>
           </nav>
         </>
       )}

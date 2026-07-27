@@ -2,6 +2,8 @@ import { useState } from "react";
 import { AnimatedButton } from "./AnimatedButton";
 import { clearProjectDraft } from "../config/projectDraftStore";
 import { getStorageConsent, setStorageConsent } from "../config/storageConsent";
+import { CircleXIcon } from "./icons/CircleXIcon";
+import { CheckIcon } from "./icons/CheckIcon";
 
 // Einwilligungs-Banner fuer die lokale Zwischenspeicherung (siehe
 // storageConsent.ts fuer die rechtliche Einordnung) - erscheint einmalig,
@@ -35,15 +37,17 @@ export function StorageConsentBanner() {
           <AnimatedButton
             type="button"
             onClick={handleDecline}
-            className="rounded-full bg-slate-100 px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
+            className="flex items-center justify-center gap-1.5 rounded-full bg-slate-100 px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200"
           >
+            <CircleXIcon size={16} />
             Nein
           </AnimatedButton>
           <AnimatedButton
             type="button"
             onClick={handleAccept}
-            className="rounded-full bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+            className="flex items-center justify-center gap-1.5 rounded-full bg-brand px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
           >
+            <CheckIcon size={16} />
             Ja, erlauben
           </AnimatedButton>
         </div>
