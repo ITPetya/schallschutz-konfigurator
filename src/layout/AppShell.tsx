@@ -10,6 +10,7 @@ import { clearProjectDraft } from "../config/projectDraftStore";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
 import { TrashIcon } from "../components/icons/TrashIcon";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -28,7 +29,6 @@ import { TrashIcon } from "../components/icons/TrashIcon";
 export function AppShell() {
   const { start: startTour } = useTour();
   const navigate = useNavigate();
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletedMessage, setDeletedMessage] = useState(false);
   const [searchParams] = useSearchParams();
@@ -56,9 +56,6 @@ export function AppShell() {
 
             <div className="flex items-center gap-2">
               <HelpMenu
-                open={helpMenuOpen}
-                onToggle={() => setHelpMenuOpen((v) => !v)}
-                onClose={() => setHelpMenuOpen(false)}
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => navigate("/hilfe")}
                 onDeleteData={() => setShowDeleteConfirm(true)}
@@ -70,9 +67,6 @@ export function AppShell() {
       {embed && (
         <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
           <HelpMenu
-            open={helpMenuOpen}
-            onToggle={() => setHelpMenuOpen((v) => !v)}
-            onClose={() => setHelpMenuOpen(false)}
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => navigate("/hilfe?embed=1")}
             onDeleteData={() => setShowDeleteConfirm(true)}
@@ -109,63 +103,46 @@ export function AppShell() {
 }
 
 interface HelpMenuProps {
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
   onTutorial: () => void;
   onHilfe: () => void;
   onDeleteData: () => void;
 }
 
-function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
+// Baut auf animate-ui.com's Dropdown-Menu-Primitive auf (Jonas' Vorgabe,
+// siehe https://animate-ui.com/docs/components/radix/dropdown-menu) - der
+// Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
+// mehr selbst, das uebernimmt jetzt Radix intern.
+function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
   return (
-    <div className="relative">
-      <AnimatedButton
-        type="button"
-        onClick={onToggle}
-        aria-label="Hilfe"
-        className="flex items-center justify-center text-slate-400 hover:text-brand"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <AnimatedButton
+          type="button"
+          aria-label="Hilfe"
+          className="flex items-center justify-center text-slate-400 hover:text-brand"
+        >
+          <CircleHelpIcon size={30} />
+        </AnimatedButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg"
       >
-        <CircleHelpIcon size={30} />
-      </AnimatedButton>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={onClose} />
-          <nav className="absolute right-0 top-11 z-50 w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onTutorial();
-              }}
-              className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-            >
-              Tutorial
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onHilfe();
-              }}
-              className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-            >
-              Hilfe
-            </button>
-            <AnimatedButton
-              type="button"
-              onClick={() => {
-                onClose();
-                onDeleteData();
-              }}
-              className="flex w-full items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
-            >
-              <TrashIcon size={15} />
-              Meine Daten löschen
-            </AnimatedButton>
-          </nav>
-        </>
-      )}
-    </div>
+        <DropdownMenuItem onSelect={onTutorial} className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100">
+          Tutorial
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onHilfe} className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100">
+          Hilfe
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={onDeleteData}
+          className="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+        >
+          <TrashIcon size={15} />
+          Meine Daten löschen
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

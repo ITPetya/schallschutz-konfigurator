@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import { motion, type HTMLMotionProps } from "motion/react";
 import { IconHoverContext } from "./icons/IconHoverContext";
 
@@ -33,11 +33,21 @@ export function AnimatedButton({
   onPointerUp,
   hoverScale = 1.05,
   tapScale = 0.95,
+  ref,
   ...rest
-}: Omit<HTMLMotionProps<"button">, "children"> & { children?: ReactNode } & AnimatedButtonOwnProps) {
+}: Omit<HTMLMotionProps<"button">, "children"> & {
+  children?: ReactNode;
+  // React 19 erlaubt "ref" als normale Prop (kein forwardRef mehr noetig) -
+  // wichtig, damit AnimatedButton als "asChild"-Kind eines Radix-Triggers
+  // (DropdownMenuTrigger/DialogTrigger/PopoverTrigger, siehe
+  // components/primitives/*) funktioniert: Radix braucht dafuer einen echten
+  // Ref auf das zugrundeliegende DOM-Element.
+  ref?: Ref<HTMLButtonElement>;
+} & AnimatedButtonOwnProps) {
   const [hovered, setHovered] = useState(false);
   return (
     <motion.button
+      ref={ref}
       whileHover={{ scale: hoverScale }}
       whileTap={{ scale: tapScale }}
       {...rest}

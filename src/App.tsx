@@ -1,8 +1,9 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TourProvider } from "./tour/TourContext";
 import { AppShell } from "./layout/AppShell";
 import { StartPage } from "./pages/StartPage";
+import { Progress, ProgressIndicator } from "./components/primitives/Progress";
 
 // WorkspacePage (Baugruppen-Konfigurator, siehe dort) und InternalPage
 // ziehen den gesamten three.js/r3f/drei/three-bvh-csg-Stack nach (>1MB
@@ -42,9 +43,28 @@ function App() {
   );
 }
 
+// Baut auf animate-ui.com's Progress-Primitive auf (Jonas' Vorgabe, siehe
+// https://animate-ui.com/docs/components/radix/progress) statt des reinen
+// "Lädt…"-Textes. Da fuer einen nachgeladenen Route-Chunk kein echter
+// Fortschrittswert bekannt ist, naehert sich der Balken asymptotisch 90 %
+// an (haelt dort, bis die Route tatsaechlich fertig geladen ist und dieser
+// Fallback verschwindet) - dasselbe Prinzip wie z. B. YouTubes/NProgress'
+// Ladebalken.
 function RouteLoadingFallback() {
+  const [value, setValue] = useState(15);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setValue((v) => v + (90 - v) * 0.1);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
-    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-400">
+      <Progress value={value} className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+        <ProgressIndicator className="h-full w-full bg-brand" />
+      </Progress>
       Lädt…
     </div>
   );

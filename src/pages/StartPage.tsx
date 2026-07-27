@@ -4,9 +4,12 @@ import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCode
 import { hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectDraftStore";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
-import { Chevron } from "../components/icons/Chevron";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { useTour } from "../tour/TourContext";
+
+const LOAD_BUTTON_CLASSNAME =
+  "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
 
 // Zentrierter Startbildschirm: "Konfiguration starten" + "Projekt laden".
 // Seit dem Zusammenlegen von Einzel-/Ensemble-Modus (siehe WorkspacePage.tsx)
@@ -17,7 +20,6 @@ export function StartPage() {
   const { notifyEvent } = useTour();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showLoadMenu, setShowLoadMenu] = useState(false);
   const hasCache = hasMeaningfulProjectDraft();
 
   async function loadProjectFile(file: File) {
@@ -37,27 +39,10 @@ export function StartPage() {
     await loadProjectFile(file);
   }
 
-  // Ohne Cache oeffnet "Projekt laden" direkt den Dateidialog - erst wenn
-  // tatsaechlich ein Projekt im Cache liegt, gibt es ueberhaupt eine
-  // Auswahl zwischen "Aus Cache laden" und "Aus Datei laden".
-  function handleLoadButtonClick() {
-    if (hasCache) {
-      setShowLoadMenu((v) => !v);
-    } else {
-      fileInputRef.current?.click();
-    }
-  }
-
   function handleLoadFromCache() {
-    setShowLoadMenu(false);
     const cached = loadProjectDraft();
     if (!cached) return;
     navigate("/projekt", { state: { project: cached } });
-  }
-
-  function handleLoadFromFile() {
-    setShowLoadMenu(false);
-    fileInputRef.current?.click();
   }
 
   return (
@@ -100,53 +85,46 @@ export function StartPage() {
           <ArrowRightIcon size={18} />
         </AnimatedButton>
 
-        <div className="relative flex items-stretch">
-          <AnimatedButton
-            type="button"
-            hoverScale={1}
-            tapScale={1}
-            onClick={handleLoadButtonClick}
-            className={`flex items-center justify-center gap-2 border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white ${
-              hasCache ? "rounded-l-full" : "rounded-full"
-            }`}
-          >
+        {/* "Projekt laden" ist IMMER derselbe, optisch unveraenderte Button
+            (Jonas' Vorgabe: "es soll keine optische Veränderung an dem
+            Button sein, nur dass das Menü kommt, wenn etwas im Cache ist") -
+            nur das Klickverhalten dahinter unterscheidet sich: mit Cache
+            oeffnet ein Radix-Dropdown-Menu (animate-ui-Basis, siehe
+            https://animate-ui.com/docs/components/radix/dropdown-menu),
+            ohne Cache geht der Klick direkt auf den Dateidialog. */}
+        {hasCache ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
+                <UploadIcon size={18} />
+                Projekt laden
+              </AnimatedButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="center"
+              sideOffset={8}
+              className="w-56 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg"
+            >
+              <DropdownMenuItem
+                onSelect={handleLoadFromCache}
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
+              >
+                Aus Cache laden
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => fileInputRef.current?.click()}
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
+              >
+                Aus Datei laden
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
             <UploadIcon size={18} />
             Projekt laden
           </AnimatedButton>
-          {hasCache && (
-            <AnimatedButton
-              type="button"
-              hoverScale={1}
-              tapScale={1}
-              onClick={handleLoadButtonClick}
-              aria-label="Ladeoptionen anzeigen"
-              className="flex items-center rounded-r-full border-2 border-l-0 border-brand px-3 py-3 text-brand hover:bg-brand hover:text-white"
-            >
-              <Chevron direction="down" />
-            </AnimatedButton>
-          )}
-          {showLoadMenu && hasCache && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowLoadMenu(false)} />
-              <nav className="absolute left-0 top-full z-50 mt-2 w-56 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg">
-                <button
-                  type="button"
-                  onClick={handleLoadFromCache}
-                  className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-                >
-                  Aus Cache laden
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLoadFromFile}
-                  className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-                >
-                  Aus Datei laden
-                </button>
-              </nav>
-            </>
-          )}
-        </div>
+        )}
         <input
           ref={fileInputRef}
           type="file"
