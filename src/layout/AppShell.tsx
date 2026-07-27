@@ -5,6 +5,8 @@ import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { StorageConsentBanner } from "../components/StorageConsentBanner";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { clearProjectDraft } from "../config/projectDraftStore";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -24,8 +26,17 @@ export function AppShell() {
   const { start: startTour } = useTour();
   const navigate = useNavigate();
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletedMessage, setDeletedMessage] = useState(false);
   const [searchParams] = useSearchParams();
   const embed = searchParams.get("embed") === "1";
+
+  function handleDeleteData() {
+    clearProjectDraft();
+    setShowDeleteConfirm(false);
+    setDeletedMessage(true);
+    window.setTimeout(() => setDeletedMessage(false), 4000);
+  }
 
   return (
     <div className="relative flex h-full flex-col bg-white text-ink">
@@ -47,6 +58,7 @@ export function AppShell() {
                 onClose={() => setHelpMenuOpen(false)}
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => navigate("/hilfe")}
+                onDeleteData={() => setShowDeleteConfirm(true)}
               />
             </div>
           </header>
@@ -60,6 +72,7 @@ export function AppShell() {
             onClose={() => setHelpMenuOpen(false)}
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => navigate("/hilfe?embed=1")}
+            onDeleteData={() => setShowDeleteConfirm(true)}
           />
         </div>
       )}
@@ -71,6 +84,24 @@ export function AppShell() {
       </div>
       <TourOverlay />
       <StorageConsentBanner />
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Meine Daten löschen"
+          message="Wirklich alle lokal zwischengespeicherten Projektdaten löschen? Das kann nicht rückgängig gemacht werden."
+          confirmLabel="Ja, löschen"
+          onConfirm={handleDeleteData}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {deletedMessage && (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <p className="rounded-full bg-ink px-4 py-2 text-sm text-white shadow-lg">
+            Deine Daten wurden gelöscht.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -81,9 +112,10 @@ interface HelpMenuProps {
   onClose: () => void;
   onTutorial: () => void;
   onHilfe: () => void;
+  onDeleteData: () => void;
 }
 
-function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe }: HelpMenuProps) {
+function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
   return (
     <div className="relative">
       <button
@@ -117,6 +149,16 @@ function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe }: HelpMenuProp
               className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
             >
               Hilfe
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onDeleteData();
+              }}
+              className="block w-full rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+            >
+              Meine Daten löschen
             </button>
           </nav>
         </>
