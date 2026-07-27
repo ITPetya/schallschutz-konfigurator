@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, type TargetAndTransition } from "motion/react";
 import { Chevron } from "./icons/Chevron";
 
 interface AccordionSectionProps {
@@ -36,11 +36,15 @@ export function AccordionSection({ title, defaultOpen = false, children, tourId 
             <AccordionPrimitive.Content asChild forceMount>
               <motion.div
                 key="content"
-                initial={{ height: 0, opacity: 0, y: -8 }}
-                animate={{ height: "auto", opacity: 1, y: 0 }}
-                exit={{ height: 0, opacity: 0, y: -8 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                style={{ overflow: "hidden" }}
+                initial={{ height: 0, opacity: 0, "--mask-stop": "0%", y: 20 } as TargetAndTransition}
+                animate={{ height: "auto", opacity: 1, "--mask-stop": "100%", y: 0 } as TargetAndTransition}
+                exit={{ height: 0, opacity: 0, "--mask-stop": "0%", y: 20 } as TargetAndTransition}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                style={{
+                  maskImage: "linear-gradient(black var(--mask-stop), transparent var(--mask-stop))",
+                  WebkitMaskImage: "linear-gradient(black var(--mask-stop), transparent var(--mask-stop))",
+                  overflow: "hidden",
+                }}
               >
                 <div className="mt-3">{children}</div>
               </motion.div>
