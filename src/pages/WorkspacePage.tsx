@@ -226,21 +226,39 @@ export function WorkspacePage() {
   const skipHistoryRef = useRef(false);
   const lastSnapshotRef = useRef<string | null>(null);
   const historyTimerRef = useRef<number | null>(null);
+  // Haelt den Projektstand VOR dem allerersten Wechsel des aktuellen Bursts
+  // fest (z. B. vor dem Loslassen der Maustaste beim Ziehen eines
+  // Containers) - MUSS waehrend eines laufenden Bursts unveraendert bleiben,
+  // sonst wuerde jede Zwischenposition (z. B. jedes einzelne "pointermove"
+  // eines Drags) den vorherigen Startpunkt ueberschreiben und Rueckgaengig
+  // wuerde nur den letzten winzigen Zwischenschritt statt der kompletten
+  // Bewegung zuruecknehmen (Jonas' Fehlerbericht: "es soll die volle
+  // Bewegung ... rueckgaengig gemacht werden").
+  const burstStartRef = useRef<string | null>(null);
 
   useEffect(() => {
     const json = JSON.stringify(project);
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
       lastSnapshotRef.current = json;
+      burstStartRef.current = null;
+      if (historyTimerRef.current) {
+        window.clearTimeout(historyTimerRef.current);
+        historyTimerRef.current = null;
+      }
       return;
     }
     if (lastSnapshotRef.current === json) return;
     const previousJson = lastSnapshotRef.current;
     lastSnapshotRef.current = json;
     if (previousJson === null) return; // erster Aufruf, noch kein "davor"
+    if (burstStartRef.current === null) burstStartRef.current = previousJson;
     if (historyTimerRef.current) window.clearTimeout(historyTimerRef.current);
     historyTimerRef.current = window.setTimeout(() => {
-      setUndoStack((s) => [...s, JSON.parse(previousJson)].slice(-HISTORY_LIMIT));
+      const burstStart = burstStartRef.current;
+      burstStartRef.current = null;
+      if (burstStart === null) return;
+      setUndoStack((s) => [...s, JSON.parse(burstStart)].slice(-HISTORY_LIMIT));
       setRedoStack([]);
     }, DEBOUNCE_MS);
   }, [project]);
