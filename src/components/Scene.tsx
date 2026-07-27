@@ -130,12 +130,12 @@ export function Scene({
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
-            <Environment preset="park" background={false} />
+            <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
           <>
             <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
-            <Environment preset="studio" />
+            <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}
 

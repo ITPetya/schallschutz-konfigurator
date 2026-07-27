@@ -1,5 +1,57 @@
 @import "tailwindcss";
 
+/* Roboto/Roboto Slab selbst gehostet statt direkt von fonts.googleapis.com/
+   fonts.gstatic.com eingebunden - eine direkte Google-Fonts-Einbindung
+   uebertraegt die Besucher-IP ohne Einwilligung an Google (bekanntes
+   DSGVO-Thema, in Deutschland vielfach abgemahnt, siehe LG München I 2022).
+   Nur die "latin"-Unicode-Range (deckt alle deutschen Zeichen inkl.
+   Umlaute/ß ab) - beide Dateien sind variable Fonts, die den kompletten
+   benoetigten Gewichtsbereich in einer Datei abdecken (daher dieselbe src
+   fuer mehrere font-weight-Deklarationen, 1:1 wie Google es selbst
+   ausliefert). Dateien liegen in public/fonts/. */
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/roboto-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto Slab";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/roboto-slab-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto Slab";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/roboto-slab-latin.woff2") format("woff2");
+}
+
 /* Farb-/Schrift-Sprache an www.lc.systems angelehnt (Jonas' Vorgabe
    2026-07-22): dunkles Petrol/Navy als Haupt-Markenfarbe, helles Cyan als
    Akzent, Roboto/Roboto Slab, viel Weissraum, durchgehend abgerundete

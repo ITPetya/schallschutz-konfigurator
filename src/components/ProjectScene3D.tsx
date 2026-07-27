@@ -175,12 +175,12 @@ export function ProjectScene3D({
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={maxReachM} />
-            <Environment preset="park" background={false} />
+            <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
           <>
             <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} />
-            <Environment preset="studio" />
+            <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}
 
