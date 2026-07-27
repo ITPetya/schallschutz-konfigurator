@@ -88,15 +88,14 @@ export function AppShell() {
       <TourOverlay />
       <StorageConsentBanner />
 
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          title="Meine Daten löschen"
-          message="Wirklich alle lokal zwischengespeicherten Projektdaten löschen? Das kann nicht rückgängig gemacht werden."
-          confirmLabel="Ja, löschen"
-          onConfirm={handleDeleteData}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Meine Daten löschen"
+        message="Wirklich alle lokal zwischengespeicherten Projektdaten löschen? Das kann nicht rückgängig gemacht werden."
+        confirmLabel="Ja, löschen"
+        onConfirm={handleDeleteData}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {deletedMessage && (
         <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">

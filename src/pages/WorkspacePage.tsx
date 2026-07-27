@@ -988,29 +988,27 @@ export function WorkspacePage() {
 
       {showGrundeinstellungen && <GrundeinstellungenOverlay onSubmit={handleGrundeinstellungenSubmit} />}
 
-      {showResetConfirm && (
-        <ThreeOptionConfirmDialog
-          title="Zurücksetzen"
-          message="Container wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren."
-          primaryLabel="Speichern & zurücksetzen"
-          onPrimary={handleResetInstanceAndSave}
-          confirmLabel="Ja, zurücksetzen"
-          onConfirm={applyResetInstance}
-          onCancel={() => setShowResetConfirm(false)}
-        />
-      )}
+      <ThreeOptionConfirmDialog
+        open={showResetConfirm}
+        title="Zurücksetzen"
+        message="Container wirklich zurücksetzen? Alle aktuellen Einstellungen und Durchbrüche gehen verloren."
+        primaryLabel="Speichern & zurücksetzen"
+        onPrimary={handleResetInstanceAndSave}
+        confirmLabel="Ja, zurücksetzen"
+        onConfirm={applyResetInstance}
+        onCancel={() => setShowResetConfirm(false)}
+      />
 
-      {showResetProjectConfirm && (
-        <ThreeOptionConfirmDialog
-          title="Zurücksetzen"
-          message="Projekt wirklich zurücksetzen? Alle Container und deren Anordnung gehen verloren."
-          primaryLabel="Speichern & zurücksetzen"
-          onPrimary={handleResetProjectAndSave}
-          confirmLabel="Ja, zurücksetzen"
-          onConfirm={applyResetProject}
-          onCancel={() => setShowResetProjectConfirm(false)}
-        />
-      )}
+      <ThreeOptionConfirmDialog
+        open={showResetProjectConfirm}
+        title="Zurücksetzen"
+        message="Projekt wirklich zurücksetzen? Alle Container und deren Anordnung gehen verloren."
+        primaryLabel="Speichern & zurücksetzen"
+        onPrimary={handleResetProjectAndSave}
+        confirmLabel="Ja, zurücksetzen"
+        onConfirm={applyResetProject}
+        onCancel={() => setShowResetProjectConfirm(false)}
+      />
     </div>
   );
 }
