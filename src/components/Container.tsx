@@ -2,7 +2,13 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { Wall } from "./Wall";
-import { CornerCasting, CORNER_BLOCK_LENGTH_MM, CORNER_BLOCK_WIDTH_MM, CORNER_BLOCK_HEIGHT_MM } from "./CornerCasting";
+import {
+  CornerCasting,
+  CORNER_BLOCK_LENGTH_MM,
+  CORNER_BLOCK_WIDTH_MM,
+  CORNER_BLOCK_HEIGHT_MM,
+  CORNER_WALL_RECESS_MM,
+} from "./CornerCasting";
 
 const SIGNS = [1, -1] as const;
 
@@ -48,6 +54,15 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
   const cornerLength = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
   const cornerWidth = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
   const cornerHeight = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
+  // Jonas' Fehlerbericht 2026-07-28: Eckbeschlaege standen 12mm ueber die
+  // konfigurierten Aussenmasse (size.length/width/height) hinaus vor - sie
+  // duerfen die Aussenmasse aber NICHT ueberschreiten, sollen genau darauf
+  // sitzen. Fix: nicht mehr der Eckblock waechst nach aussen (siehe
+  // CornerCasting.tsx-Kommentar zu CORNER_WALL_RECESS_MM), sondern die
+  // WAENDE weichen ringsum um denselben Betrag nach INNEN zurueck - der
+  // Eckbeschlag bleibt exakt auf der Aussenkontur, das Wellblech dahinter
+  // ist leicht zurueckgesetzt (wie beim echten Container).
+  const wallRecess = CORNER_WALL_RECESS_MM * MM_TO_M;
 
   const openingsM = openings.map((o) => {
     const typeDef = OPENING_TYPES[o.kind];
@@ -68,7 +83,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       {/* Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen
           die LAENGE (X) auf, liegen an den Enden der BREITE (Z). */}
       <Wall
-        position={[0, H / 2, W / 2 - t / 2]}
+        position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
         rotation={[0, 0, 0]}
         panelWidth={L}
         panelHeight={H}
@@ -77,7 +92,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         outwardSign={1}
       />
       <Wall
-        position={[0, H / 2, -W / 2 + t / 2]}
+        position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
         rotation={[0, 0, 0]}
         panelWidth={L}
         panelHeight={H}
@@ -89,7 +104,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       {/* Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen
           die BREITE (Z) auf, liegen an den Enden der LAENGE (X). */}
       <Wall
-        position={[-L / 2 + t / 2, H / 2, 0]}
+        position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
         panelWidth={W}
         panelHeight={H}
@@ -98,7 +113,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         outwardSign={-1}
       />
       <Wall
-        position={[L / 2 - t / 2, H / 2, 0]}
+        position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
         panelWidth={W}
         panelHeight={H}
@@ -109,7 +124,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
 
       {/* Oben/Unten: horizontale Platten, um X gekippt statt um Y - lokal X bleibt Welt-X (Laenge), lokal Y wird zu Welt-Z (Breite). */}
       <Wall
-        position={[0, H - t / 2, 0]}
+        position={[0, H - t / 2 - wallRecess, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         panelWidth={L}
         panelHeight={W}
@@ -118,7 +133,7 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         outwardSign={1}
       />
       <Wall
-        position={[0, t / 2, 0]}
+        position={[0, t / 2 + wallRecess, 0]}
         rotation={[Math.PI / 2, 0, 0]}
         panelWidth={L}
         panelHeight={W}
@@ -130,14 +145,13 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       {/* Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto + echte
           ISO-1161-Masse 178x162x118mm): an allen 8 Container-Ecken je ein
           Block mit Langloch oben/unten + Rundloch an den beiden
-          aussenliegenden Seitenflaechen - siehe CornerCasting.tsx. Die
-          Nennposition hier ist weiterhin buendig mit der Aussenflaeche
-          verankert (dieselbe "Aussenmass minus halbe Bauteilgroesse"-Logik
-          wie bei den Wall-Positionen oben) - der sichtbare Vorstand ueber die
-          Wandflaeche hinaus (Jonas' Fehlerbericht: Ueberlagerung/komische
-          Seitenloecher durch Koplanaritaet mit der Wall-Aussenflaeche) wird
-          NICHT hier, sondern in CornerCasting.tsx selbst durch PROTRUSION_MM
-          symmetrisch um diese Nennposition herum erzeugt. */}
+          aussenliegenden Seitenflaechen - siehe CornerCasting.tsx. Position
+          buendig mit den echten Aussenmassen (dieselbe "Aussenmass minus
+          halbe Bauteilgroesse"-Logik wie bei den urspruenglichen
+          Wall-Positionen oben, VOR dem wallRecess-Abzug) - die Eckbloecke
+          selbst wachsen NICHT mehr darueber hinaus (Jonas' Fehlerbericht:
+          das ueberschritt die konfigurierten Aussenmasse), stattdessen
+          weichen die Waende oben um wallRecess zurueck. */}
       {SIGNS.flatMap((outwardX) =>
         SIGNS.flatMap((outwardZ) =>
           SIGNS.map((outwardY) => (

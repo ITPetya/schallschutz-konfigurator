@@ -31,27 +31,29 @@ const TOP_SLOT_WIDTH_MM = 55; // Langloch oben/unten, Breite (= Durchmesser der 
 const TOP_SLOT_DEPTH_MM = 50; // wie tief das Langloch einsinkt
 const SIDE_HOLE_RADIUS_MM = 35;
 const SIDE_HOLE_DEPTH_MM = 50;
-// Jonas' Fehlerbericht 2026-07-28: Eckblock lag buendig mit der Wandflaeche
-// -> exakt koplanare Flaechen mit der jeweiligen Wall-Aussenflaeche an dieser
-// Ecke, dadurch Z-Fighting/"Ueberlagerung" genau im Bereich der Seitenloecher
-// (Wall.tsx rendert dort weiterhin die volle, ungeschnittene Wandflaeche,
-// siehe Container.tsx/Wall.tsx - die Waende wissen nichts von den
-// Eckbloecken). Fix: der Block steht auf allen drei Aussenflaechen ein Stueck
-// ueber die Wandebene hinaus vor (wie beim echten ISO-Eckbeschlag, der auch
-// sichtbar aus der Well-/Corrugated-Blechflaeche vorsteht) - dadurch sind die
-// Flaechen nicht mehr koplanar, kein Z-Fighting mehr. Symmetrisch auf ALLE
-// sechs Boxseiten angewendet (nicht nur die drei aussenliegenden): die drei
-// "inneren" Seiten liegen ohnehin unsichtbar im Wandvolumen, ein paar mm mehr
-// Ueberlappung dort macht keinen optischen Unterschied.
-const PROTRUSION_MM = 12;
+// Jonas' Fehlerbericht 2026-07-28 (erste Runde): Eckblock lag buendig mit
+// der Wandflaeche -> exakt koplanare Flaechen mit der jeweiligen
+// Wall-Aussenflaeche an dieser Ecke, dadurch Z-Fighting/"Ueberlagerung"
+// genau im Bereich der Seitenloecher. Erster Fix (verworfen, siehe unten):
+// der Block selbst wuchs 12mm ueber die Nennposition hinaus. Jonas'
+// Fehlerbericht 2026-07-28 (zweite Runde): dadurch ueberschritten die
+// Eckbloecke die konfigurierten Container-Aussenmasse (size.length/width/
+// height) - der Eckbeschlag darf aber NICHT ueber die Aussenmasse hinausragen,
+// er soll genau auf ihnen sitzen. Fix jetzt umgedreht: der Eckblock bleibt in
+// seiner Nenngroesse (buendig mit den echten Aussenmassen, keine eigene
+// Vergroesserung mehr), stattdessen weichen in Container.tsx die WAENDE ein
+// Stueck (CORNER_WALL_RECESS_MM) nach INNEN zurueck - wie beim echten
+// Container, wo das Wellblech zwischen den Eckpfosten leicht zurueckgesetzt
+// ist. Loest dasselbe Koplanaritaets-/Z-Fighting-Problem, ohne dass der
+// Eckbeschlag ueber die Aussenmasse hinaussteht.
+export const CORNER_WALL_RECESS_MM = 12;
 
 const LENGTH = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
 const WIDTH = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
 const HEIGHT = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
-const PROTRUSION = PROTRUSION_MM * MM_TO_M;
-const HALF_X = LENGTH / 2 + PROTRUSION;
-const HALF_Y = HEIGHT / 2 + PROTRUSION;
-const HALF_Z = WIDTH / 2 + PROTRUSION;
+const HALF_X = LENGTH / 2;
+const HALF_Y = HEIGHT / 2;
+const HALF_Z = WIDTH / 2;
 const TOP_SLOT_LENGTH = TOP_SLOT_LENGTH_MM * MM_TO_M;
 const TOP_SLOT_WIDTH = TOP_SLOT_WIDTH_MM * MM_TO_M;
 const TOP_SLOT_DEPTH = TOP_SLOT_DEPTH_MM * MM_TO_M;
