@@ -17,6 +17,10 @@ import { Progress, ProgressIndicator } from "./components/primitives/Progress";
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage })));
 const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
 const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
+// Oeffentlicher, schreibgeschuetzter Viewer fuer die Handy-Variante (Jonas'
+// Vorgabe 2026-07-28, siehe ProjectViewerPage.tsx) - eigener lazy Chunk aus
+// demselben Grund wie WorkspacePage/InternalPage (zieht den 3D-Stack nach).
+const ProjectViewerPage = lazy(() => import("./pages/ProjectViewerPage").then((m) => ({ default: m.ProjectViewerPage })));
 
 // Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
 // Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
@@ -35,6 +39,7 @@ function App() {
               <Route element={<AppShell />}>
                 <Route path="/" element={<StartPage />} />
                 <Route path="/projekt" element={<WorkspacePage />} />
+                <Route path="/ansehen" element={<ProjectViewerPage />} />
                 <Route path="/intern" element={<InternalPage />} />
                 <Route path="/hilfe" element={<HilfePage />} />
               </Route>

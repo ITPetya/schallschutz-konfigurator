@@ -7,6 +7,7 @@ import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { useTour } from "../tour/TourContext";
+import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
 
 const LOAD_BUTTON_CLASSNAME =
   "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
@@ -21,12 +22,21 @@ export function StartPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const hasCache = hasMeaningfulProjectDraft();
+  // Jonas' Vorgabe 2026-07-28: auf dem Handy nur noch "Projekt laden" -
+  // Konfigurieren (3D-CSG, viele Eingabefelder) bleibt Laptop/PC/Tablet
+  // vorbehalten, siehe useIsPhoneViewport.ts.
+  const isPhone = useIsPhoneViewport();
+
+  // Auf dem Handy landet ein geladenes Projekt im schreibgeschuetzten
+  // /ansehen statt im editierbaren /projekt (Jonas' Vorgabe 2026-07-28: "das
+  // Ding soll auf dem Handy nur ein Viewer sein") - siehe ProjectViewerPage.tsx.
+  const loadedProjectRoute = isPhone ? "/ansehen" : "/projekt";
 
   async function loadProjectFile(file: File) {
     try {
       const project = await decodeProject(file);
       setError(null);
-      navigate("/projekt", { state: { project } });
+      navigate(loadedProjectRoute, { state: { project } });
     } catch {
       setError("Datei konnte nicht geladen werden – ist es eine gültige Projektdatei (.sszprojekt)?");
     }
@@ -42,7 +52,7 @@ export function StartPage() {
   function handleLoadFromCache() {
     const cached = loadProjectDraft();
     if (!cached) return;
-    navigate("/projekt", { state: { project: cached } });
+    navigate(loadedProjectRoute, { state: { project: cached } });
   }
 
   return (
@@ -72,18 +82,24 @@ export function StartPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <AnimatedButton
-          type="button"
-          data-tour="start-configuration"
-          onClick={() => {
-            notifyEvent("project-started");
-            navigate("/projekt", { state: { fresh: true } });
-          }}
-          className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-        >
-          Konfiguration starten
-          <ArrowRightIcon size={18} />
-        </AnimatedButton>
+        {/* Kein "Konfiguration starten" auf dem Handy (Jonas' Vorgabe
+            2026-07-28: Konfigurieren bleibt Laptop/PC/Tablet vorbehalten) -
+            der Hinweistext darunter erklaert, warum der Button fehlt, statt
+            ihn einfach kommentarlos verschwinden zu lassen. */}
+        {!isPhone && (
+          <AnimatedButton
+            type="button"
+            data-tour="start-configuration"
+            onClick={() => {
+              notifyEvent("project-started");
+              navigate("/projekt", { state: { fresh: true } });
+            }}
+            className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+          >
+            Konfiguration starten
+            <ArrowRightIcon size={18} />
+          </AnimatedButton>
+        )}
 
         {/* "Projekt laden" ist IMMER derselbe, optisch unveraenderte Button
             (Jonas' Vorgabe: "es soll keine optische Veränderung an dem
@@ -133,6 +149,12 @@ export function StartPage() {
           className="hidden"
         />
       </div>
+      {isPhone && (
+        <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
+          Neue Konfigurationen können nur auf einem Laptop, PC oder Tablet erstellt werden. Auf dem Handy können
+          bereits gespeicherte Projekte angeschaut werden.
+        </p>
+      )}
       {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
