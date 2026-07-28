@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
-import { hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectDraftStore";
+import { getActiveHistoryId, hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectHistoryStore";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
@@ -52,7 +52,12 @@ export function StartPage() {
   function handleLoadFromCache() {
     const cached = loadProjectDraft();
     if (!cached) return;
-    navigate(loadedProjectRoute, { state: { project: cached } });
+    // historyId mitgeben (nur hier, NICHT beim Datei-Laden oben) - "Aus
+    // Cache laden" oeffnet den bereits AKTIVEN Verlaufs-Eintrag wieder,
+    // WorkspacePage soll also weiter in genau diesen schreiben statt einen
+    // neuen Eintrag fuer denselben Stand anzulegen (Jonas' Vorgabe 2026-07-28:
+    // ein neuer Eintrag nur bei einem WECHSEL zu einem anderen Projekt).
+    navigate(loadedProjectRoute, { state: { project: cached, historyId: getActiveHistoryId() ?? undefined } });
   }
 
   return (

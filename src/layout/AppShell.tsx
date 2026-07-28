@@ -6,7 +6,7 @@ import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { StorageConsentBanner } from "../components/StorageConsentBanner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { clearProjectDraft } from "../config/projectDraftStore";
+import { clearProjectDraft } from "../config/projectHistoryStore";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
 import { TrashIcon } from "../components/icons/TrashIcon";
@@ -60,6 +60,7 @@ export function AppShell() {
               <HelpMenu
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => navigate("/hilfe")}
+                onVerlauf={() => navigate("/verlauf")}
                 onDeleteData={() => setShowDeleteConfirm(true)}
               />
             </div>
@@ -72,6 +73,7 @@ export function AppShell() {
           <HelpMenu
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => navigate("/hilfe?embed=1")}
+            onVerlauf={() => navigate("/verlauf")}
             onDeleteData={() => setShowDeleteConfirm(true)}
           />
         </div>
@@ -108,6 +110,7 @@ export function AppShell() {
 interface HelpMenuProps {
   onTutorial: () => void;
   onHilfe: () => void;
+  onVerlauf: () => void;
   onDeleteData: () => void;
 }
 
@@ -115,7 +118,7 @@ interface HelpMenuProps {
 // siehe https://animate-ui.com/docs/components/radix/dropdown-menu) - der
 // Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
 // mehr selbst, das uebernimmt jetzt Radix intern.
-function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
+function HelpMenu({ onTutorial, onHilfe, onVerlauf, onDeleteData }: HelpMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -143,6 +146,12 @@ function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
           className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
         >
           Hilfe
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={onVerlauf}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          Verlauf
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={onDeleteData}

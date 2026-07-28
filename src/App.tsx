@@ -17,6 +17,7 @@ import { Progress, ProgressIndicator } from "./components/primitives/Progress";
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage })));
 const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
 const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
+const HistoryPage = lazy(() => import("./pages/HistoryPage").then((m) => ({ default: m.HistoryPage })));
 // Oeffentlicher, schreibgeschuetzter Viewer fuer die Handy-Variante (Jonas'
 // Vorgabe 2026-07-28, siehe ProjectViewerPage.tsx) - eigener lazy Chunk aus
 // demselben Grund wie WorkspacePage/InternalPage (zieht den 3D-Stack nach).
@@ -42,6 +43,7 @@ function App() {
                 <Route path="/ansehen" element={<ProjectViewerPage />} />
                 <Route path="/intern" element={<InternalPage />} />
                 <Route path="/hilfe" element={<HilfePage />} />
+                <Route path="/verlauf" element={<HistoryPage />} />
               </Route>
             </Routes>
           </Suspense>

@@ -16,7 +16,14 @@ import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, saniti
 import { REQUEST_EMAIL } from "../config/requestEmail";
 import { defaultConfig } from "../config/defaultContainerConfig";
 import type { ContainerInstance, ProjectConfig } from "../config/projectTypes";
-import { hasMeaningfulProjectDraft, loadProjectDraft, saveProjectDraft } from "../config/projectDraftStore";
+import {
+  hasMeaningfulProjectDraft,
+  loadProjectDraft,
+  saveProjectDraft,
+  startNewProjectDraft,
+  getActiveHistoryId,
+  setActiveHistoryId,
+} from "../config/projectHistoryStore";
 import { PROJECT_FILE_EXTENSION, decodeProject, encodeProject } from "../config/projectFileCodec";
 import { rectsOverlap, type OrientedRect } from "../utils/collision";
 import { useTour } from "../tour/TourContext";
@@ -129,7 +136,11 @@ interface DragState {
 // zurueck in die jeweilige ContainerInstance des Projekts.
 export function WorkspacePage() {
   const location = useLocation();
-  const routeState = location.state as { project?: ProjectConfig; fresh?: boolean } | null;
+  // historyId: gesetzt, wenn ein KONKRETER Verlaufs-Eintrag geoeffnet wurde
+  // (Jonas' Vorgabe 2026-07-28, siehe HistoryPage.tsx) - dieser bleibt dann
+  // der aktive Eintrag, statt (wie bei routeProject ohne historyId, z. B.
+  // einer frisch aus Datei geladenen Fremd-Datei) einen neuen anzulegen.
+  const routeState = location.state as { project?: ProjectConfig; fresh?: boolean; historyId?: string } | null;
   const routeProject = routeState?.project;
   // "Konfiguration starten" auf der Startseite setzt "fresh", damit IMMER
   // ein neues, leeres Projekt beginnt statt (versehentlich) den Cache
@@ -137,12 +148,33 @@ export function WorkspacePage() {
   // vorbehalten. Ohne jeden State (z. B. Neuladen der Seite waehrend der
   // Arbeit) greift weiterhin der Cache als Absturz-Sicherheitsnetz.
   const forceFresh = routeState?.fresh === true;
+  const routeHistoryId = routeState?.historyId;
 
   const [project, setProject] = useState<ProjectConfig>(() => {
     if (routeProject) return routeProject;
     if (forceFresh) return emptyProject();
     return loadProjectDraft() ?? emptyProject();
   });
+  // Welcher Verlaufs-Eintrag (projectHistoryStore.ts) gerade live mitgeschrieben
+  // wird - in einem Ref statt State, weil er sich waehrend der Sitzung nie
+  // mehr aendert und keine eigene Re-Render-Ursache sein soll. Per useEffect
+  // (nicht im useState-Initializer oben) gesetzt, damit der Seiteneffekt
+  // (neuen Verlaufs-Eintrag anlegen) unter React 19 StrictMode garantiert nur
+  // EINMAL pro echtem Mount laeuft, nicht zweimal wie es einem reinen
+  // Initializer-Aufruf passieren koennte.
+  const activeHistoryIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeHistoryIdRef.current) return;
+    if (routeHistoryId) {
+      activeHistoryIdRef.current = routeHistoryId;
+      setActiveHistoryId(routeHistoryId);
+    } else if (forceFresh || routeProject) {
+      activeHistoryIdRef.current = startNewProjectDraft(project);
+    } else {
+      activeHistoryIdRef.current = getActiveHistoryId() ?? startNewProjectDraft(project);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragValid, setDragValid] = useState(true);
@@ -205,7 +237,12 @@ export function WorkspacePage() {
   }, [showGrundeinstellungen]);
 
   useEffect(() => {
-    saveProjectDraft(project);
+    // activeHistoryIdRef ist bereits gesetzt, sobald dieser Effekt laeuft
+    // (React fuehrt Mount-Effekte in Deklarationsreihenfolge aus, der
+    // Session-Initialisierungs-Effekt oben steht vor diesem hier) - die
+    // Absicherung greift trotzdem defensiv, falls sich das mal aendert.
+    if (!activeHistoryIdRef.current) return;
+    saveProjectDraft(activeHistoryIdRef.current, project);
   }, [project]);
 
   function updateEditingConfig(patch: Partial<ContainerConfig>) {
