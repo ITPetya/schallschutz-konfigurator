@@ -2,20 +2,20 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { Wall } from "./Wall";
-import { ContainerCorner, CORNER_LENGTH, CORNER_HEIGHT, CORNER_WIDTH } from "./ContainerCorner";
+import { CornerCasting, CORNER_BLOCK_SIZE_MM, CORNER_BLOCK_HEIGHT_MM } from "./CornerCasting";
 
-const CORNER_SIGNS = [1, -1] as const;
+const SIGNS = [1, -1] as const;
 // Minimaler Aussen-Versatz fuer die Eckbeschlaege (Jonas' Fehlerbericht
-// 2026-07-28: verunstaltete/"kaputt" wirkende Dreiecke an den Ecken). Root
-// Cause: die Beschlag-Aussenflaechen liegen exakt auf denselben Koordinaten
-// wie die Wand-Aussenflaechen (beide sollen ja buendig mit der echten
-// Container-Huelle abschliessen) - zwei unterschiedliche Meshes mit exakt
-// deckungsgleichen Flaechen ergeben klassisches Z-Fighting. Isoliert
-// verifiziert: ohne Waende sehen die Beschlaege sauber aus, das Muster tritt
-// nur zusammen mit den Waenden auf. Fix: die Beschlaege minimal (0.5mm,
-// nicht wahrnehmbar) nach aussen versetzt, damit ihre sichtbaren Flaechen
-// den Tiefentest eindeutig gewinnen statt mit der Wandflaeche zu ueberlappen.
-const CORNER_Z_FIGHT_EPSILON = 0.0005;
+// 2026-07-28: gestrichelt wirkende Linien/Artefakte an den Eckbeschlaegen).
+// Root Cause: die Beschlag-Aussenflaechen liegen exakt auf denselben
+// Koordinaten wie die Wand-Aussenflaechen (beide sollen ja buendig mit der
+// echten Container-Huelle abschliessen) - zwei unterschiedliche Meshes mit
+// exakt deckungsgleichen Flaechen ergeben klassisches Z-Fighting. Isoliert
+// verifiziert (Beschlaege ohne Waende sehen sauber aus, das Muster tritt nur
+// zusammen mit den Waenden auf). Fix: die Beschlaege minimal (0.5mm, nicht
+// wahrnehmbar) nach aussen versetzt, damit ihre sichtbaren Flaechen den
+// Tiefentest eindeutig gewinnen statt mit der Wandflaeche zu ueberlappen.
+const CORNER_Z_FIGHT_EPSILON = 0.003;
 
 interface ContainerProps {
   size: ContainerSize;
@@ -56,6 +56,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
   const t = wallThickness * MM_TO_M;
+  const cornerSize = CORNER_BLOCK_SIZE_MM * MM_TO_M;
+  const cornerHeight = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
 
   const openingsM = openings.map((o) => {
     const typeDef = OPENING_TYPES[o.kind];
@@ -135,27 +137,30 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         outwardSign={1}
       />
 
-      {/* Eckbeschlaege an allen 8 Ecken (Jonas' Vorgabe 2026-07-28, nach
-          Referenzfoto eines echten ISO-Eckguss-Beschlags) - je 4 oben/unten,
-          gespiegelt an Laenge (mirrorX) und Breite (mirrorZ). Flach an der
-          jeweiligen Aussenflaeche positioniert (Kastenmitte um die halbe
-          eigene Kantenlaenge nach innen versetzt), damit die Aussenseiten
-          des Beschlags exakt mit der Container-Aussenhuelle abschliessen. */}
-      {CORNER_SIGNS.flatMap((mx) =>
-        CORNER_SIGNS.flatMap((mz) =>
-          CORNER_SIGNS.map((my) => (
-            <ContainerCorner
-              key={`corner-${mx}-${mz}-${my}`}
+      {/* Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto): an allen
+          8 Container-Ecken je ein Block mit Langloch oben/unten + Rundloch
+          an den beiden aussenliegenden Seitenflaechen - siehe
+          CornerCasting.tsx. Aeussere Blockkante liegt buendig mit der
+          jeweiligen Aussenflaeche (dieselbe "Aussenmass minus halbe
+          Bauteilgroesse"-Logik wie bei den Wall-Positionen oben), der Block
+          steht dabei bewusst ueber die Wandflaeche hinaus vor, weil er
+          groesser ist als wallThickness - genau der vorstehende Eckbeschlag
+          aus dem Referenzfoto. */}
+      {SIGNS.flatMap((outwardX) =>
+        SIGNS.flatMap((outwardZ) =>
+          SIGNS.map((outwardY) => (
+            <CornerCasting
+              key={`${outwardX}-${outwardY}-${outwardZ}`}
               position={[
-                mx * (L / 2 - CORNER_LENGTH / 2 + CORNER_Z_FIGHT_EPSILON),
-                my === 1
-                  ? H - CORNER_HEIGHT / 2 + CORNER_Z_FIGHT_EPSILON
-                  : CORNER_HEIGHT / 2 - CORNER_Z_FIGHT_EPSILON,
-                mz * (W / 2 - CORNER_WIDTH / 2 + CORNER_Z_FIGHT_EPSILON),
+                outwardX * (L / 2 - cornerSize / 2 + CORNER_Z_FIGHT_EPSILON),
+                outwardY === 1
+                  ? H - cornerHeight / 2 + CORNER_Z_FIGHT_EPSILON
+                  : cornerHeight / 2 - CORNER_Z_FIGHT_EPSILON,
+                outwardZ * (W / 2 - cornerSize / 2 + CORNER_Z_FIGHT_EPSILON),
               ]}
-              mirrorX={mx}
-              mirrorZ={mz}
-              mirrorY={my}
+              outwardX={outwardX}
+              outwardY={outwardY}
+              outwardZ={outwardZ}
             />
           ))
         )
