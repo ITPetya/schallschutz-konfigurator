@@ -46,7 +46,16 @@ const MM_TO_M = 1 / 1000;
 // skaliert dagegen einfach 1:1 mit der Gitterbreite.
 const LOUVER_PITCH_M = 0.05;
 const LOUVER_FRAME_PAD = 0.08;
-const LOUVER_TILT_RAD = (40 * Math.PI) / 180;
+// Negativ, NICHT positiv (Jonas' Fehlerbericht 2026-07-28: "so wuerde der
+// Regen rein fallen") - die Lamellenflaeche muss oben nach AUSSEN und unten
+// nach INNEN kippen, wie bei einer echten Wetterschutzlamelle, damit
+// Regenwasser an der Vorderseite nach aussen/unten ablaeuft statt durch den
+// Spalt dahinter einzudringen.
+const LOUVER_TILT_RAD = -(40 * Math.PI) / 180;
+// Abstand der ersten/letzten Lamelle zum oberen/unteren Rahmenrand (Jonas'
+// Fehlerbericht 2026-07-28) - proportional zum Rasterabstand, nicht zur
+// Gesamthoehe, damit er bei jeder Groesse gleich "im Verhaeltnis" aussieht.
+const LOUVER_EDGE_MARGIN_M = LOUVER_PITCH_M * 0.6;
 
 // Jonas' Fehlerbericht 2026-07-25 (weiterhin nach dem mergeVertices-Versuch
 // aus einer frueheren Runde): "komische Diagonallinien" bestehen weiter.
@@ -285,12 +294,16 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
         const localY = o.v - panelHeight / 2;
 
         // Lamellen fuellen die Rahmenflaeche (o.width x o.height) mit
-        // gleichmaessigem Abstand - Anzahl aus dem festen Rasterabstand
-        // errechnet und danach auf die tatsaechliche Hoehe gleichmaessig
-        // verteilt (actualPitch), damit die oberste/unterste Lamelle nicht
-        // am Rahmenrand "abgeschnitten" wirkt.
-        const slatCount = Math.max(1, Math.round(o.height / LOUVER_PITCH_M));
-        const actualPitch = o.height / slatCount;
+        // gleichmaessigem Abstand, aber mit Rand-Abstand oben/unten (Jonas'
+        // Fehlerbericht 2026-07-28: "erste/letzte Lamelle soll Abstand zum
+        // Rand haben") - Anzahl aus dem festen Rasterabstand innerhalb der um
+        // den Rand-Abstand verkleinerten Nutzhoehe errechnet, danach
+        // gleichmaessig verteilt (actualPitch), damit die oberste/unterste
+        // Lamelle nicht am Rahmenrand "abgeschnitten" wirkt.
+        const usableHeight = Math.max(o.height - 2 * LOUVER_EDGE_MARGIN_M, LOUVER_PITCH_M);
+        const slatCount = Math.max(1, Math.round(usableHeight / LOUVER_PITCH_M));
+        const actualPitch = usableHeight / slatCount;
+        const topMargin = (o.height - usableHeight) / 2;
         const slatWidth = o.width * (1 - 2 * LOUVER_FRAME_PAD);
         const slatBlade = actualPitch * 1.3; // ueberlappt die Nachbarlamelle leicht, wie beim echten Vorbild
         const slatThickness = actualPitch * 0.12;
@@ -303,7 +316,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
               {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
             </mesh>
             {Array.from({ length: slatCount }, (_, i) => {
-              const slatY = localY - o.height / 2 + actualPitch * (i + 0.5);
+              const slatY = localY - o.height / 2 + topMargin + actualPitch * (i + 0.5);
               return (
                 <mesh
                   key={i}
