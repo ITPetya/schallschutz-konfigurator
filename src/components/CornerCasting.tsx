@@ -17,30 +17,43 @@ interface CornerCastingProps {
 
 const MM_TO_M = 1 / 1000;
 
-// Container-Eckbeschlag (ISO-Eckbeschlag/"corner casting", Referenzfoto
-// Jonas 2026-07-28): an allen 8 Container-Ecken statt einer schlichten
-// Wandkante ein kleiner, ueber die Wandflaeche hinaus vorstehender
-// Eckblock mit den charakteristischen Aussparungen - ein Langloch auf der
-// oberen/unteren Stirnflaeche (fuer Twistlocks) plus je ein Rundloch auf
-// den beiden aussenliegenden Seitenflaechen (fuer Verzurrung). Masse "in
-// etwa" an echte ISO-1161-Eckbeschlaege angelehnt, bewusst kein
-// massgetreues Fertigungsteil - siehe Container.tsx-Kommentar zu
-// Wandflaechen fuer dieselbe Haltung im Rest des Projekts.
-// Exportiert (statt nur lokal), damit Container.tsx daraus die
-// Eckblock-Weltposition berechnen kann, ohne dieselben Zahlen ein zweites
-// Mal zu pflegen.
-export const CORNER_BLOCK_SIZE_MM = 220; // Grundriss (X- und Z-Ausdehnung)
-export const CORNER_BLOCK_HEIGHT_MM = 260; // Y-Ausdehnung
-const BLOCK_SIZE_MM = CORNER_BLOCK_SIZE_MM;
-const BLOCK_HEIGHT_MM = CORNER_BLOCK_HEIGHT_MM;
-const TOP_SLOT_LENGTH_MM = 150; // Langloch oben/unten, Gesamtlaenge inkl. Rundungen
-const TOP_SLOT_WIDTH_MM = 60; // Langloch oben/unten, Breite (= Durchmesser der Rundungen)
-const TOP_SLOT_DEPTH_MM = 70; // wie tief das Langloch einsinkt
-const SIDE_HOLE_RADIUS_MM = 45;
-const SIDE_HOLE_DEPTH_MM = 80;
+// Container-Eckbeschlag (ISO-1161-Eckbeschlag/"corner casting"). Masse von
+// Jonas 2026-07-28 als die ECHTEN Normmasse vorgegeben (statt der zuvor
+// geschaetzten 220x220x260): 178mm auf die Containerlaenge, 162mm auf die
+// Containerbreite, 118mm Hoehe. Exportiert (statt nur lokal), damit
+// Container.tsx daraus die Eckblock-Weltposition berechnen kann, ohne
+// dieselben Zahlen ein zweites Mal zu pflegen.
+export const CORNER_BLOCK_LENGTH_MM = 178; // X-Ausdehnung (Containerlaenge)
+export const CORNER_BLOCK_WIDTH_MM = 162; // Z-Ausdehnung (Containerbreite)
+export const CORNER_BLOCK_HEIGHT_MM = 118; // Y-Ausdehnung
+const TOP_SLOT_LENGTH_MM = 150; // Langloch oben/unten, Gesamtlaenge inkl. Rundungen (liegt auf X)
+const TOP_SLOT_WIDTH_MM = 55; // Langloch oben/unten, Breite (= Durchmesser der Rundungen, liegt auf Z)
+const TOP_SLOT_DEPTH_MM = 50; // wie tief das Langloch einsinkt
+const SIDE_HOLE_RADIUS_MM = 35;
+const SIDE_HOLE_DEPTH_MM = 50;
+// Jonas' Fehlerbericht 2026-07-28 (erste Runde): Eckblock lag buendig mit
+// der Wandflaeche -> exakt koplanare Flaechen mit der jeweiligen
+// Wall-Aussenflaeche an dieser Ecke, dadurch Z-Fighting/"Ueberlagerung"
+// genau im Bereich der Seitenloecher. Erster Fix (verworfen, siehe unten):
+// der Block selbst wuchs 12mm ueber die Nennposition hinaus. Jonas'
+// Fehlerbericht 2026-07-28 (zweite Runde): dadurch ueberschritten die
+// Eckbloecke die konfigurierten Container-Aussenmasse (size.length/width/
+// height) - der Eckbeschlag darf aber NICHT ueber die Aussenmasse hinausragen,
+// er soll genau auf ihnen sitzen. Fix jetzt umgedreht: der Eckblock bleibt in
+// seiner Nenngroesse (buendig mit den echten Aussenmassen, keine eigene
+// Vergroesserung mehr), stattdessen weichen in Container.tsx die WAENDE ein
+// Stueck (CORNER_WALL_RECESS_MM) nach INNEN zurueck - wie beim echten
+// Container, wo das Wellblech zwischen den Eckpfosten leicht zurueckgesetzt
+// ist. Loest dasselbe Koplanaritaets-/Z-Fighting-Problem, ohne dass der
+// Eckbeschlag ueber die Aussenmasse hinaussteht.
+export const CORNER_WALL_RECESS_MM = 12;
 
-const BLOCK_SIZE = BLOCK_SIZE_MM * MM_TO_M;
-const BLOCK_HEIGHT = BLOCK_HEIGHT_MM * MM_TO_M;
+const LENGTH = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
+const WIDTH = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
+const HEIGHT = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
+const HALF_X = LENGTH / 2;
+const HALF_Y = HEIGHT / 2;
+const HALF_Z = WIDTH / 2;
 const TOP_SLOT_LENGTH = TOP_SLOT_LENGTH_MM * MM_TO_M;
 const TOP_SLOT_WIDTH = TOP_SLOT_WIDTH_MM * MM_TO_M;
 const TOP_SLOT_DEPTH = TOP_SLOT_DEPTH_MM * MM_TO_M;
@@ -75,6 +88,99 @@ function createSlotCutterGeometry(length: number, width: number, depth: number):
   return result.geometry;
 }
 
+// Geschlossene 2D-Umrisslinie einer Kapsel/eines Langlochs (Mittelteil +
+// Halbkreis-Kappen), in der Ebene der beiden uebergebenen lokalen Achsen -
+// fuer die Rim-Kantenlinie des Langlochs (siehe buildEdgePositions), NICHT
+// fuer den CSG-Schnitt selbst (dafuer createSlotCutterGeometry oben).
+function stadiumOutline(length: number, width: number, segments = 16): [number, number][] {
+  const r = width / 2;
+  const half = Math.max(length - width, 0) / 2;
+  const points: [number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = -Math.PI / 2 + (i / segments) * Math.PI;
+    points.push([half + r * Math.cos(a), r * Math.sin(a)]);
+  }
+  for (let i = 0; i <= segments; i++) {
+    const a = Math.PI / 2 + (i / segments) * Math.PI;
+    points.push([-half + r * Math.cos(a), r * Math.sin(a)]);
+  }
+  return points;
+}
+
+function circleOutline(radius: number, segments = 24): [number, number][] {
+  const points: [number, number][] = [];
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    points.push([radius * Math.cos(a), radius * Math.sin(a)]);
+  }
+  return points;
+}
+
+// Kantenlinien fuer "Schattiert mit Kanten" werden - genau wie in Wall.tsx
+// (siehe dortiger Kommentar zu buildOpeningRimEdges) - bewusst NICHT aus der
+// CSG-Restgeometrie abgeleitet, sondern von Hand aus der bekannten, exakten
+// Geometrie aufgebaut: die 12 Kanten des Aussenquaders (immer sauber, da
+// ungeschnittene Boxform) plus je eine Umrandung fuer das Langloch und die
+// beiden Rundloecher, exakt an deren echter Position/Groesse/Flaeche.
+function buildEdgePositions(outwardX: 1 | -1, outwardY: 1 | -1, outwardZ: 1 | -1): number[] {
+  const positions: number[] = [];
+
+  const c: [number, number, number][] = [
+    [-HALF_X, -HALF_Y, -HALF_Z],
+    [HALF_X, -HALF_Y, -HALF_Z],
+    [HALF_X, HALF_Y, -HALF_Z],
+    [-HALF_X, HALF_Y, -HALF_Z],
+    [-HALF_X, -HALF_Y, HALF_Z],
+    [HALF_X, -HALF_Y, HALF_Z],
+    [HALF_X, HALF_Y, HALF_Z],
+    [-HALF_X, HALF_Y, HALF_Z],
+  ];
+  const boxEdges: [number, number][] = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7],
+  ];
+  for (const [a, b] of boxEdges) positions.push(...c[a], ...c[b]);
+
+  // Langloch-Umrandung auf der oberen/unteren Flaeche (X-Z-Ebene bei y = ±HALF_Y).
+  const slotY = outwardY * HALF_Y;
+  const slot = stadiumOutline(TOP_SLOT_LENGTH, TOP_SLOT_WIDTH);
+  for (let i = 0; i < slot.length; i++) {
+    const [x0, z0] = slot[i];
+    const [x1, z1] = slot[(i + 1) % slot.length];
+    positions.push(x0, slotY, z0, x1, slotY, z1);
+  }
+
+  // Rundloch-Umrandung auf der aussenliegenden Laengsseite (Y-Z-Ebene bei x = ±HALF_X).
+  const faceX = outwardX * HALF_X;
+  const circleX = circleOutline(SIDE_HOLE_RADIUS);
+  for (let i = 0; i < circleX.length; i++) {
+    const [y0, z0] = circleX[i];
+    const [y1, z1] = circleX[(i + 1) % circleX.length];
+    positions.push(faceX, y0, z0, faceX, y1, z1);
+  }
+
+  // Rundloch-Umrandung auf der aussenliegenden Breitseite (X-Y-Ebene bei z = ±HALF_Z).
+  const faceZ = outwardZ * HALF_Z;
+  const circleZ = circleOutline(SIDE_HOLE_RADIUS);
+  for (let i = 0; i < circleZ.length; i++) {
+    const [x0, y0] = circleZ[i];
+    const [x1, y1] = circleZ[(i + 1) % circleZ.length];
+    positions.push(x0, y0, faceZ, x1, y1, faceZ);
+  }
+
+  return positions;
+}
+
 // Rendert einen einzelnen Eckblock als CSG-Ausschnitt: Quader minus Langloch
 // (obere/untere Stirnflaeche) minus zwei Rundloecher (die beiden
 // aussenliegenden Seitenflaechen). Komplett in LOKALEN Koordinaten der Ecke
@@ -86,14 +192,14 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
   const clippingPlanes = sectionPlane ? [sectionPlane] : [];
 
   const geometry = useMemo(() => {
-    let result: Brush = new Brush(new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_HEIGHT, BLOCK_SIZE));
+    let result: Brush = new Brush(new THREE.BoxGeometry(HALF_X * 2, HALF_Y * 2, HALF_Z * 2));
     result.updateMatrixWorld();
 
     // Langloch auf der oberen (outwardY=+1) bzw. unteren (outwardY=-1) Stirnflaeche.
     const slotGeom = createSlotCutterGeometry(TOP_SLOT_LENGTH, TOP_SLOT_WIDTH, TOP_SLOT_DEPTH);
     slotGeom.rotateX(Math.PI / 2); // Bohrrichtung Z -> Y
     const slotBrush = new Brush(slotGeom);
-    slotBrush.position.set(0, outwardY * (BLOCK_HEIGHT / 2 - TOP_SLOT_DEPTH / 2), 0);
+    slotBrush.position.set(0, outwardY * (HALF_Y - TOP_SLOT_DEPTH / 2), 0);
     slotBrush.updateMatrixWorld();
     result = evaluator.evaluate(result, slotBrush, SUBTRACTION);
 
@@ -101,7 +207,7 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
     const sideXGeom = new THREE.CylinderGeometry(SIDE_HOLE_RADIUS, SIDE_HOLE_RADIUS, SIDE_HOLE_DEPTH, 24);
     sideXGeom.rotateZ(Math.PI / 2); // Zylinderachse Y -> Bohrrichtung X
     const sideXBrush = new Brush(sideXGeom);
-    sideXBrush.position.set(outwardX * (BLOCK_SIZE / 2 - SIDE_HOLE_DEPTH / 2), 0, 0);
+    sideXBrush.position.set(outwardX * (HALF_X - SIDE_HOLE_DEPTH / 2), 0, 0);
     sideXBrush.updateMatrixWorld();
     result = evaluator.evaluate(result, sideXBrush, SUBTRACTION);
 
@@ -109,25 +215,32 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
     const sideZGeom = new THREE.CylinderGeometry(SIDE_HOLE_RADIUS, SIDE_HOLE_RADIUS, SIDE_HOLE_DEPTH, 24);
     sideZGeom.rotateX(Math.PI / 2); // Zylinderachse Y -> Bohrrichtung Z
     const sideZBrush = new Brush(sideZGeom);
-    sideZBrush.position.set(0, 0, outwardZ * (BLOCK_SIZE / 2 - SIDE_HOLE_DEPTH / 2));
+    sideZBrush.position.set(0, 0, outwardZ * (HALF_Z - SIDE_HOLE_DEPTH / 2));
     sideZBrush.updateMatrixWorld();
     result = evaluator.evaluate(result, sideZBrush, SUBTRACTION);
 
     return mergeVertices(result.geometry);
   }, [outwardX, outwardY, outwardZ]);
 
-  // Kein <Edges>-Overlay fuer "Schattiert mit Kanten": dieselbe
-  // Triangulierungs-Eigenart von three-bvh-csg, die in Wall.tsx zu
-  // scheinbaren Diagonallinien auf der Restflaeche fuehrte (siehe dortiger
-  // Kommentar zu buildOpeningRimEdges), traefe hier genauso zu - der Block
-  // hat wie die Wand echte CSG-Ausschnitte, keine reine Box wie z.B. der
-  // Wetterschutzgitter-Rahmen. Fuer diesen Detailgrad bewusst nicht per Hand
-  // nachgebaut.
-  const materialProps = viewStyle === "shaded_edges" ? { roughness: 1, metalness: 0 } : { roughness: 0.6, metalness: 0.4 };
+  const edgeGeometry = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(buildEdgePositions(outwardX, outwardY, outwardZ), 3));
+    return geom;
+  }, [outwardX, outwardY, outwardZ]);
+
+  const shaded = viewStyle === "shaded_edges";
+  const materialProps = shaded ? { roughness: 1, metalness: 0 } : { roughness: 0.6, metalness: 0.4 };
 
   return (
-    <mesh position={position} geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
-    </mesh>
+    <group position={position}>
+      <mesh geometry={geometry} castShadow receiveShadow>
+        <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+      </mesh>
+      {shaded && (
+        <lineSegments geometry={edgeGeometry}>
+          <lineBasicMaterial color="#1e293b" clippingPlanes={clippingPlanes} />
+        </lineSegments>
+      )}
+    </group>
   );
 }

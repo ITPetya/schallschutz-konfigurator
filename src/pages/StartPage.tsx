@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
-import { hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectDraftStore";
+import { getActiveHistoryId, hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectHistoryStore";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { useTour } from "../tour/TourContext";
+import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
 
 const LOAD_BUTTON_CLASSNAME =
   "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
@@ -21,12 +22,21 @@ export function StartPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const hasCache = hasMeaningfulProjectDraft();
+  // Jonas' Vorgabe 2026-07-28: auf dem Handy nur noch "Projekt laden" -
+  // Konfigurieren (3D-CSG, viele Eingabefelder) bleibt Laptop/PC/Tablet
+  // vorbehalten, siehe useIsPhoneViewport.ts.
+  const isPhone = useIsPhoneViewport();
+
+  // Auf dem Handy landet ein geladenes Projekt im schreibgeschuetzten
+  // /ansehen statt im editierbaren /projekt (Jonas' Vorgabe 2026-07-28: "das
+  // Ding soll auf dem Handy nur ein Viewer sein") - siehe ProjectViewerPage.tsx.
+  const loadedProjectRoute = isPhone ? "/ansehen" : "/projekt";
 
   async function loadProjectFile(file: File) {
     try {
       const project = await decodeProject(file);
       setError(null);
-      navigate("/projekt", { state: { project } });
+      navigate(loadedProjectRoute, { state: { project } });
     } catch {
       setError("Datei konnte nicht geladen werden – ist es eine gültige Projektdatei (.sszprojekt)?");
     }
@@ -42,7 +52,32 @@ export function StartPage() {
   function handleLoadFromCache() {
     const cached = loadProjectDraft();
     if (!cached) return;
-    navigate("/projekt", { state: { project: cached } });
+    // historyId mitgeben (nur hier, NICHT beim Datei-Laden oben) - "Aus
+    // Cache laden" oeffnet den bereits AKTIVEN Verlaufs-Eintrag wieder,
+    // WorkspacePage soll also weiter in genau diesen schreiben statt einen
+    // neuen Eintrag fuer denselben Stand anzulegen (Jonas' Vorgabe 2026-07-28:
+    // ein neuer Eintrag nur bei einem WECHSEL zu einem anderen Projekt).
+    navigate(loadedProjectRoute, { state: { project: cached, historyId: getActiveHistoryId() ?? undefined } });
+  }
+
+  // TEMPORAER (Jonas' Vorgabe 2026-07-28: "unter den Buttons soll temporär
+  // ein Schriftzug sein 'Demo-Projekt öffnen hier klicken'") - laedt eine
+  // fest hinterlegte Demo-Projektdatei (public/demo/demo-projekt.sszprojekt,
+  // von Jonas per Upload bereitgestellt) direkt per fetch() statt ueber den
+  // Datei-Dialog. Wieder entfernen, sobald der Demo-Zweck erfuellt ist -
+  // kein Teil des regulaeren Ladeflusses.
+  async function handleOpenDemo() {
+    try {
+      const response = await fetch("/demo/demo-projekt.sszprojekt");
+      if (!response.ok) throw new Error("Demo-Datei nicht gefunden");
+      const blob = await response.blob();
+      const file = new File([blob], "demo-projekt.sszprojekt");
+      const project = await decodeProject(file);
+      setError(null);
+      navigate(loadedProjectRoute, { state: { project } });
+    } catch {
+      setError("Demo-Projekt konnte nicht geladen werden.");
+    }
   }
 
   return (
@@ -72,18 +107,24 @@ export function StartPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <AnimatedButton
-          type="button"
-          data-tour="start-configuration"
-          onClick={() => {
-            notifyEvent("project-started");
-            navigate("/projekt", { state: { fresh: true } });
-          }}
-          className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-        >
-          Konfiguration starten
-          <ArrowRightIcon size={18} />
-        </AnimatedButton>
+        {/* Kein "Konfiguration starten" auf dem Handy (Jonas' Vorgabe
+            2026-07-28: Konfigurieren bleibt Laptop/PC/Tablet vorbehalten) -
+            der Hinweistext darunter erklaert, warum der Button fehlt, statt
+            ihn einfach kommentarlos verschwinden zu lassen. */}
+        {!isPhone && (
+          <AnimatedButton
+            type="button"
+            data-tour="start-configuration"
+            onClick={() => {
+              notifyEvent("project-started");
+              navigate("/projekt", { state: { fresh: true } });
+            }}
+            className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+          >
+            Konfiguration starten
+            <ArrowRightIcon size={18} />
+          </AnimatedButton>
+        )}
 
         {/* "Projekt laden" ist IMMER derselbe, optisch unveraenderte Button
             (Jonas' Vorgabe: "es soll keine optische Veränderung an dem
@@ -133,6 +174,20 @@ export function StartPage() {
           className="hidden"
         />
       </div>
+      {isPhone && (
+        <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
+          Neue Konfigurationen können nur auf einem Laptop, PC oder Tablet erstellt werden. Auf dem Handy können
+          bereits gespeicherte Projekte angeschaut werden.
+        </p>
+      )}
+      {/* TEMPORAER, siehe handleOpenDemo oben. */}
+      <button
+        type="button"
+        onClick={handleOpenDemo}
+        className="text-sm font-bold uppercase tracking-wide text-brand underline hover:text-brand-dark"
+      >
+        Demo-Projekt öffnen hier klicken
+      </button>
       {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

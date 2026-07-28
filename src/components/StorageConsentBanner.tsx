@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatedButton } from "./AnimatedButton";
-import { clearProjectDraft } from "../config/projectDraftStore";
+import { clearProjectDraft } from "../config/projectHistoryStore";
 import { getStorageConsent, setStorageConsent } from "../config/storageConsent";
 import { CircleXIcon } from "./icons/CircleXIcon";
 import { CheckIcon } from "./icons/CheckIcon";
