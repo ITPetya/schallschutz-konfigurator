@@ -75,15 +75,20 @@ export function TourOverlay() {
         }}
       />
       <div
-        className="fixed z-[101] w-[300px] rounded-lg border-t-4 border-brand bg-white p-4 text-sm shadow-2xl"
+        className="fixed z-[101] w-[300px] rounded-lg border-t-4 border-brand bg-white p-4 text-sm shadow-2xl dark:bg-slate-800"
         style={{ left, top, bottom }}
       >
         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-brand">
           {currentStep.title} · {stepIndex + 1}/{stepCount}
         </p>
-        <p className="mb-3 text-slate-600">{currentStep.body}</p>
+        <p className="mb-3 text-slate-600 dark:text-slate-300">{currentStep.body}</p>
+        {currentStep.waitForEvent && (
+          <p className="mb-3 text-xs font-medium text-brand-dark">
+            → Führe die Aktion aus, dann geht's automatisch weiter.
+          </p>
+        )}
         <div className="flex items-center justify-between">
-          <button type="button" onClick={stop} className="text-xs font-medium text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={stop} className="text-xs font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             Überspringen
           </button>
           <div className="flex gap-2">
@@ -91,7 +96,7 @@ export function TourOverlay() {
               <button
                 type="button"
                 onClick={prev}
-                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 Zurück
               </button>

@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 import { Chevron } from "./icons/Chevron";
 import { AnimatedButton } from "./AnimatedButton";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitives/Collapsible";
 
 export type SectionAxis = "x" | "y" | "z";
 
@@ -113,9 +114,12 @@ interface SectionAndViewPanelProps {
 }
 
 // Unten links im Viewer: "Schnitt" und "Ansicht" nebeneinander, beide
-// ausklappbar und klappen nach OBEN auf (Jonas' Vorgabe 2026-07-24) - dafuer
-// steht der Umschalt-Button in jedem Panel als LETZTES Kind (am unteren Rand
-// des Panels) und items-end richtet beide Panels an ihrer Unterkante aus.
+// ausklappbar (Jonas' Vorgabe: echtes Collapsible-Primitive von animate-ui.com
+// statt eines reinen Custom-Toggles, siehe
+// https://animate-ui.com/docs/components/radix/collapsible) und klappen nach
+// OBEN auf (Jonas' Vorgabe 2026-07-24) - dafuer steht der Umschalt-Button in
+// jedem Panel als LETZTES Kind (am unteren Rand des Panels) und items-end
+// richtet beide Panels an ihrer Unterkante aus.
 export function SectionAndViewPanel({
   section,
   viewStyle,
@@ -143,164 +147,197 @@ export function SectionAndViewPanel({
 
   return (
     <div className="absolute bottom-4 left-4 flex items-end gap-2">
-      <div data-tour="section-view" className="w-64 rounded-lg border border-slate-200 bg-white/95 text-sm shadow-md">
-        {sectionEnabled && (
-          <div className="space-y-2 border-b border-slate-200 p-3">
-            {sectionDisabledHint ? (
-              <p className="text-xs text-slate-500">{sectionDisabledHint}</p>
-            ) : (
-              <>
-                <div className="flex gap-1">
-                  {(Object.keys(SECTION_AXIS_LABELS) as SectionAxis[]).map((axis) => (
-                    <button
-                      key={axis}
-                      type="button"
-                      onClick={() => handleAxisChange(axis)}
-                      className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-bold ${
-                        sectionAxis === axis ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {axis === "y" ? (
-                        <UpDownAxisIcon active={sectionAxis === axis} />
-                      ) : (
-                        <CompassAxisIcon emphasize={axis === "x" ? "vh" : "rl"} active={sectionAxis === axis} />
-                      )}
-                      {SECTION_AXIS_LABELS[axis]}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setCutDirection((d) => (d === 1 ? -1 : 1))}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                >
-                  <SwapIcon />
-                  Richtung wechseln
-                </button>
-
-                <SectionSlider
-                  min={axisRangeMm[sectionAxis].min}
-                  max={axisRangeMm[sectionAxis].max}
-                  value={sectionOffsetMm}
-                  onChange={setSectionOffsetMm}
-                />
-                <p className="text-right text-xs text-slate-500">{Math.round(sectionOffsetMm)} mm</p>
-              </>
-            )}
-          </div>
-        )}
-        {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
-            "nicht durch so ein Checkfeld", stattdessen ein sich drehender
-            Pfeil/Ecke) - zeigt nach oben, solange geschlossen (dahin klappt
-            der Inhalt beim Oeffnen auf), nach unten sobald offen. */}
-        <AnimatedButton
-          type="button"
-          onClick={() => setSectionEnabled((v) => !v)}
-          className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
+      <Collapsible open={sectionEnabled} onOpenChange={setSectionEnabled}>
+        <div
+          data-tour="section-view"
+          className="w-64 rounded-lg border border-slate-200 bg-white/95 text-sm shadow-md dark:border-slate-700 dark:bg-slate-800/95"
         >
-          Schnitt
-          <Chevron direction={sectionEnabled ? "down" : "up"} />
-        </AnimatedButton>
-      </div>
-
-      {onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && (
-        <div data-tour="view-style-panel" className="w-52 rounded-lg border border-slate-200 bg-white/95 text-sm shadow-md">
-          {viewPanelOpen && (
-            <div className="space-y-3 border-b border-slate-200 p-3">
-              <div>
-                <p className="mb-1.5 text-xs font-semibold text-slate-500">Ansicht</p>
-                <div className="flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onViewStyleChange("realistic")}
-                    className={`rounded-full px-2 py-1.5 text-xs font-medium ${
-                      viewStyle === "realistic" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    Realistisch
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onViewStyleChange("shaded_edges")}
-                    className={`rounded-full px-2 py-1.5 text-xs font-medium ${
-                      viewStyle === "shaded_edges" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    Schattiert mit Kanten
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-xs font-semibold text-slate-500">Hintergrund</p>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onBackgroundChange("studio")}
-                    className={`flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${
-                      background === "studio" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    Studio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onBackgroundChange("terrain")}
-                    className={`flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${
-                      background === "terrain" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    Gelände
-                  </button>
-                </div>
-              </div>
-
-              {/* Detailstufen fuer den Gelände-Hintergrund (Jonas' Vorgabe
-                  2026-07-25) - nur sichtbar/relevant, wenn "Gelände"
-                  bereits aktiv ist; faellt sonst immer auf "low" zurueck
-                  (siehe TerrainBackground.tsx). onTerrainDetailChange kann
-                  fehlen (readonly-Viewer), dann wird die Auswahl gar nicht
-                  erst angezeigt. */}
-              {isTerrain && onTerrainDetailChange && (
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-500">Gelände-Detailstufe</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {TERRAIN_DETAIL_OPTIONS.map(([value, label]) => (
+          <CollapsibleContent>
+            <div className="space-y-2 border-b border-slate-200 p-3 dark:border-slate-700">
+              {sectionDisabledHint ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400">{sectionDisabledHint}</p>
+              ) : (
+                <>
+                  <div className="flex gap-1">
+                    {(Object.keys(SECTION_AXIS_LABELS) as SectionAxis[]).map((axis) => (
                       <button
-                        key={value}
+                        key={axis}
                         type="button"
-                        onClick={() => onTerrainDetailChange(value)}
-                        className={`rounded-full px-2 py-1.5 text-xs font-medium ${
-                          terrainDetail === value ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
+                        onClick={() => handleAxisChange(axis)}
+                        className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-bold ${
+                          sectionAxis === axis
+                            ? "bg-brand text-white"
+                            : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        {label}
+                        {axis === "y" ? (
+                          <UpDownAxisIcon active={sectionAxis === axis} />
+                        ) : (
+                          <CompassAxisIcon emphasize={axis === "x" ? "vh" : "rl"} active={sectionAxis === axis} />
+                        )}
+                        {SECTION_AXIS_LABELS[axis]}
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
 
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={shadowsEnabled}
-                  onChange={(e) => onShadowsEnabledChange(e.target.checked)}
-                />
-                Schatten anzeigen
-              </label>
+                  <button
+                    type="button"
+                    onClick={() => setCutDirection((d) => (d === 1 ? -1 : 1))}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    <SwapIcon />
+                    Richtung wechseln
+                  </button>
+
+                  <SectionSlider
+                    min={axisRangeMm[sectionAxis].min}
+                    max={axisRangeMm[sectionAxis].max}
+                    value={sectionOffsetMm}
+                    onChange={setSectionOffsetMm}
+                  />
+                  <p className="text-right text-xs text-slate-500 dark:text-slate-400">{Math.round(sectionOffsetMm)} mm</p>
+                </>
+              )}
             </div>
-          )}
-          <AnimatedButton
-            type="button"
-            onClick={() => setViewPanelOpen((v) => !v)}
-            className="flex w-full items-center justify-between p-3 font-medium text-brand-dark"
-          >
-            Ansicht
-            <Chevron direction={viewPanelOpen ? "down" : "up"} />
-          </AnimatedButton>
+          </CollapsibleContent>
+          {/* Chevron-Button statt Checkbox (Jonas' Fehlerbericht 2026-07-23:
+              "nicht durch so ein Checkfeld", stattdessen ein sich drehender
+              Pfeil/Ecke) - zeigt nach oben, solange geschlossen (dahin klappt
+              der Inhalt beim Oeffnen auf), nach unten sobald offen. Rotation
+              rein per CSS am data-state-Attribut, das Radix per asChild auf
+              den Button durchreicht (Jonas' Fehlerbericht 2026-07-27: die
+              alte, React-State-gesteuerte Chevron-Komponente hat sich
+              sichtbar nicht gedreht - dieselbe Technik wie beim
+              Accordion-/Sidebar-Chevron). */}
+          <CollapsibleTrigger asChild>
+            <AnimatedButton
+              type="button"
+              hoverScale={1}
+              tapScale={1}
+              className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light [&[data-state=closed]>svg]:rotate-180"
+            >
+              Schnitt
+              <ChevronDownGlyph />
+            </AnimatedButton>
+          </CollapsibleTrigger>
         </div>
+      </Collapsible>
+
+      {onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && (
+        <Collapsible open={viewPanelOpen} onOpenChange={setViewPanelOpen}>
+          <div
+            data-tour="view-style-panel"
+            className="w-52 rounded-lg border border-slate-200 bg-white/95 text-sm shadow-md dark:border-slate-700 dark:bg-slate-800/95"
+          >
+            <CollapsibleContent>
+              <div className="space-y-3 border-b border-slate-200 p-3 dark:border-slate-700">
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">Ansicht</p>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onViewStyleChange("realistic")}
+                      className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                        viewStyle === "realistic"
+                          ? "bg-brand text-white"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                      }`}
+                    >
+                      Realistisch
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onViewStyleChange("shaded_edges")}
+                      className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                        viewStyle === "shaded_edges"
+                          ? "bg-brand text-white"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                      }`}
+                    >
+                      Schattiert mit Kanten
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">Hintergrund</p>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onBackgroundChange("studio")}
+                      className={`flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${
+                        background === "studio"
+                          ? "bg-brand text-white"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                      }`}
+                    >
+                      Studio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onBackgroundChange("terrain")}
+                      className={`flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${
+                        background === "terrain"
+                          ? "bg-brand text-white"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                      }`}
+                    >
+                      Gelände
+                    </button>
+                  </div>
+                </div>
+
+                {/* Detailstufen fuer den Gelände-Hintergrund (Jonas' Vorgabe
+                    2026-07-25) - nur sichtbar/relevant, wenn "Gelände"
+                    bereits aktiv ist; faellt sonst immer auf "low" zurueck
+                    (siehe TerrainBackground.tsx). onTerrainDetailChange kann
+                    fehlen (readonly-Viewer), dann wird die Auswahl gar nicht
+                    erst angezeigt. */}
+                {isTerrain && onTerrainDetailChange && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">Gelände-Detailstufe</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {TERRAIN_DETAIL_OPTIONS.map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => onTerrainDetailChange(value)}
+                          className={`rounded-full px-2 py-1.5 text-xs font-medium ${
+                            terrainDetail === value
+                              ? "bg-brand text-white"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={shadowsEnabled}
+                    onChange={(e) => onShadowsEnabledChange(e.target.checked)}
+                  />
+                  Schatten anzeigen
+                </label>
+              </div>
+            </CollapsibleContent>
+            <CollapsibleTrigger asChild>
+              <AnimatedButton
+                type="button"
+                hoverScale={1}
+                tapScale={1}
+                className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light [&[data-state=closed]>svg]:rotate-180"
+              >
+                Ansicht
+                <ChevronDownGlyph />
+              </AnimatedButton>
+            </CollapsibleTrigger>
+          </div>
+        </Collapsible>
       )}
     </div>
   );
@@ -325,7 +362,7 @@ function SectionSlider({ min, max, value, onChange }: { min: number; max: number
   return (
     <div
       ref={trackRef}
-      className="relative h-6 w-full touch-none rounded-full bg-slate-100"
+      className="relative h-6 w-full touch-none rounded-full bg-slate-100 dark:bg-slate-700"
       onPointerDown={(e) => {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         setFromClientX(e.clientX);
@@ -336,7 +373,7 @@ function SectionSlider({ min, max, value, onChange }: { min: number; max: number
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-brand-light/50" style={{ width: `${pct}%` }} />
       <div
-        className="pointer-events-none absolute top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-brand-dark"
+        className="pointer-events-none absolute top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-brand-dark dark:text-brand-light"
         style={{ left: `calc(${pct}% - 12px)` }}
       >
         <Chevron direction="right" />
@@ -377,6 +414,27 @@ function UpDownAxisIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="22" viewBox="0 0 18 22" fill="none" stroke={color} strokeWidth="2" aria-hidden>
       <path d="M9 2v18M9 2l-4 4M9 2l4 4M9 20l-4-4M9 20l4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Reines, zustandsloses Chevron-Icon fuer die Schnitt-/Ansicht-Trigger -
+// die Drehrichtung kommt ausschliesslich von der [&[data-state=closed]...]-
+// Klasse am umgebenden Button (siehe SectionAndViewPanel oben).
+function ChevronDownGlyph() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 transition-transform duration-200"
+    >
+      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }

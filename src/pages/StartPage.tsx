@@ -1,55 +1,48 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { decodeConfig, CONFIG_FILE_EXTENSION } from "../config/configFileCodec";
 import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
+import { hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectDraftStore";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
+import { useTour } from "../tour/TourContext";
 
-type StartMode = "single" | "project";
+const LOAD_BUTTON_CLASSNAME =
+  "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
 
-// Zentrierter Startbildschirm: "Konfiguration starten" + "Konfiguration
-// laden" (Jonas' Vorgabe 2026-07-23 - kein Login mehr, stattdessen laedt man
-// eine zuvor heruntergeladene .sszkonfig-Datei direkt in den Konfigurator).
+// Zentrierter Startbildschirm: "Konfiguration starten" + "Projekt laden".
+// Seit dem Zusammenlegen von Einzel-/Ensemble-Modus (siehe WorkspacePage.tsx)
+// gibt es nur noch EINEN Einstieg - ein Projekt, in dem beliebig viele
+// Container angelegt werden koennen - deshalb kein Umschalt-Button mehr.
 export function StartPage() {
   const navigate = useNavigate();
+  const { notifyEvent } = useTour();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
-  // Jonas' Vorgabe 2026-07-25: kein eigener "Baugruppen-Projekt"-Link mehr
-  // (seit dem Workspace-Merge sind Einzel/Ensemble nur noch der Startmodus
-  // EINER Seite, siehe WorkspacePage.tsx) - stattdessen waehlt man den Modus
-  // direkt am "Konfiguration starten"-Button ueber den kleinen runden
-  // Umschalt-Button (gleiche Bildsprache wie "Richtung wechseln" bei
-  // Schnitt, siehe Scene.tsx).
-  const [startMode, setStartMode] = useState<StartMode>("single");
+  const hasCache = hasMeaningfulProjectDraft();
 
-  // "Konfiguration laden" akzeptiert jetzt beide Dateiformate (Jonas'
-  // Vorgabe 2026-07-25: "soll natürlich für einzelne Container als auch
-  // Baugruppen gehen") - unterscheidet anhand der Dateiendung, welcher
-  // Decoder und welche Route (Einzel-/Ensemble-Modus derselben
-  // WorkspacePage) zum Einsatz kommt.
+  async function loadProjectFile(file: File) {
+    try {
+      const project = await decodeProject(file);
+      setError(null);
+      navigate("/projekt", { state: { project } });
+    } catch {
+      setError("Datei konnte nicht geladen werden – ist es eine gültige Projektdatei (.sszprojekt)?");
+    }
+  }
+
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // erlaubt erneutes Auswaehlen derselben Datei
     if (!file) return;
-    const isProject = file.name.endsWith(PROJECT_FILE_EXTENSION);
-    try {
-      if (isProject) {
-        const project = await decodeProject(file);
-        setError(null);
-        navigate("/projekt", { state: { project } });
-      } else {
-        const config = await decodeConfig(file);
-        setError(null);
-        navigate("/konfigurator", { state: { config } });
-      }
-    } catch {
-      setError(
-        isProject
-          ? "Datei konnte nicht geladen werden – ist es eine gültige Projektdatei (.sszprojekt)?"
-          : "Datei konnte nicht geladen werden – ist es eine gültige Konfigurationsdatei (.sszkonfig)?",
-      );
-    }
+    await loadProjectFile(file);
+  }
+
+  function handleLoadFromCache() {
+    const cached = loadProjectDraft();
+    if (!cached) return;
+    navigate("/projekt", { state: { project: cached } });
   }
 
   return (
@@ -69,68 +62,78 @@ export function StartPage() {
         className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
         style={{ backgroundImage: "url(/start-background.svg)" }}
       />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
 
       <div>
-        <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark">
+        <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
           Schallschutz-Sondercontainer
         </h1>
-        <p className="mt-2 text-slate-500">3D-Konfigurator für individuelle Sondercontainer</p>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">3D-Konfigurator für individuelle Sondercontainer</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        {/* Zusammengesetzter Button: linker (groesserer) Teil startet direkt
-            im aktuell gewaehlten Modus, der rechte runde Teil schaltet
-            zwischen "Einzel" und "Ensemble" um (Jonas' Vorgabe 2026-07-25:
-            "nicht so praegnant Einzel oder Ensemble ueber einen runden
-            Button im Button mit einem Pfeil, wie bei Schnitt der Pfeil").
-            Beide Haelften bilden zusammen EINE Kapselform ohne Luecke. */}
-        <div className="flex items-stretch">
-          <AnimatedButton
-            type="button"
-            onClick={() => navigate(startMode === "single" ? "/konfigurator" : "/projekt")}
-            className="flex items-center justify-center gap-2 rounded-l-full bg-brand py-3 pl-8 pr-4 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-          >
-            Konfiguration starten
-            <ArrowRightIcon size={18} />
-          </AnimatedButton>
-          <AnimatedButton
-            type="button"
-            onClick={() => setStartMode((m) => (m === "single" ? "project" : "single"))}
-            aria-label="Zwischen Einzel- und Ensemble-Start wechseln"
-            className="flex items-center gap-1.5 rounded-r-full border-l border-white/25 bg-brand py-3 pl-3 pr-5 text-xs font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-          >
-            {startMode === "single" ? "Einzel" : "Ensemble"}
-            <SwapIcon />
-          </AnimatedButton>
-        </div>
         <AnimatedButton
           type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white"
+          data-tour="start-configuration"
+          onClick={() => {
+            notifyEvent("project-started");
+            navigate("/projekt", { state: { fresh: true } });
+          }}
+          className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
         >
-          <UploadIcon size={18} />
-          Konfiguration laden
+          Konfiguration starten
+          <ArrowRightIcon size={18} />
         </AnimatedButton>
+
+        {/* "Projekt laden" ist IMMER derselbe, optisch unveraenderte Button
+            (Jonas' Vorgabe: "es soll keine optische Veränderung an dem
+            Button sein, nur dass das Menü kommt, wenn etwas im Cache ist") -
+            nur das Klickverhalten dahinter unterscheidet sich: mit Cache
+            oeffnet ein Radix-Dropdown-Menu (animate-ui-Basis, siehe
+            https://animate-ui.com/docs/components/radix/dropdown-menu),
+            ohne Cache geht der Klick direkt auf den Dateidialog. */}
+        {hasCache ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
+                <UploadIcon size={18} />
+                Projekt laden
+              </AnimatedButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="center"
+              sideOffset={8}
+              className="w-56 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
+            >
+              <DropdownMenuItem
+                onSelect={handleLoadFromCache}
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+              >
+                Aus Cache laden
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => fileInputRef.current?.click()}
+                className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+              >
+                Aus Datei laden
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
+            <UploadIcon size={18} />
+            Projekt laden
+          </AnimatedButton>
+        )}
         <input
           ref={fileInputRef}
           type="file"
-          accept={`${CONFIG_FILE_EXTENSION},${PROJECT_FILE_EXTENSION}`}
+          accept={PROJECT_FILE_EXTENSION}
           onChange={handleFileSelected}
           className="hidden"
         />
       </div>
-      {error && <p className="max-w-sm text-sm text-red-600">{error}</p>}
+      {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
-  );
-}
-
-// Gleiches Icon wie "Richtung wechseln" bei Schnitt (Scene.tsx) - bewusst
-// dieselbe Bildsprache fuer "hier kann man etwas umschalten".
-function SwapIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M7 7h11l-3-3M17 17H6l3 3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

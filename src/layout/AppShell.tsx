@@ -4,7 +4,14 @@ import { useTour } from "../tour/TourContext";
 import { CONFIGURATOR_TOUR_ID } from "../tour/tourDefinitions";
 import { TourOverlay } from "../tour/TourOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { useModeSwitch } from "../context/ModeSwitchContext";
+import { StorageConsentBanner } from "../components/StorageConsentBanner";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { clearProjectDraft } from "../config/projectDraftStore";
+import { AnimatedButton } from "../components/AnimatedButton";
+import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
+import { TrashIcon } from "../components/icons/TrashIcon";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -23,12 +30,20 @@ import { useModeSwitch } from "../context/ModeSwitchContext";
 export function AppShell() {
   const { start: startTour } = useTour();
   const navigate = useNavigate();
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletedMessage, setDeletedMessage] = useState(false);
   const [searchParams] = useSearchParams();
   const embed = searchParams.get("embed") === "1";
 
+  function handleDeleteData() {
+    clearProjectDraft();
+    setShowDeleteConfirm(false);
+    setDeletedMessage(true);
+    window.setTimeout(() => setDeletedMessage(false), 4000);
+  }
+
   return (
-    <div className="relative flex h-full flex-col bg-white text-ink">
+    <div className="relative flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
       {!embed && (
         <>
           {/* Nur EINE horizontale Linie am oberen Rand (Jonas' Fehlerbericht
@@ -36,32 +51,28 @@ export function AppShell() {
               mehr, das war die zweite Linie direkt darunter. */}
           <div className="h-1.5 bg-brand-light" />
           <header className="flex items-center justify-between px-4 py-2.5">
-            <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark">
+            <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
               Schallschutz-Sondercontainer
             </Link>
 
-            <div className="flex items-center gap-2">
-              <ModeSwitchDropdown />
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
               <HelpMenu
-                open={helpMenuOpen}
-                onToggle={() => setHelpMenuOpen((v) => !v)}
-                onClose={() => setHelpMenuOpen(false)}
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => navigate("/hilfe")}
+                onDeleteData={() => setShowDeleteConfirm(true)}
               />
             </div>
           </header>
         </>
       )}
       {embed && (
-        <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
-          <ModeSwitchDropdown />
+        <div className="absolute right-3 top-3 z-40 flex items-center gap-3">
+          <ThemeToggle />
           <HelpMenu
-            open={helpMenuOpen}
-            onToggle={() => setHelpMenuOpen((v) => !v)}
-            onClose={() => setHelpMenuOpen(false)}
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => navigate("/hilfe?embed=1")}
+            onDeleteData={() => setShowDeleteConfirm(true)}
           />
         </div>
       )}
@@ -72,84 +83,75 @@ export function AppShell() {
         </ErrorBoundary>
       </div>
       <TourOverlay />
+      <StorageConsentBanner />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Meine Daten löschen"
+        message="Wirklich alle lokal zwischengespeicherten Projektdaten löschen? Das kann nicht rückgängig gemacht werden."
+        confirmLabel="Ja, löschen"
+        onConfirm={handleDeleteData}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {deletedMessage && (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <p className="rounded-full bg-ink px-4 py-2 text-sm text-white shadow-lg">
+            Deine Daten wurden gelöscht.
+          </p>
+        </div>
+      )}
     </div>
-  );
-}
-
-// Moduswechsel (Jonas' Vorgabe 2026-07-25): "oben rechts, links neben dem
-// Fragezeichen ein Dropdown, um zwischen Einzel-Container-Konfiguration und
-// Mehrere-Container-Konfiguration zu wechseln - dabei sollen sich eigentlich
-// nur die Tools in der Seitenleiste ändern". Einzel- und Baugruppen-Modus
-// leben deshalb jetzt auf EINER Seite (WorkspacePage.tsx) mit einem
-// gemeinsamen, durchgehenden 3D-Viewer - dieses Dropdown sitzt im
-// gemeinsamen Header (unabhaengig von WorkspacePage gerendert) und wechselt
-// NIE direkt: WorkspacePage registriert per ModeSwitchContext ihren
-// aktuellen Modus + eine Wechsel-Funktion, die selbst entscheidet, ob eine
-// Speichern/Verwerfen-Erinnerung noetig ist (siehe dort). Ausserhalb der
-// Workspace-Seite (Start, Hilfe, intern) ist workspace null - kein Dropdown.
-function ModeSwitchDropdown() {
-  const { workspace } = useModeSwitch();
-  if (!workspace) return null;
-
-  return (
-    <select
-      value={workspace.mode}
-      onChange={(e) => workspace.requestModeChange(e.target.value as "single" | "project")}
-      aria-label="Konfigurationsmodus"
-      className="rounded-full border-2 border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand hover:text-brand focus:border-brand focus:outline-none"
-    >
-      <option value="single">Einzel-Container-Konfiguration</option>
-      <option value="project">Mehrere-Container-Konfiguration</option>
-    </select>
   );
 }
 
 interface HelpMenuProps {
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
   onTutorial: () => void;
   onHilfe: () => void;
+  onDeleteData: () => void;
 }
 
-function HelpMenu({ open, onToggle, onClose, onTutorial, onHilfe }: HelpMenuProps) {
+// Baut auf animate-ui.com's Dropdown-Menu-Primitive auf (Jonas' Vorgabe,
+// siehe https://animate-ui.com/docs/components/radix/dropdown-menu) - der
+// Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
+// mehr selbst, das uebernimmt jetzt Radix intern.
+function HelpMenu({ onTutorial, onHilfe, onDeleteData }: HelpMenuProps) {
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label="Hilfe"
-        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-xs font-bold text-slate-400 hover:border-brand hover:text-brand"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <AnimatedButton
+          type="button"
+          aria-label="Hilfe"
+          className="flex items-center justify-center text-slate-400 hover:text-brand"
+        >
+          <CircleHelpIcon size={30} />
+        </AnimatedButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={14}
+        className="w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
       >
-        ?
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={onClose} />
-          <nav className="absolute right-0 top-11 z-50 w-44 space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-lg">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onTutorial();
-              }}
-              className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-            >
-              Tutorial
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onHilfe();
-              }}
-              className="block w-full rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100"
-            >
-              Hilfe
-            </button>
-          </nav>
-        </>
-      )}
-    </div>
+        <DropdownMenuItem
+          onSelect={onTutorial}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          Tutorial
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={onHilfe}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          Hilfe
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={onDeleteData}
+          className="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          <TrashIcon size={15} />
+          Meine Daten löschen
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

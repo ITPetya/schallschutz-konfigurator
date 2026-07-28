@@ -22,6 +22,11 @@ interface TourContextValue {
   // neu bei Schritt 1 zu beginnen.
   suppressed: boolean;
   setSuppressed: (v: boolean) => void;
+  // Von der App aufgerufen, wenn eine konkrete Aktion tatsaechlich passiert
+  // ist (z. B. "container-added") - geht nur dann automatisch zum naechsten
+  // Schritt, wenn der AKTUELLE Schritt genau auf dieses Ereignis wartet
+  // (siehe TourStep.waitForEvent), sonst passiert nichts.
+  notifyEvent: (name: string) => void;
 }
 
 const TourContext = createContext<TourContextValue | null>(null);
@@ -75,9 +80,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setSuppressed(false);
   }
 
+  function notifyEvent(name: string) {
+    if (currentStep?.waitForEvent === name) next();
+  }
+
   return (
     <TourContext.Provider
-      value={{ currentStep, stepIndex, stepCount: tour?.steps.length ?? 0, start, next, prev, stop, suppressed, setSuppressed }}
+      value={{
+        currentStep,
+        stepIndex,
+        stepCount: tour?.steps.length ?? 0,
+        start,
+        next,
+        prev,
+        stop,
+        suppressed,
+        setSuppressed,
+        notifyEvent,
+      }}
     >
       {children}
     </TourContext.Provider>

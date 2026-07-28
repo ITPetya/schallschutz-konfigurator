@@ -8,6 +8,7 @@ import { TerrainBackground } from "./TerrainBackground";
 import type { ContainerInstance } from "../config/projectTypes";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { DisplaySettingsProvider, type ViewStyle } from "../context/DisplaySettingsContext";
+import { useTheme } from "../context/ThemeContext";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
@@ -116,6 +117,7 @@ export function ProjectScene3D({
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
   const [terrainDetail, setTerrainDetail] = useState<"low" | "medium" | "high" | "ultra">("low");
   const isTerrain = background === "terrain";
+  const { theme } = useTheme();
 
   const selectedInstance = instances.find((i) => i.id === selectedId) ?? null;
   // "Schnitt" bezieht sich immer auf GENAU den ausgewaehlten Container (siehe
@@ -149,7 +151,7 @@ export function ProjectScene3D({
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
         onPointerMissed={() => onSelect(null)}
       >
-        {!isTerrain && <color attach="background" args={["#eef2f5"]} />}
+        {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight
           position={[10, 12, 6]}
@@ -175,12 +177,12 @@ export function ProjectScene3D({
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={maxReachM} />
-            <Environment preset="park" background={false} />
+            <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
           <>
             <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} />
-            <Environment preset="studio" />
+            <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}
 

@@ -1,12 +1,17 @@
-import type { ContainerConfig } from "./types";
 import type { ProjectConfig } from "./projectTypes";
+import { isStorageAllowed } from "./storageConsent";
 
-// Automatische Zwischensicherung fuer Baugruppen-Projekte, gleiches Prinzip
-// wie draftStore.ts fuer Einzelcontainer - eigener localStorage-Schluessel,
-// damit sich beide Entwuerfe nicht gegenseitig ueberschreiben.
+// Automatische Zwischensicherung fuer Baugruppen-Projekte (Jonas' Vorgabe
+// 2026-07-23: "die aktuelle Konfiguration soll im Cache oder so gespeichert
+// sein, damit falls irgendwas abstuerzt immer ein Zwischenstand noch da
+// ist") - rein localStorage, komplett unabhaengig vom manuellen
+// Speichern/Anfragen als Datei. Respektiert die Speicher-Einwilligung (siehe
+// storageConsent.ts) - bei explizitem "Nein" wird ueberhaupt nicht mehr
+// geschrieben.
 const PROJECT_DRAFT_KEY = "ssk_project_draft";
 
 export function saveProjectDraft(project: ProjectConfig) {
+  if (!isStorageAllowed()) return;
   try {
     localStorage.setItem(PROJECT_DRAFT_KEY, JSON.stringify(project));
   } catch {
@@ -25,15 +30,19 @@ export function loadProjectDraft(): ProjectConfig | null {
   }
 }
 
-// Wird von KonfiguratorPage aufgerufen, wenn man von dort "zurueck zum
-// Projekt" geht, nachdem man eine einzelne ContainerInstance im normalen
-// Konfigurator bearbeitet hat - schreibt NUR deren config zurueck, laesst
-// Position/Rotation/restliche Instanzen unangetastet.
-export function updateProjectInstanceConfig(instanceId: string, config: ContainerConfig) {
-  const project = loadProjectDraft();
-  if (!project) return;
-  saveProjectDraft({
-    ...project,
-    instances: project.instances.map((inst) => (inst.id === instanceId ? { ...inst, config } : inst)),
-  });
+// Ein Cache gilt nur dann als "vorhanden" (z. B. fuer die "Aus Cache
+// laden"-Option auf der Startseite), wenn er tatsaechlich mindestens einen
+// Container enthaelt - ein frisch angelegtes, noch leeres Projekt zaehlt
+// nicht als sinnvoller Zwischenstand.
+export function hasMeaningfulProjectDraft(): boolean {
+  const draft = loadProjectDraft();
+  return !!draft && draft.instances.length > 0;
+}
+
+export function clearProjectDraft() {
+  try {
+    localStorage.removeItem(PROJECT_DRAFT_KEY);
+  } catch {
+    // s.o.
+  }
 }

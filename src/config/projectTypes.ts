@@ -21,5 +21,9 @@ export interface ContainerInstance {
 export interface ProjectConfig {
   formatVersion: 1;
   name: string;
+  // Optional (nachtraeglich hinzugefuegt) - vor dieser Aenderung gespeicherte
+  // .sszprojekt-Dateien haben das Feld nicht, decodeProject liefert dann
+  // einfach undefined zurueck.
+  standort?: string;
   instances: ContainerInstance[];
 }

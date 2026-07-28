@@ -24,7 +24,7 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
           if (preset) onSizeChange({ length: preset.length, width: preset.width, height: preset.height });
           e.target.value = "";
         }}
-        className="w-full rounded-full border border-slate-300 bg-white px-3 py-1.5 text-ink shadow-sm"
+        className="w-full rounded-full border border-slate-300 bg-white px-3 py-1.5 text-ink shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
       >
         <option value="" disabled>
           Vorlage…
@@ -47,14 +47,14 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <label className="flex flex-col gap-0.5 text-xs text-slate-500">
+    <label className="flex flex-col gap-0.5 text-xs text-slate-500 dark:text-slate-400">
       {label}
       <NumberInput
         step={10}
         min={0}
         value={value}
         onChange={onChange}
-        className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none"
+        className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
       />
     </label>
   );

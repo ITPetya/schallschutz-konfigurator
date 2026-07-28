@@ -53,9 +53,9 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
     // zweite, redundante Kopfzeile direkt darunter. projectName (der
     // Dateiname der geladenen .sszkonfig) steht stattdessen als schlichte
     // Unterueberschrift oben in der Seitenleiste.
-    <div className="flex h-full flex-col bg-white text-ink">
+    <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
       <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {onBack && (
               <AnimatedButton
@@ -70,47 +70,47 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
             {projectName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{projectName}</p>}
             <AccordionSection title="Grundeinstellungen" defaultOpen>
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
-                <dt className="text-slate-400">Länge</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Länge</dt>
                 <dd>{size.length} mm</dd>
-                <dt className="text-slate-400">Breite</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Breite</dt>
                 <dd>{size.width} mm</dd>
-                <dt className="text-slate-400">Höhe</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Höhe</dt>
                 <dd>{size.height} mm</dd>
-                <dt className="text-slate-400">Wandstärke</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Wandstärke</dt>
                 <dd>{wallThickness} mm</dd>
               </dl>
             </AccordionSection>
             <AccordionSection title="Erweiterte Einstellungen">
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
-                <dt className="text-slate-400">Außenfarbe</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Außenfarbe</dt>
                 <dd className="flex items-center gap-1.5">
-                  <span className="h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: outsideColor }} />
+                  <span className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: outsideColor }} />
                   {outsideColor}
                 </dd>
-                <dt className="text-slate-400">Innenfarbe</dt>
+                <dt className="text-slate-400 dark:text-slate-500">Innenfarbe</dt>
                 <dd className="flex items-center gap-1.5">
                   {insideUnpainted ? (
                     "Unlackiert"
                   ) : (
                     <>
-                      <span className="h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: insideColor }} />
+                      <span className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: insideColor }} />
                       {insideColor}
                     </>
                   )}
                 </dd>
               </dl>
               {outsideNotes.trim() && (
-                <p className="mt-2 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-400">Sonderheiten Außen:</span> {outsideNotes}
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-semibold text-slate-400 dark:text-slate-500">Sonderheiten Außen:</span> {outsideNotes}
                 </p>
               )}
               {insideNotes.trim() && (
-                <p className="mt-2 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-400">Sonderheiten Innen:</span> {insideNotes}
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-semibold text-slate-400 dark:text-slate-500">Sonderheiten Innen:</span> {insideNotes}
                 </p>
               )}
             </AccordionSection>
-            <AccordionSection title="Einbauten" defaultOpen>
+            <AccordionSection title="Einbauten">
               <OpeningsSummary openings={openings} />
             </AccordionSection>
           </div>

@@ -10,6 +10,7 @@ import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
+import { useTheme } from "../context/ThemeContext";
 import {
   DisplaySettingsProvider,
   type BackgroundStyle,
@@ -103,6 +104,7 @@ export function Scene({
   // ProjectScene3D.tsx dieselbe Logik fuer den ausgewaehlten Baugruppen-
   // Container wiederverwenden kann, siehe SectionAndViewPanel.tsx.
   const section = useSectionPlane(size);
+  const { theme } = useTheme();
 
   const isTerrain = background === "terrain";
 
@@ -113,7 +115,7 @@ export function Scene({
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
       >
-        {!isTerrain && <color attach="background" args={["#eef2f5"]} />}
+        {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight
           position={[10, 12, 6]}
@@ -130,12 +132,12 @@ export function Scene({
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
-            <Environment preset="park" background={false} />
+            <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
           <>
             <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
-            <Environment preset="studio" />
+            <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}
 
