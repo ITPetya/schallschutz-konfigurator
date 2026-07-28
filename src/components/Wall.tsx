@@ -38,6 +38,16 @@ const evaluator = new Evaluator();
 // verwendet, also faktisch als 12 METER statt 0,012m behandelt.
 const MM_TO_M = 1 / 1000;
 
+// Wetterschutzgitter: symbolische Lamellen statt einer reinen glatten Platte
+// (Jonas' Vorgabe 2026-07-28, nach Referenzfoto eines echten Lamellengitters).
+// Fester Lamellen-RASTERABSTAND statt fester Lamellen-ANZAHL, damit die
+// Lamellen bei groesseren Gittern nicht gestreckt werden, sondern sich
+// vervielfachen (mehr Lamellen bei mehr Hoehe) - die Breite jeder Lamelle
+// skaliert dagegen einfach 1:1 mit der Gitterbreite.
+const LOUVER_PITCH_M = 0.05;
+const LOUVER_FRAME_PAD = 0.08;
+const LOUVER_TILT_RAD = (40 * Math.PI) / 180;
+
 // Jonas' Fehlerbericht 2026-07-25 (weiterhin nach dem mergeVertices-Versuch
 // aus einer frueheren Runde): "komische Diagonallinien" bestehen weiter.
 // Root Cause, per Analyse dieser Runde (Node-Script hat die tatsaechliche
@@ -272,12 +282,42 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       {protrusions.map((o) => {
         const depth = OPENING_TYPES[o.kind].protrusionDepth! * MM_TO_M;
         const zOffset = outwardSign * (thickness / 2 + depth / 2);
+        const localY = o.v - panelHeight / 2;
+
+        // Lamellen fuellen die Rahmenflaeche (o.width x o.height) mit
+        // gleichmaessigem Abstand - Anzahl aus dem festen Rasterabstand
+        // errechnet und danach auf die tatsaechliche Hoehe gleichmaessig
+        // verteilt (actualPitch), damit die oberste/unterste Lamelle nicht
+        // am Rahmenrand "abgeschnitten" wirkt.
+        const slatCount = Math.max(1, Math.round(o.height / LOUVER_PITCH_M));
+        const actualPitch = o.height / slatCount;
+        const slatWidth = o.width * (1 - 2 * LOUVER_FRAME_PAD);
+        const slatBlade = actualPitch * 1.3; // ueberlappt die Nachbarlamelle leicht, wie beim echten Vorbild
+        const slatThickness = actualPitch * 0.12;
+
         return (
-          <mesh key={o.id} position={[o.u, o.v - panelHeight / 2, zOffset]} castShadow>
-            <boxGeometry args={[o.width, o.height, depth]} />
-            <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
-            {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
-          </mesh>
+          <group key={o.id}>
+            <mesh position={[o.u, localY, zOffset]} castShadow>
+              <boxGeometry args={[o.width, o.height, depth]} />
+              <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+              {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
+            </mesh>
+            {Array.from({ length: slatCount }, (_, i) => {
+              const slatY = localY - o.height / 2 + actualPitch * (i + 0.5);
+              return (
+                <mesh
+                  key={i}
+                  position={[o.u, slatY, outwardSign * (thickness / 2 + depth * 0.55)]}
+                  rotation={[outwardSign * LOUVER_TILT_RAD, 0, 0]}
+                  castShadow
+                >
+                  <boxGeometry args={[slatWidth, slatBlade, slatThickness]} />
+                  <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+                  {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
+                </mesh>
+              );
+            })}
+          </group>
         );
       })}
       {doors.map((o) => {
