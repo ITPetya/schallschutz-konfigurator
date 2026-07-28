@@ -26,11 +26,28 @@ const MM_TO_M = 1 / 1000;
 export const CORNER_BLOCK_LENGTH_MM = 178; // X-Ausdehnung (Containerlaenge)
 export const CORNER_BLOCK_WIDTH_MM = 162; // Z-Ausdehnung (Containerbreite)
 export const CORNER_BLOCK_HEIGHT_MM = 118; // Y-Ausdehnung
-const TOP_SLOT_LENGTH_MM = 150; // Langloch oben/unten, Gesamtlaenge inkl. Rundungen (liegt auf X)
-const TOP_SLOT_WIDTH_MM = 55; // Langloch oben/unten, Breite (= Durchmesser der Rundungen, liegt auf Z)
-const TOP_SLOT_DEPTH_MM = 50; // wie tief das Langloch einsinkt
-const SIDE_HOLE_RADIUS_MM = 35;
-const SIDE_HOLE_DEPTH_MM = 50;
+// Jonas' Fehlerbericht 2026-07-28 ("Löcher nach der DIN korrigieren"): alle
+// drei Aussparungen (oben/unten + beide Seiten) sind nach ISO 1161 GLEICH
+// geformte und GLEICH grosse Langloecher/Kapseln - 124,5 x 63,5mm (4,9" x
+// 2,5", die Standard-Twistlock-Aufnahme), NICHT die zuvor geschaetzten
+// 150x55mm oben und schlicht RUNDE Loecher an den Seiten. Per Websuche
+// gegengeprueft (mehrere unabhaengige Quellen decken sich auf diese Masse,
+// u. a. https://hz-containers.com/en/glossary/iso-1161-standard/,
+// https://chs-containergroup.com/us/iso-1161/).
+const SLOT_LENGTH_MM = 124.5;
+const SLOT_WIDTH_MM = 63.5;
+// NICHT normiert (siehe urspruenglicher TOP_SLOT_DEPTH_MM=50/
+// SIDE_HOLE_DEPTH_MM=50) - bewusst FLACHER als zuvor: bei 124,5x63,5mm auf
+// allen drei Flaechen eines nur 178x162x118mm kleinen Blocks wuerden tiefere
+// Bohrungen (z. B. die alten 50mm) sich gegenseitig raeumlich ueberschneiden
+// (das obere Langloch reicht bei 50mm Tiefe bis y=59mm-50mm=9mm, klar
+// innerhalb der Seitenloecher, die selbst bis Halbbreite 31,75mm um y=0
+// reichen) - eine echte Drei-Koerper-CSG-Ueberschneidung, die three-bvh-csg
+// nur mit kaputter Triangulierung aufloest (bereits einmal in genau dieser
+// Form aufgetreten, siehe Git-Historie). Mit 20mm bleiben alle drei
+// Bohrungen rechnerisch sauber getrennt (siehe Kommentar an den drei
+// SUBTRACTION-Aufrufen unten).
+const SLOT_DEPTH_MM = 20;
 // Jonas' Fehlerbericht 2026-07-28 (erste Runde): Eckblock lag buendig mit
 // der Wandflaeche -> exakt koplanare Flaechen mit der jeweiligen
 // Wall-Aussenflaeche an dieser Ecke, dadurch Z-Fighting/"Ueberlagerung"
@@ -54,11 +71,9 @@ const HEIGHT = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
 const HALF_X = LENGTH / 2;
 const HALF_Y = HEIGHT / 2;
 const HALF_Z = WIDTH / 2;
-const TOP_SLOT_LENGTH = TOP_SLOT_LENGTH_MM * MM_TO_M;
-const TOP_SLOT_WIDTH = TOP_SLOT_WIDTH_MM * MM_TO_M;
-const TOP_SLOT_DEPTH = TOP_SLOT_DEPTH_MM * MM_TO_M;
-const SIDE_HOLE_RADIUS = SIDE_HOLE_RADIUS_MM * MM_TO_M;
-const SIDE_HOLE_DEPTH = SIDE_HOLE_DEPTH_MM * MM_TO_M;
+const SLOT_LENGTH = SLOT_LENGTH_MM * MM_TO_M;
+const SLOT_WIDTH = SLOT_WIDTH_MM * MM_TO_M;
+const SLOT_DEPTH = SLOT_DEPTH_MM * MM_TO_M;
 
 // Ein Evaluator reicht global, siehe Wall.tsx.
 const evaluator = new Evaluator();
@@ -107,21 +122,12 @@ function stadiumOutline(length: number, width: number, segments = 16): [number, 
   return points;
 }
 
-function circleOutline(radius: number, segments = 24): [number, number][] {
-  const points: [number, number][] = [];
-  for (let i = 0; i < segments; i++) {
-    const a = (i / segments) * Math.PI * 2;
-    points.push([radius * Math.cos(a), radius * Math.sin(a)]);
-  }
-  return points;
-}
-
 // Kantenlinien fuer "Schattiert mit Kanten" werden - genau wie in Wall.tsx
 // (siehe dortiger Kommentar zu buildOpeningRimEdges) - bewusst NICHT aus der
 // CSG-Restgeometrie abgeleitet, sondern von Hand aus der bekannten, exakten
 // Geometrie aufgebaut: die 12 Kanten des Aussenquaders (immer sauber, da
-// ungeschnittene Boxform) plus je eine Umrandung fuer das Langloch und die
-// beiden Rundloecher, exakt an deren echter Position/Groesse/Flaeche.
+// ungeschnittene Boxform) plus je eine Umrandung fuer die drei gleich
+// geformten Langloecher, exakt an deren echter Position/Groesse/Flaeche.
 function buildEdgePositions(outwardX: 1 | -1, outwardY: 1 | -1, outwardZ: 1 | -1): number[] {
   const positions: number[] = [];
 
@@ -151,40 +157,44 @@ function buildEdgePositions(outwardX: 1 | -1, outwardY: 1 | -1, outwardZ: 1 | -1
   ];
   for (const [a, b] of boxEdges) positions.push(...c[a], ...c[b]);
 
-  // Langloch-Umrandung auf der oberen/unteren Flaeche (X-Z-Ebene bei y = ±HALF_Y).
+  // Langloch-Umrandung auf der oberen/unteren Flaeche (X-Z-Ebene bei
+  // y = ±HALF_Y) - Laenge liegt auf X, Breite auf Z (siehe CSG-Schnitt unten).
   const slotY = outwardY * HALF_Y;
-  const slot = stadiumOutline(TOP_SLOT_LENGTH, TOP_SLOT_WIDTH);
-  for (let i = 0; i < slot.length; i++) {
-    const [x0, z0] = slot[i];
-    const [x1, z1] = slot[(i + 1) % slot.length];
+  const topSlot = stadiumOutline(SLOT_LENGTH, SLOT_WIDTH);
+  for (let i = 0; i < topSlot.length; i++) {
+    const [x0, z0] = topSlot[i];
+    const [x1, z1] = topSlot[(i + 1) % topSlot.length];
     positions.push(x0, slotY, z0, x1, slotY, z1);
   }
 
-  // Rundloch-Umrandung auf der aussenliegenden Laengsseite (Y-Z-Ebene bei x = ±HALF_X).
+  // Langloch-Umrandung auf der aussenliegenden Laengsseite (Y-Z-Ebene bei
+  // x = ±HALF_X) - Laenge liegt auf Z, Breite auf Y (siehe CSG-Schnitt unten).
   const faceX = outwardX * HALF_X;
-  const circleX = circleOutline(SIDE_HOLE_RADIUS);
-  for (let i = 0; i < circleX.length; i++) {
-    const [y0, z0] = circleX[i];
-    const [y1, z1] = circleX[(i + 1) % circleX.length];
+  const sideXSlot = stadiumOutline(SLOT_LENGTH, SLOT_WIDTH);
+  for (let i = 0; i < sideXSlot.length; i++) {
+    const [z0, y0] = sideXSlot[i];
+    const [z1, y1] = sideXSlot[(i + 1) % sideXSlot.length];
     positions.push(faceX, y0, z0, faceX, y1, z1);
   }
 
-  // Rundloch-Umrandung auf der aussenliegenden Breitseite (X-Y-Ebene bei z = ±HALF_Z).
+  // Langloch-Umrandung auf der aussenliegenden Breitseite (X-Y-Ebene bei
+  // z = ±HALF_Z) - Standardausrichtung passt direkt (Laenge X, Breite Y).
   const faceZ = outwardZ * HALF_Z;
-  const circleZ = circleOutline(SIDE_HOLE_RADIUS);
-  for (let i = 0; i < circleZ.length; i++) {
-    const [x0, y0] = circleZ[i];
-    const [x1, y1] = circleZ[(i + 1) % circleZ.length];
+  const sideZSlot = stadiumOutline(SLOT_LENGTH, SLOT_WIDTH);
+  for (let i = 0; i < sideZSlot.length; i++) {
+    const [x0, y0] = sideZSlot[i];
+    const [x1, y1] = sideZSlot[(i + 1) % sideZSlot.length];
     positions.push(x0, y0, faceZ, x1, y1, faceZ);
   }
 
   return positions;
 }
 
-// Rendert einen einzelnen Eckblock als CSG-Ausschnitt: Quader minus Langloch
-// (obere/untere Stirnflaeche) minus zwei Rundloecher (die beiden
-// aussenliegenden Seitenflaechen). Komplett in LOKALEN Koordinaten der Ecke
-// berechnet, Container.tsx uebergibt nur die fertige Weltposition.
+// Rendert einen einzelnen Eckblock als CSG-Ausschnitt: Quader minus drei
+// gleich geformte Langloecher (obere/untere Stirnflaeche + beide
+// aussenliegenden Seitenflaechen, alle 124,5x63,5mm nach ISO 1161). Komplett
+// in LOKALEN Koordinaten der Ecke berechnet, Container.tsx uebergibt nur die
+// fertige Weltposition.
 export function CornerCasting({ position, outwardX, outwardY, outwardZ }: CornerCastingProps) {
   const { outsideColor, viewStyle } = useDisplaySettings();
   const sectionPlane = useSectionPlane();
@@ -195,27 +205,31 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
     let result: Brush = new Brush(new THREE.BoxGeometry(HALF_X * 2, HALF_Y * 2, HALF_Z * 2));
     result.updateMatrixWorld();
 
-    // Langloch auf der oberen (outwardY=+1) bzw. unteren (outwardY=-1) Stirnflaeche.
-    const slotGeom = createSlotCutterGeometry(TOP_SLOT_LENGTH, TOP_SLOT_WIDTH, TOP_SLOT_DEPTH);
-    slotGeom.rotateX(Math.PI / 2); // Bohrrichtung Z -> Y
-    const slotBrush = new Brush(slotGeom);
-    slotBrush.position.set(0, outwardY * (HALF_Y - TOP_SLOT_DEPTH / 2), 0);
-    slotBrush.updateMatrixWorld();
-    result = evaluator.evaluate(result, slotBrush, SUBTRACTION);
+    // Langloch auf der oberen (outwardY=+1) bzw. unteren (outwardY=-1)
+    // Stirnflaeche - Laenge bleibt nach der Drehung auf X (Containerlaenge-
+    // Richtung), Breite auf Z.
+    const topSlotGeom = createSlotCutterGeometry(SLOT_LENGTH, SLOT_WIDTH, SLOT_DEPTH);
+    topSlotGeom.rotateX(Math.PI / 2); // Bohrrichtung Z -> Y
+    const topSlotBrush = new Brush(topSlotGeom);
+    topSlotBrush.position.set(0, outwardY * (HALF_Y - SLOT_DEPTH / 2), 0);
+    topSlotBrush.updateMatrixWorld();
+    result = evaluator.evaluate(result, topSlotBrush, SUBTRACTION);
 
-    // Rundloch auf der aussenliegenden Laengsseite (Front/Back, Bohrrichtung X).
-    const sideXGeom = new THREE.CylinderGeometry(SIDE_HOLE_RADIUS, SIDE_HOLE_RADIUS, SIDE_HOLE_DEPTH, 24);
-    sideXGeom.rotateZ(Math.PI / 2); // Zylinderachse Y -> Bohrrichtung X
+    // Langloch auf der aussenliegenden Laengsseite (Front/Back,
+    // Bohrrichtung X) - Laenge liegt nach der Drehung auf Z, Breite auf Y.
+    const sideXGeom = createSlotCutterGeometry(SLOT_LENGTH, SLOT_WIDTH, SLOT_DEPTH);
+    sideXGeom.rotateY(Math.PI / 2); // Laenge X -> Z, Bohrrichtung Z -> X
     const sideXBrush = new Brush(sideXGeom);
-    sideXBrush.position.set(outwardX * (HALF_X - SIDE_HOLE_DEPTH / 2), 0, 0);
+    sideXBrush.position.set(outwardX * (HALF_X - SLOT_DEPTH / 2), 0, 0);
     sideXBrush.updateMatrixWorld();
     result = evaluator.evaluate(result, sideXBrush, SUBTRACTION);
 
-    // Rundloch auf der aussenliegenden Breitseite (Links/Rechts, Bohrrichtung Z).
-    const sideZGeom = new THREE.CylinderGeometry(SIDE_HOLE_RADIUS, SIDE_HOLE_RADIUS, SIDE_HOLE_DEPTH, 24);
-    sideZGeom.rotateX(Math.PI / 2); // Zylinderachse Y -> Bohrrichtung Z
+    // Langloch auf der aussenliegenden Breitseite (Links/Rechts,
+    // Bohrrichtung Z) - Standardausrichtung der Schneidgeometrie passt
+    // direkt (Laenge X, Breite Y, Bohrrichtung Z), keine Drehung noetig.
+    const sideZGeom = createSlotCutterGeometry(SLOT_LENGTH, SLOT_WIDTH, SLOT_DEPTH);
     const sideZBrush = new Brush(sideZGeom);
-    sideZBrush.position.set(0, 0, outwardZ * (HALF_Z - SIDE_HOLE_DEPTH / 2));
+    sideZBrush.position.set(0, 0, outwardZ * (HALF_Z - SLOT_DEPTH / 2));
     sideZBrush.updateMatrixWorld();
     result = evaluator.evaluate(result, sideZBrush, SUBTRACTION);
 
