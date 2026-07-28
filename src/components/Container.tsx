@@ -1,6 +1,7 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
+import { isVerticalWall } from "../types/openings";
 import { Wall } from "./Wall";
 import {
   CornerCasting,
@@ -63,6 +64,23 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
   // Eckbeschlag bleibt exakt auf der Aussenkontur, das Wellblech dahinter
   // ist leicht zurueckgesetzt (wie beim echten Container).
   const wallRecess = CORNER_WALL_RECESS_MM * MM_TO_M;
+  // Jonas' Fehlerbericht 2026-07-28 (Folgefehler des Recess-Fixes oben): nur
+  // die AUSSENFLAECHE jeder Wand wurde zurueckgesetzt, ihre Spannweite
+  // (panelWidth/panelHeight) blieb aber voll - dadurch reichten die
+  // Wand-STIRNSEITEN (an den Enden, wo sie die Nachbarwand trifft) weiterhin
+  // bis exakt an die Aussenmasse heran, also wieder koplanar mit der
+  // Eckbeschlag-Aussenflaeche an genau dieser Stelle ("die Kante guckt
+  // raus"/Ueberlagerung, aber jetzt an der Stirnseite statt der Hauptflaeche).
+  // Fix: jede Wand spannt an BEIDEN Enden um wallRecess weniger auf - der
+  // Eckbeschlag (der an dieser Ecke ohnehin bis zur echten Aussenmasse
+  // reicht) deckt die dadurch entstehende kleine Luecke vollstaendig ab.
+  // Betrifft ALLE vier Kanten jeder Wand, nicht nur zwei: Links/Rechts/Vorne/
+  // Hinten treffen mit ihrer HOEHE (Y) ebenso auf die oberen/unteren
+  // Eckbloecke wie mit ihrer Laenge/Breite auf die seitlichen Nachbarwaende -
+  // daher effectiveH zusaetzlich zu effectiveL/effectiveW.
+  const effectiveL = L - 2 * wallRecess;
+  const effectiveW = W - 2 * wallRecess;
+  const effectiveH = H - 2 * wallRecess;
 
   const openingsM = openings.map((o) => {
     const typeDef = OPENING_TYPES[o.kind];
@@ -76,7 +94,22 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
     };
   });
 
-  const openingsFor = (panel: PanelId) => openingsM.filter((o) => o.panel === panel);
+  // Wall.tsx berechnet die lokale Y-Position eines Durchbruchs als
+  // "opening.v - panelHeight/2" - das ergibt nur dann die richtige absolute
+  // Weltposition (v = Hoehe ueber dem ECHTEN Boden), wenn position.y - panelHeight/2
+  // exakt 0 ist. Das stimmte bisher immer (position.y=H/2, panelHeight=H),
+  // ist aber jetzt fuer die vier Seitenwaende nicht mehr der Fall
+  // (position.y bleibt H/2, panelHeight ist jedoch effectiveH < H) - ohne
+  // Korrektur wuerden alle Durchbrueche/Tueren dort um wallRecess zu hoch
+  // sitzen. Fix: v fuer genau diese vier Panels um wallRecess nach unten
+  // korrigieren, BEVOR Wall.tsx damit rechnet - fuer Oben/Unten unnoetig,
+  // da deren Position in der (effectiveW-)Richtung bei 0 bleibt und daher
+  // gar keine Kopplung entsteht.
+  const openingsFor = (panel: PanelId) => {
+    const filtered = openingsM.filter((o) => o.panel === panel);
+    if (!isVerticalWall(panel)) return filtered;
+    return filtered.map((o) => ({ ...o, v: o.v - wallRecess }));
+  };
 
   return (
     <group>
@@ -85,8 +118,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
         rotation={[0, 0, 0]}
-        panelWidth={L}
-        panelHeight={H}
+        panelWidth={effectiveL}
+        panelHeight={effectiveH}
         thickness={t}
         openings={openingsFor("left")}
         outwardSign={1}
@@ -94,8 +127,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
         rotation={[0, 0, 0]}
-        panelWidth={L}
-        panelHeight={H}
+        panelWidth={effectiveL}
+        panelHeight={effectiveH}
         thickness={t}
         openings={openingsFor("right")}
         outwardSign={-1}
@@ -106,8 +139,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
-        panelWidth={W}
-        panelHeight={H}
+        panelWidth={effectiveW}
+        panelHeight={effectiveH}
         thickness={t}
         openings={openingsFor("back")}
         outwardSign={-1}
@@ -115,8 +148,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
-        panelWidth={W}
-        panelHeight={H}
+        panelWidth={effectiveW}
+        panelHeight={effectiveH}
         thickness={t}
         openings={openingsFor("front")}
         outwardSign={1}
@@ -126,8 +159,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[0, H - t / 2 - wallRecess, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
-        panelWidth={L}
-        panelHeight={W}
+        panelWidth={effectiveL}
+        panelHeight={effectiveW}
         thickness={t}
         openings={openingsFor("top")}
         outwardSign={1}
@@ -135,8 +168,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
       <Wall
         position={[0, t / 2 + wallRecess, 0]}
         rotation={[Math.PI / 2, 0, 0]}
-        panelWidth={L}
-        panelHeight={W}
+        panelWidth={effectiveL}
+        panelHeight={effectiveW}
         thickness={t}
         openings={openingsFor("bottom")}
         outwardSign={1}
