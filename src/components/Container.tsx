@@ -2,7 +2,7 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { Wall } from "./Wall";
-import { CornerCasting, CORNER_BLOCK_SIZE_MM, CORNER_BLOCK_HEIGHT_MM } from "./CornerCasting";
+import { CornerCasting, CORNER_BLOCK_LENGTH_MM, CORNER_BLOCK_WIDTH_MM, CORNER_BLOCK_HEIGHT_MM } from "./CornerCasting";
 
 const SIGNS = [1, -1] as const;
 
@@ -45,7 +45,8 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
   const t = wallThickness * MM_TO_M;
-  const cornerSize = CORNER_BLOCK_SIZE_MM * MM_TO_M;
+  const cornerLength = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
+  const cornerWidth = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
   const cornerHeight = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
 
   const openingsM = openings.map((o) => {
@@ -126,24 +127,26 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
         outwardSign={1}
       />
 
-      {/* Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto): an allen
-          8 Container-Ecken je ein Block mit Langloch oben/unten + Rundloch
-          an den beiden aussenliegenden Seitenflaechen - siehe
-          CornerCasting.tsx. Aeussere Blockkante liegt buendig mit der
-          jeweiligen Aussenflaeche (dieselbe "Aussenmass minus halbe
-          Bauteilgroesse"-Logik wie bei den Wall-Positionen oben), der Block
-          steht dabei bewusst ueber die Wandflaeche hinaus vor, weil er
-          groesser ist als wallThickness - genau der vorstehende Eckbeschlag
-          aus dem Referenzfoto. */}
+      {/* Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto + echte
+          ISO-1161-Masse 178x162x118mm): an allen 8 Container-Ecken je ein
+          Block mit Langloch oben/unten + Rundloch an den beiden
+          aussenliegenden Seitenflaechen - siehe CornerCasting.tsx. Die
+          Nennposition hier ist weiterhin buendig mit der Aussenflaeche
+          verankert (dieselbe "Aussenmass minus halbe Bauteilgroesse"-Logik
+          wie bei den Wall-Positionen oben) - der sichtbare Vorstand ueber die
+          Wandflaeche hinaus (Jonas' Fehlerbericht: Ueberlagerung/komische
+          Seitenloecher durch Koplanaritaet mit der Wall-Aussenflaeche) wird
+          NICHT hier, sondern in CornerCasting.tsx selbst durch PROTRUSION_MM
+          symmetrisch um diese Nennposition herum erzeugt. */}
       {SIGNS.flatMap((outwardX) =>
         SIGNS.flatMap((outwardZ) =>
           SIGNS.map((outwardY) => (
             <CornerCasting
               key={`${outwardX}-${outwardY}-${outwardZ}`}
               position={[
-                outwardX * (L / 2 - cornerSize / 2),
+                outwardX * (L / 2 - cornerLength / 2),
                 outwardY === 1 ? H - cornerHeight / 2 : cornerHeight / 2,
-                outwardZ * (W / 2 - cornerSize / 2),
+                outwardZ * (W / 2 - cornerWidth / 2),
               ]}
               outwardX={outwardX}
               outwardY={outwardY}
