@@ -245,9 +245,13 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       {doors.map((o) => {
         // Doppelfluegeltuer: zwei halb so breite Blaetter, je an der
         // AEUSSEREN Kante angeschlagen (Standard-Konvention), statt einer
-        // DIN-Links/Rechts-Auswahl - passt zu OPENING_TYPES.door_double, das
-        // bewusst kein hasHinge hat.
-        if (o.kind === "door_double") {
+        // DIN-Links/Rechts-Auswahl - passt zu OPENING_TYPES.door_double UND
+        // door_custom_double, die beide bewusst kein hasHinge haben. Jonas'
+        // Fehlerbericht 2026-07-28: die freie (custom) Variante fehlte hier
+        // bisher, fiel dadurch auf den Einzelblatt-Zweig unten zurueck und
+        // erschien als eine einzelne, ueberdimensionierte Tuer statt zweier
+        // Fluegel.
+        if (o.kind === "door_double" || o.kind === "door_custom_double") {
           const leafWidth = o.width / 2;
           return (
             <group key={o.id}>
