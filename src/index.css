@@ -87,6 +87,48 @@ body, aside, main, header, nav, [data-slot] {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
+/* Hell/Dunkel-Umschalter: diagonaler "Swoosh" von oben rechts nach unten
+   links statt eines harten Sprungs (Jonas' Vorgabe 2026-07-28, wie eine
+   Welle ueber den Bildschirm). Nutzt die View-Transitions-API (Chrome/Edge;
+   Firefox/Safari ignorieren die unbekannten ::view-transition-*-Pseudo-
+   Elemente einfach und der Wechsel bleibt dort ein normaler Sprung - reine
+   Progressive Enhancement, kein Fallback-Code noetig). Beide Schnappschuesse
+   (alter/neuer Zustand) liegen normalerweise UEBEREINANDER und werden per
+   Crossfade ueberblendet - hier stattdessen per clip-path animiert.
+   ToggleTheme() in ThemeContext.tsx startet die View Transition.
+
+   Die Kontur ist eine Raute (4 Punkte, "radius" 120% vom eigenen Mittelpunkt
+   in jede der 4 Himmelsrichtungen), die als GANZES vom oberen rechten Rand
+   zur Bildschirmmitte verschoben wird (ALLE 4 Punkte um denselben Vektor) -
+   dadurch bleibt die Vorderkante die ganze Animation ueber eine gerade
+   Diagonale, statt (wie im ersten Versuch, bei dem nur einzelne Eckpunkte
+   unabhaengig voneinander von einem fixen Punkt aus auseinanderliefen)
+   ein rechtwinkliger Ecken-Reveal zu werden. Start-Mittelpunkt liegt weit
+   ausserhalb oben rechts (Raute beruehrt den Viewport nicht), End-
+   Mittelpunkt ist die Viewport-Mitte (Raute deckt bei radius 120% den
+   gesamten Viewport inkl. aller vier Ecken ab). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-swoosh 650ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@keyframes theme-swoosh {
+  from {
+    clip-path: polygon(250% -220%, 370% -100%, 250% 20%, 130% -100%);
+  }
+  to {
+    clip-path: polygon(50% -70%, 170% 50%, 50% 170%, -70% 50%);
+  }
+}
+
 /* Einheitliche Scrollbar im Marken-Look statt des Windows-Standard-Balkens
    (Jonas' Fehlerbericht 2026-07-27) - gilt ueberall, nicht nur in der
    Seitenleiste, damit es konsistent aussieht. */

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 
 export type Theme = "light" | "dark";
 
@@ -31,8 +32,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  // "Swoosh"-Animation beim Umschalten (Jonas' Vorgabe 2026-07-28, siehe
+  // @keyframes theme-swoosh in index.css) ueber die View-Transitions-API -
+  // in Browsern ohne Unterstuetzung (Firefox/Safari) bleibt es beim
+  // normalen, sofortigen Wechsel, reine Progressive Enhancement. flushSync
+  // erzwingt den State-Update synchron ins DOM, weil die API den "Nachher"-
+  // Schnappschuss direkt nach Ablauf des uebergebenen Callbacks aufnimmt und
+  // React-Updates sonst asynchron/gebatcht erst spaeter anwenden wuerde.
   function toggleTheme() {
-    setTheme((t) => (t === "dark" ? "light" : "dark"));
+    const applyNext = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+    if (typeof document.startViewTransition === "function") {
+      document.startViewTransition(() => flushSync(applyNext));
+    } else {
+      applyNext();
+    }
   }
 
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
