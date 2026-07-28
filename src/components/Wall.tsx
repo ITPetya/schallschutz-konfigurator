@@ -176,10 +176,48 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
   // Umrandung je Durchbruch zusammengesetzt - dadurch koennen keine
   // Triangulierungs-Artefakte der Boolean-Bibliothek mehr als Linien
   // auftauchen.
+  //
+  // Nur die Aussen-/Innenflaechen-Kontur (je ein flaches Rechteck bei
+  // z=+-thickness/2), KEINE Kanten laengs der Wandstaerke (Z-Achse) mehr -
+  // Jonas' Fehlerbericht 2026-07-28: "die Wandstaerke wird auch durch die
+  // Aussenwaende sichtbar, die Wandstaerke soll wie eine Huelle innen sein,
+  // die um die Staerke versetzt ist". Root Cause: jede Wand ist ein eigener,
+  // ueber die volle Laenge/Breite durchgehender Quader (siehe Container.tsx),
+  // der sich an jeder Kante mit der jeweiligen Nachbarwand (bzw. Dach/Boden)
+  // ueberlappt. Die INNENFLAECHEN-Kontur einer Wand reichte bisher genauso
+  // weit wie die Aussenflaeche (volle panelWidth/panelHeight) - dadurch lag
+  // sie exakt auf der sichtbaren Aussenflaeche der Nachbarwand, die genau
+  // dort beginnt (Z-Fighting/gestrichelt wirkende Linie). Fix: die
+  // AUSSENflaechen-Kontur bleibt in voller Groesse (zeichnet die echte
+  // Aussenecke, die sich exakt mit der Nachbarwand deckt), die INNENflaechen-
+  // Kontur wird ringsum um die Wandstaerke nach innen verkleinert - genau die
+  // "nach innen versetzte Huelle", die Jonas beschrieben hat, reicht dadurch
+  // nur noch bis zur echten Innenecke (wo sie sich mit der ebenso
+  // verkleinerten Innenkontur der Nachbarwand trifft), nicht mehr bis in
+  // deren Aussenflaeche hinein.
   const edgeGeometry = useMemo(() => {
-    const boxEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(panelWidth, panelHeight, thickness));
-    const positions = Array.from(boxEdges.attributes.position.array as Float32Array);
-    boxEdges.dispose();
+    const rectangleEdges = (halfWidth: number, halfHeight: number, z: number): number[] => {
+      const corners: [number, number][] = [
+        [-halfWidth, -halfHeight],
+        [halfWidth, -halfHeight],
+        [halfWidth, halfHeight],
+        [-halfWidth, halfHeight],
+      ];
+      const verts: number[] = [];
+      for (let i = 0; i < 4; i++) {
+        const [x0, y0] = corners[i];
+        const [x1, y1] = corners[(i + 1) % 4];
+        verts.push(x0, y0, z, x1, y1, z);
+      }
+      return verts;
+    };
+
+    const outerZ = outwardSign * (thickness / 2);
+    const innerZ = -outerZ;
+    const positions: number[] = [
+      ...rectangleEdges(panelWidth / 2, panelHeight / 2, outerZ),
+      ...rectangleEdges(Math.max(panelWidth / 2 - thickness, 0), Math.max(panelHeight / 2 - thickness, 0), innerZ),
+    ];
 
     for (const opening of openings) {
       positions.push(...buildOpeningRimEdges(opening, OPENING_TYPES[opening.kind], panelHeight, thickness));
@@ -188,7 +226,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     return geom;
-  }, [panelWidth, panelHeight, thickness, openings]);
+  }, [panelWidth, panelHeight, thickness, openings, outwardSign]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
