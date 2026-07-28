@@ -60,6 +60,26 @@ export function StartPage() {
     navigate(loadedProjectRoute, { state: { project: cached, historyId: getActiveHistoryId() ?? undefined } });
   }
 
+  // TEMPORAER (Jonas' Vorgabe 2026-07-28: "unter den Buttons soll temporär
+  // ein Schriftzug sein 'Demo-Projekt öffnen hier klicken'") - laedt eine
+  // fest hinterlegte Demo-Projektdatei (public/demo/demo-projekt.sszprojekt,
+  // von Jonas per Upload bereitgestellt) direkt per fetch() statt ueber den
+  // Datei-Dialog. Wieder entfernen, sobald der Demo-Zweck erfuellt ist -
+  // kein Teil des regulaeren Ladeflusses.
+  async function handleOpenDemo() {
+    try {
+      const response = await fetch("/demo/demo-projekt.sszprojekt");
+      if (!response.ok) throw new Error("Demo-Datei nicht gefunden");
+      const blob = await response.blob();
+      const file = new File([blob], "demo-projekt.sszprojekt");
+      const project = await decodeProject(file);
+      setError(null);
+      navigate(loadedProjectRoute, { state: { project } });
+    } catch {
+      setError("Demo-Projekt konnte nicht geladen werden.");
+    }
+  }
+
   return (
     // z-0 (nicht nur "relative") ist noetig, damit dieses Element einen
     // EIGENEN Stacking-Context aufmacht - sonst "entkommen" die -z-10-Kinder
@@ -160,6 +180,14 @@ export function StartPage() {
           bereits gespeicherte Projekte angeschaut werden.
         </p>
       )}
+      {/* TEMPORAER, siehe handleOpenDemo oben. */}
+      <button
+        type="button"
+        onClick={handleOpenDemo}
+        className="text-sm font-bold uppercase tracking-wide text-brand underline hover:text-brand-dark"
+      >
+        Demo-Projekt öffnen hier klicken
+      </button>
       {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
