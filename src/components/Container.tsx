@@ -205,6 +205,13 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     />,
     // Oben/Unten: horizontale Platten, um X gekippt statt um Y - lokal X
     // bleibt Welt-X (Laenge), lokal Y wird zu Welt-Z (Breite).
+    // Jonas' Vorgabe 2026-07-29: auch das Dach hat C-Schienen + Streckgitter,
+    // gleiches Schema wie an den Seitenwaenden - nur eben "kurze Richtung"
+    // (Breite) statt Hoehe. Kein Sonderfall noetig: bei diesem Panel ist
+    // panelHeight (die Achse, entlang der InteriorCladding.tsx die Schienen
+    // laufen laesst) bereits effectiveW (Breite), panelWidth (die Achse mit
+    // dem 558mm-Raster) bereits effectiveL (Laenge) - genau die gewuenschte
+    // Ausrichtung ergibt sich automatisch aus der bestehenden Dach-Rotation.
     <Wall
       key="wall-top"
       position={[0, H - t / 2 - wallRecess, 0]}
@@ -214,6 +221,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       thickness={t}
       openings={openingsFor("top")}
       outwardSign={1}
+      interiorCladding
     />,
     <Wall
       key="wall-bottom"
