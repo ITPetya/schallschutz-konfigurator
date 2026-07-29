@@ -7,6 +7,7 @@ import type { Opening } from "../types/openings";
 import type { OpeningTypeDef } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { DoorLeaf } from "./DoorLeaf";
+import { InteriorCladding } from "./InteriorCladding";
 import { useSectionPlane } from "../context/SectionPlaneContext";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
@@ -24,6 +25,9 @@ interface WallProps {
   // Durchbrueche mit protrusionDepth (Wetterschutzgitter) als auch fuers
   // Aufteilen der Wandflaeche in Aussen-/Innenfarbe gebraucht.
   outwardSign: 1 | -1;
+  // Streckgitter + C-Klemmschienen an der Innenflaeche (Jonas' Vorgabe
+  // 2026-07-29) - nur an den 4 Seitenwaenden, siehe Container.tsx.
+  interiorCladding?: boolean;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -150,7 +154,7 @@ function splitByOutward(geometry: THREE.BufferGeometry, outwardSign: number): TH
 // protrusionDepth (aktuell nur das Wetterschutzgitter, "baut 12mm nach aussen
 // auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
 // AUFGESETZTEN Block auf der Aussenseite.
-export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign }: WallProps) {
+export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding }: WallProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
 
   const geometry = useMemo(() => {
@@ -383,6 +387,15 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
           />
         );
       })}
+      {interiorCladding && (
+        <InteriorCladding
+          panelWidth={panelWidth}
+          panelHeight={panelHeight}
+          thickness={thickness}
+          openings={openings}
+          outwardSign={outwardSign}
+        />
+      )}
     </group>
   );
 }

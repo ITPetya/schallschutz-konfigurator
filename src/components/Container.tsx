@@ -138,6 +138,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       thickness={t}
       openings={openingsFor("left")}
       outwardSign={1}
+      interiorCladding
     />,
     <Wall
       key="wall-right"
@@ -148,6 +149,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       thickness={t}
       openings={openingsFor("right")}
       outwardSign={-1}
+      interiorCladding
     />,
     // Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen die
     // BREITE (Z) auf, liegen an den Enden der LAENGE (X).
@@ -160,6 +162,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       thickness={t}
       openings={openingsFor("back")}
       outwardSign={-1}
+      interiorCladding
     />,
     <Wall
       key="wall-front"
@@ -170,6 +173,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       thickness={t}
       openings={openingsFor("front")}
       outwardSign={1}
+      interiorCladding
     />,
     // Oben/Unten: horizontale Platten, um X gekippt statt um Y - lokal X
     // bleibt Welt-X (Laenge), lokal Y wird zu Welt-Z (Breite).

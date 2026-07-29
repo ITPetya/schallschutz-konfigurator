@@ -1,0 +1,84 @@
+import * as THREE from "three";
+
+// Eigenkonstruktion (Jonas' Zeichnung 2026-07-29): C-Klemmschiene zur
+// Befestigung von Aggregaten/Halterungen an den Streckgitter-Innenwaenden.
+// Alle Masse in MILLIMETERN wie in der Zeichnung, hier zentral in Meter
+// umgerechnet.
+const MM = 1 / 1000;
+const WIDTH = 46 * MM; // Aussenbreite (Ruecken der Schiene)
+const HEIGHT = 33 * MM; // Schenkelhoehe bis zum Lippen-Ansatz
+const THICKNESS = 2 * MM; // Blechstaerke, durchgehend
+const LIP_LENGTH = 11.6 * MM; // Laenge der eingerollten Lippe
+const LIP_ANGLE = (49 * Math.PI) / 180; // Lippen-Winkel gegen die Senkrechte (Schenkel-Richtung)
+
+// Mittellinie der Schiene im Querschnitt (u = quer zur Wand, d = Tiefe ab
+// Wandinnenflaeche in den Raum hinein) - von der linken zur rechten
+// Lippenspitze, EIN durchgehender offener Streifen (die beiden Lippen
+// beruehren sich nicht, das ist der Einschub-Schlitz).
+function centerline(): THREE.Vector2[] {
+  const hw = WIDTH / 2;
+  const legTop = new THREE.Vector2(-hw, HEIGHT);
+  const lipDir = new THREE.Vector2(Math.sin(LIP_ANGLE), Math.cos(LIP_ANGLE));
+  const leftTip = legTop.clone().addScaledVector(lipDir, LIP_LENGTH);
+
+  return [
+    leftTip,
+    legTop,
+    new THREE.Vector2(-hw, 0),
+    new THREE.Vector2(hw, 0),
+    new THREE.Vector2(hw, HEIGHT),
+    new THREE.Vector2(-leftTip.x, leftTip.y), // rechte Lippenspitze - an u=0 gespiegelt
+  ];
+}
+
+// Verwandelt eine offene Mittellinie in eine geschlossene Blechkontur
+// (konstante Wandstaerke) - klassisches 2D-Stroke/Miter-Verfahren: an jedem
+// inneren Knick wird der Versatz-Punkt aus dem gemittelten, auf die
+// Winkelhalbierende projizierten Normalenvektor berechnet, an den beiden
+// freien Enden (Lippenspitzen) nur die einzelne Segment-Normale verwendet.
+function strokeOutline(points: THREE.Vector2[], thickness: number): THREE.Shape {
+  const half = thickness / 2;
+  const n = points.length;
+
+  function segNormal(a: THREE.Vector2, b: THREE.Vector2): THREE.Vector2 {
+    const dir = b.clone().sub(a).normalize();
+    return new THREE.Vector2(-dir.y, dir.x);
+  }
+
+  function offsetAt(i: number, sign: 1 | -1): THREE.Vector2 {
+    const p = points[i];
+    const prev = i > 0 ? segNormal(points[i - 1], points[i]) : null;
+    const next = i < n - 1 ? segNormal(points[i], points[i + 1]) : null;
+    if (prev && next) {
+      const avg = prev.clone().add(next).normalize();
+      const cos = avg.dot(next);
+      const dist = half / Math.max(cos, 0.2); // clamp gegen extreme Miter-Spitzen bei sehr spitzen Knicken
+      return p.clone().addScaledVector(avg, sign * dist);
+    }
+    const n0 = (prev ?? next)!;
+    return p.clone().addScaledVector(n0, sign * half);
+  }
+
+  const outer = points.map((_, i) => offsetAt(i, 1));
+  const inner = points.map((_, i) => offsetAt(i, -1));
+
+  const shape = new THREE.Shape();
+  shape.moveTo(outer[0].x, outer[0].y);
+  for (let i = 1; i < n; i++) shape.lineTo(outer[i].x, outer[i].y);
+  for (let i = n - 1; i >= 0; i--) shape.lineTo(inner[i].x, inner[i].y);
+  shape.closePath();
+  return shape;
+}
+
+let cachedShape: THREE.Shape | null = null;
+
+// Liefert die 2D-Querschnittsflaeche (Meter) - X = quer zur Wand, Y = Tiefe
+// ab Wandinnenflaeche in den Raum. Wird per ExtrudeGeometry entlang der
+// Wandhoehe gezogen, siehe InteriorCladding.tsx.
+export function getCRailProfileShape(): THREE.Shape {
+  if (!cachedShape) cachedShape = strokeOutline(centerline(), THICKNESS);
+  return cachedShape;
+}
+
+export const C_RAIL_DEPTH_M = HEIGHT + LIP_LENGTH * Math.cos(LIP_ANGLE);
+export const C_RAIL_PITCH_M = 0.558; // Achse-zu-Achse, Jonas' Vorgabe 2026-07-29
