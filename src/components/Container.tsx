@@ -91,6 +91,30 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   const effectiveW = W - 2 * wallRecess;
   const effectiveH = H - 2 * wallRecess;
 
+  // Jonas' Fehlerbericht 2026-07-29 (Wandkeil an den Ecken): jede Wand war
+  // bisher ein voller, unbeschnittener Quader ueber effectiveL/W/H, der sich
+  // an JEDER Kante mit der jeweils angrenzenden Wand um genau die
+  // Wandstaerke t ueberlappte (dieselbe 3D-Zelle war fuer beide Waende
+  // "solide") - in dieser Ueberlappungszone konnte je nach Blickwinkel die
+  // AUSSENfarbe der einen Wand durch die INNENflaeche der Nachbarwand
+  // durchscheinen/z-fighten (der gemeldete farbige Keil). Fix: statt alle 6
+  // Panels voll ueberlappen zu lassen, wird eine feste Rangfolge eingehalten
+  // ("wer stoesst an wen"), wie beim Bau eines echten Containers:
+  // - Oben/Unten bleiben VOLL (Laenge x Breite) - sie "kappen" die ganze
+  //   Baugruppe von oben/unten, unveraendert.
+  // - Links/Rechts bleiben in der LAENGE voll, werden aber in der HOEHE um
+  //   je t oben UND unten gekuerzt, damit sie zwischen Oben/Unten passen statt
+  //   in deren Dicke hineinzuragen.
+  // - Vorne/Hinten werden in BEIDEN Richtungen gekuerzt (Breite UND Hoehe je
+  //   um t an beiden Enden) - sie sind die "Fuellplatten", die zwischen
+  //   Links/Rechts UND Oben/Unten eingepasst werden.
+  // Die AUSSENkontur (Positionen oben) bleibt dabei exakt gleich, nur die
+  // Spannweite jeder Wand schrumpft symmetrisch um ihre eigenen Enden - dadurch
+  // stossen alle Waende exakt an den echten Innenkanten aneinander, ohne Spalt
+  // UND ohne Ueberlappung.
+  const verticalWallHeight = Math.max(effectiveH - 2 * t, 0);
+  const endWallWidth = Math.max(effectiveW - 2 * t, 0);
+
   const openingsM = openings.map((o) => {
     const typeDef = OPENING_TYPES[o.kind];
     const vBottomOrCenterMm = typeDef.isDoor ? o.v + o.height / 2 : o.v;
@@ -108,16 +132,20 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   // Weltposition (v = Hoehe ueber dem ECHTEN Boden), wenn position.y - panelHeight/2
   // exakt 0 ist. Das stimmte bisher immer (position.y=H/2, panelHeight=H),
   // ist aber jetzt fuer die vier Seitenwaende nicht mehr der Fall
-  // (position.y bleibt H/2, panelHeight ist jedoch effectiveH < H) - ohne
-  // Korrektur wuerden alle Durchbrueche/Tueren dort um wallRecess zu hoch
-  // sitzen. Fix: v fuer genau diese vier Panels um wallRecess nach unten
-  // korrigieren, BEVOR Wall.tsx damit rechnet - fuer Oben/Unten unnoetig,
-  // da deren Position in der (effectiveW-)Richtung bei 0 bleibt und daher
-  // gar keine Kopplung entsteht.
+  // (position.y bleibt H/2, panelHeight ist jedoch verticalWallHeight < H) -
+  // ohne Korrektur wuerden alle Durchbrueche/Tueren dort zu hoch sitzen. Fix:
+  // v fuer genau diese vier Panels nach unten korrigieren, BEVOR Wall.tsx
+  // damit rechnet - fuer Oben/Unten unnoetig, da deren Position in der
+  // (effectiveW-)Richtung bei 0 bleibt und daher gar keine Kopplung entsteht.
+  // Korrekturbetrag = wallRecess + t (statt nur wallRecess wie zuvor), weil
+  // verticalWallHeight jetzt zusaetzlich um t GEKUERZT ist (Wandkeil-Fix
+  // oben, siehe Kommentar bei verticalWallHeight) - dieselbe Herleitung wie
+  // vorher (v_korrigiert = v - H/2 + panelHeight/2), nur mit dem kleineren
+  // panelHeight.
   const openingsFor = (panel: PanelId) => {
     const filtered = openingsM.filter((o) => o.panel === panel);
     if (!isVerticalWall(panel)) return filtered;
-    return filtered.map((o) => ({ ...o, v: o.v - wallRecess }));
+    return filtered.map((o) => ({ ...o, v: o.v - wallRecess - t }));
   };
 
   // Alle 14 Bauteile (6 Waende + 8 Eckbeschlaege) als flache Liste statt
@@ -134,7 +162,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
       rotation={[0, 0, 0]}
       panelWidth={effectiveL}
-      panelHeight={effectiveH}
+      panelHeight={verticalWallHeight}
       thickness={t}
       openings={openingsFor("left")}
       outwardSign={1}
@@ -145,7 +173,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
       rotation={[0, 0, 0]}
       panelWidth={effectiveL}
-      panelHeight={effectiveH}
+      panelHeight={verticalWallHeight}
       thickness={t}
       openings={openingsFor("right")}
       outwardSign={-1}
@@ -157,8 +185,8 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       key="wall-back"
       position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
       rotation={[0, Math.PI / 2, 0]}
-      panelWidth={effectiveW}
-      panelHeight={effectiveH}
+      panelWidth={endWallWidth}
+      panelHeight={verticalWallHeight}
       thickness={t}
       openings={openingsFor("back")}
       outwardSign={-1}
@@ -168,8 +196,8 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       key="wall-front"
       position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
       rotation={[0, Math.PI / 2, 0]}
-      panelWidth={effectiveW}
-      panelHeight={effectiveH}
+      panelWidth={endWallWidth}
+      panelHeight={verticalWallHeight}
       thickness={t}
       openings={openingsFor("front")}
       outwardSign={1}
