@@ -1,55 +1,24 @@
-import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { TourProvider } from "./tour/TourContext";
-import { ThemeProvider } from "./context/ThemeContext";
-import { AppShell } from "./layout/AppShell";
-import { StartPage } from "./pages/StartPage";
-import { LoadingScreen } from "./components/LoadingScreen";
-
-// WorkspacePage (Baugruppen-Konfigurator, siehe dort) und InternalPage
-// ziehen den gesamten three.js/r3f/drei/three-bvh-csg-Stack nach (>1MB
-// minifiziert) - per Performance-Audit 2026-07-23 lag der VORHER 1,5MB-
-// Bundle allein daran, dass App.tsx sie eager importiert hat, wodurch schon
-// die Startseite (StartPage) und die Hilfeseite (die BEIDE gar keinen
-// 3D-Viewer brauchen) den vollen 3D-Stack mitladen mussten. React.lazy()
-// teilt sie in eigene Chunks auf, die erst beim tatsaechlichen Navigieren
-// nachgeladen werden.
-const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage })));
-const InternalPage = lazy(() => import("./pages/InternalPage").then((m) => ({ default: m.InternalPage })));
-const HilfePage = lazy(() => import("./pages/HilfePage").then((m) => ({ default: m.HilfePage })));
-const HistoryPage = lazy(() => import("./pages/HistoryPage").then((m) => ({ default: m.HistoryPage })));
-// Oeffentlicher, schreibgeschuetzter Viewer fuer die Handy-Variante (Jonas'
-// Vorgabe 2026-07-28, siehe ProjectViewerPage.tsx) - eigener lazy Chunk aus
-// demselben Grund wie WorkspacePage/InternalPage (zieht den 3D-Stack nach).
-const ProjectViewerPage = lazy(() => import("./pages/ProjectViewerPage").then((m) => ({ default: m.ProjectViewerPage })));
-
-// Jonas' Vorgabe 2026-07-23: kein Server/Login/Rollen mehr - reiner
-// Client-Konfigurator, Konfigurationen werden als verschlüsselte Datei
-// gespeichert/geladen statt in einer Datenbank (siehe config/configFileCodec.ts).
-// /intern ist eine bewusst NICHT verlinkte, versteckte Seite fuer Mitarbeiter
-// (siehe pages/InternalPage.tsx) - der fruehere Multi-Rollen-Stand
-// (Kunde/Konstrukteur/Admin/Verkaeufer mit Mock-Backend) bleibt vollstaendig
-// im Branch "archiv/rollen-mitarbeiter-backend-2026-07-23" erhalten.
+// Ruhezustand des Beta-Branchs (Jonas' Vorgabe 2026-07-25: "der /beta Branch
+// soll nur noch ein Dummy sein, und eine Art Seite haben die anzeigt, keine
+// Beta-Version gepusht oder so") - dieser Branch (night-2026-07-23-beta)
+// deployed ueber Netlify nach hayse.de/beta. Solange hier kein echter Test
+// laeuft, zeigt er absichtlich NUR diese Platzhalterseite statt (unbemerkt)
+// die Produktion zu spiegeln - so ist auf einen Blick klar, ob gerade eine
+// Beta-Version aktiv ist oder nicht. Fuer den naechsten Testlauf: diesen
+// Branch wieder auf den Stand von main zuruecksetzen und dort wie gewohnt
+// weiterarbeiten.
 function App() {
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <TourProvider>
-          <Suspense fallback={<LoadingScreen />}>
-            <Routes>
-              <Route element={<AppShell />}>
-                <Route path="/" element={<StartPage />} />
-                <Route path="/projekt" element={<WorkspacePage />} />
-                <Route path="/ansehen" element={<ProjectViewerPage />} />
-                <Route path="/intern" element={<InternalPage />} />
-                <Route path="/hilfe" element={<HilfePage />} />
-                <Route path="/verlauf" element={<HistoryPage />} />
-              </Route>
-            </Routes>
-          </Suspense>
-        </TourProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-6 text-center">
+      <p className="font-heading text-2xl font-bold uppercase tracking-wide text-brand-dark">
+        Schallschutz-Sondercontainer
+      </p>
+      <p className="text-sm font-bold uppercase tracking-widest text-brand">Beta</p>
+      <p className="max-w-sm text-slate-500">
+        Aktuell ist keine Beta-Version gepusht. Diese Seite dient als Platzhalter, solange hier gerade nichts
+        getestet wird.
+      </p>
+    </div>
   );
 }
 
