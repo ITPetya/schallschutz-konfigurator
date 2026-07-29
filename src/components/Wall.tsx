@@ -394,6 +394,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
           thickness={thickness}
           openings={openings}
           outwardSign={outwardSign}
+          clippingPlanes={clippingPlanes}
         />
       )}
     </group>

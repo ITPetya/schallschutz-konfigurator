@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import * as THREE from "three";
+import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
 import { getCRailProfileShape, C_RAIL_PITCH_M } from "../utils/cRailProfile";
-import { createStreckgitterMaterial } from "../utils/streckgitterTexture";
+import { getStreckgitterFieldMaps } from "../utils/streckgitterTexture";
+import { useDisplaySettings } from "../context/DisplaySettingsContext";
 
 interface InteriorCladdingProps {
   panelWidth: number;
@@ -10,6 +12,7 @@ interface InteriorCladdingProps {
   thickness: number;
   openings: Opening[];
   outwardSign: 1 | -1;
+  clippingPlanes: THREE.Plane[];
 }
 
 // Aussenbreite der C-Schiene (siehe cRailProfile.ts) - fuer den Toleranz-
@@ -50,7 +53,16 @@ function freeSegments(blocked: [number, number][], total: number): [number, numb
 // freeSegments) - beide werden pro Wand aus deren openings berechnet, exakt
 // wie der CSG-Ausschnitt der Wand selbst (Wall.tsx), nur eben additiv statt
 // subtraktiv.
-export function InteriorCladding({ panelWidth, panelHeight, thickness, openings, outwardSign }: InteriorCladdingProps) {
+export function InteriorCladding({ panelWidth, panelHeight, thickness, openings, outwardSign, clippingPlanes }: InteriorCladdingProps) {
+  const { viewStyle } = useDisplaySettings();
+  // Jonas' Fehlerbericht 2026-07-29: das Streckgitter soll nur in
+  // "Schattiert mit Kanten" sichtbar sein (technische Detailansicht) - in
+  // "Realistisch" bleibt die Wand-Innenflaeche wie gewohnt glatt. Die
+  // C-Schienen selbst bleiben in BEIDEN Ansichten sichtbar, bekommen aber
+  // nur hier zusaetzlich Kantenlinien (wie Wall.tsx/DoorLeaf.tsx es fuer
+  // alle anderen Bauteile schon handhaben).
+  const shaded = viewStyle === "shaded_edges";
+
   const railGeometry = useMemo(() => {
     const geom = new THREE.ExtrudeGeometry(getCRailProfileShape(), { depth: 1, bevelEnabled: false, steps: 1 });
     // Profil liegt lokal in XY (X=quer zur Wand, Y=Tiefe in den Raum),
@@ -73,10 +85,11 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
     const margin = (panelWidth - (count - 1) * C_RAIL_PITCH_M) / 2;
     const u = Array.from({ length: count }, (_, i) => -panelWidth / 2 + margin + i * C_RAIL_PITCH_M);
 
-    const bayBounds: { uStart: number; uEnd: number; material: THREE.MeshStandardMaterial }[] = [];
+    const bayBounds: { uStart: number; uEnd: number; map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture }[] = [];
     const addBay = (uStart: number, uEnd: number) => {
       if (uEnd - uStart < 0.02) return;
-      bayBounds.push({ uStart, uEnd, material: createStreckgitterMaterial(uEnd - uStart, panelHeight) });
+      const { map, bumpMap } = getStreckgitterFieldMaps(uEnd - uStart, panelHeight);
+      bayBounds.push({ uStart, uEnd, map, bumpMap });
     };
     if (u[0] > -panelWidth / 2) addBay(-panelWidth / 2, u[0]);
     for (let i = 0; i < u.length - 1; i++) addBay(u[i], u[i + 1]);
@@ -89,7 +102,8 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
     <group>
       {/* C-Schienen: EINE Profil-Geometrie fuer alle Instanzen/Groessen -
           pro freiem Hoehenabschnitt nur Y-skaliert (Extrusionslaenge=1m)
-          statt neu berechnet. */}
+          statt neu berechnet. Immer sichtbar (Realistisch UND Schattiert
+          mit Kanten), Kantenlinien nur im letzteren. */}
       {railU.map((u, i) => {
         const blocked = openings
           .filter((o) => Math.abs(o.u - u) < o.width / 2 + RAIL_PROFILE_WIDTH_M / 2)
@@ -102,24 +116,36 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
             scale={[1, to - from, outwardSign]}
             castShadow
           >
-            <meshStandardMaterial color="#b8bcc0" roughness={0.5} metalness={0.7} />
+            <meshStandardMaterial color="#b8bcc0" roughness={0.5} metalness={0.7} clippingPlanes={clippingPlanes} />
+            {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
           </mesh>
         ));
       })}
 
       {/* Streckgitter-Felder zwischen den Schienen (inkl. der beiden
-          schmaleren Randfelder links/rechts). */}
-      {bays.map(({ uStart, uEnd, material }, i) => {
-        const bayCenter = (uStart + uEnd) / 2;
-        const blocked = openings
-          .filter((o) => o.u + o.width / 2 > uStart && o.u - o.width / 2 < uEnd)
-          .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
-        return freeSegments(blocked, panelHeight).map(([from, to], j) => (
-          <mesh key={`bay-${i}-${j}`} position={[bayCenter, (from + to) / 2 - panelHeight / 2, innerZ]} material={material}>
-            <planeGeometry args={[uEnd - uStart, to - from]} />
-          </mesh>
-        ));
-      })}
+          schmaleren Randfelder links/rechts) - nur in "Schattiert mit
+          Kanten" (siehe shaded oben). */}
+      {shaded &&
+        bays.map(({ uStart, uEnd, map, bumpMap }, i) => {
+          const bayCenter = (uStart + uEnd) / 2;
+          const blocked = openings
+            .filter((o) => o.u + o.width / 2 > uStart && o.u - o.width / 2 < uEnd)
+            .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
+          return freeSegments(blocked, panelHeight).map(([from, to], j) => (
+            <mesh key={`bay-${i}-${j}`} position={[bayCenter, (from + to) / 2 - panelHeight / 2, innerZ]}>
+              <planeGeometry args={[uEnd - uStart, to - from]} />
+              <meshStandardMaterial
+                map={map}
+                bumpMap={bumpMap}
+                bumpScale={0.4}
+                roughness={0.55}
+                metalness={0.6}
+                side={THREE.DoubleSide}
+                clippingPlanes={clippingPlanes}
+              />
+            </mesh>
+          ));
+        })}
     </group>
   );
 }

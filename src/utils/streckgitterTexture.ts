@@ -75,10 +75,19 @@ export function getStreckgitterMaps(): StreckgitterMaps {
 
 // Klont Diffuse+Bump-Textur mit dem passenden repeat fuer ein Wandfeld
 // gegebener Groesse (Meter) bei fester Maschenweite (Jonas' Vorgabe
-// 2026-07-29: "Maschenbreite von 1cm").
+// 2026-07-29: "Maschenbreite von 1cm"). Liefert NUR die Texturen (nicht
+// gleich ein fertiges Material) - InteriorCladding.tsx rendert damit ein
+// deklaratives <meshStandardMaterial>, statt ein fertig gebautes
+// THREE.Material-Objekt per material={...} durchzureichen, weil NUR so
+// r3f Props wie clippingPlanes (Schnittansicht) reaktiv nachfuehrt.
 const CELL_SIZE_M = 0.01;
 
-export function createStreckgitterMaterial(widthM: number, heightM: number): THREE.MeshStandardMaterial {
+export interface StreckgitterFieldMaps {
+  map: THREE.CanvasTexture;
+  bumpMap: THREE.CanvasTexture;
+}
+
+export function getStreckgitterFieldMaps(widthM: number, heightM: number): StreckgitterFieldMaps {
   const { map, bumpMap } = getStreckgitterMaps();
   const repeatX = widthM / CELL_SIZE_M;
   const repeatY = heightM / CELL_SIZE_M;
@@ -91,12 +100,5 @@ export function createStreckgitterMaterial(widthM: number, heightM: number): THR
   clonedBump.needsUpdate = true;
   clonedBump.repeat.set(repeatX, repeatY);
 
-  return new THREE.MeshStandardMaterial({
-    map: clonedMap,
-    bumpMap: clonedBump,
-    bumpScale: 0.4,
-    roughness: 0.55,
-    metalness: 0.6,
-    side: THREE.DoubleSide,
-  });
+  return { map: clonedMap, bumpMap: clonedBump };
 }
