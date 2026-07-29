@@ -3,6 +3,7 @@ import { Scene } from "../components/Scene";
 import { OpeningsSummary } from "../components/OpeningsSummary";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
@@ -54,9 +55,9 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
     // Dateiname der geladenen .sszkonfig) steht stattdessen als schlichte
     // Unterueberschrift oben in der Seitenleiste.
     <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+      <ViewerSidebarLayout
+        sidebar={
+          <>
             {onBack && (
               <AnimatedButton
                 type="button"
@@ -113,28 +114,22 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
             <AccordionSection title="Einbauten">
               <OpeningsSummary openings={openings} />
             </AccordionSection>
-          </div>
-        </aside>
-
-        {/* min-w-0/min-h-0 sind noetig, nicht nur kosmetisch (Jonas'
-            Fehlerbericht 2026-07-22): ohne das erlaubt Flexbox einem Flex-Kind
-            standardmaessig nicht, unter die intrinsische Groesse seines
-            eigenen Inhalts zu schrumpfen. */}
-        <main className="relative min-h-0 min-w-0 flex-1">
-          <Scene
-            size={size}
-            wallThickness={wallThickness}
-            openings={openings}
-            viewStyle={viewStyle}
-            background={background}
-            insideColor={insideColor}
-            outsideColor={outsideColor}
-            insideUnpainted={insideUnpainted}
-            shadowsEnabled={shadowsEnabled}
-            terrainDetail={terrainDetail}
-          />
-        </main>
-      </div>
+          </>
+        }
+      >
+        <Scene
+          size={size}
+          wallThickness={wallThickness}
+          openings={openings}
+          viewStyle={viewStyle}
+          background={background}
+          insideColor={insideColor}
+          outsideColor={outsideColor}
+          insideUnpainted={insideUnpainted}
+          shadowsEnabled={shadowsEnabled}
+          terrainDetail={terrainDetail}
+        />
+      </ViewerSidebarLayout>
     </div>
   );
 }

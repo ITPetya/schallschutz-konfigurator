@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import type { ProjectConfig } from "../config/projectTypes";
 
@@ -25,9 +26,9 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
 
   return (
     <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+      <ViewerSidebarLayout
+        sidebar={
+          <>
             {fileName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{fileName}</p>}
             <AccordionSection title="Grundeinstellungen" defaultOpen>
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
@@ -72,22 +73,20 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
                 </div>
               )}
             </AccordionSection>
-          </div>
-        </aside>
-
-        <main className="relative min-h-0 min-w-0 flex-1">
-          <ProjectScene3D
-            instances={project.instances}
-            selectedId={selectedId}
-            draggingId={null}
-            dragValid={true}
-            onSelect={setSelectedId}
-            onPointerDown={() => {}}
-            onPointerMove={() => {}}
-            onPointerUp={() => {}}
-          />
-        </main>
-      </div>
+          </>
+        }
+      >
+        <ProjectScene3D
+          instances={project.instances}
+          selectedId={selectedId}
+          draggingId={null}
+          dragValid={true}
+          onSelect={setSelectedId}
+          onPointerDown={() => {}}
+          onPointerMove={() => {}}
+          onPointerUp={() => {}}
+        />
+      </ViewerSidebarLayout>
     </div>
   );
 }
