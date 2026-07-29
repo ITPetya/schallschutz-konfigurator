@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
@@ -12,7 +12,6 @@ import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
-import { useDeferredMount } from "../hooks/useDeferredMount";
 import {
   DisplaySettingsProvider,
   type BackgroundStyle,
@@ -109,12 +108,12 @@ export function Scene({
   const { theme } = useTheme();
 
   const isTerrain = background === "terrain";
-  // Verzoegert NUR das Mounten der schweren CSG-Geometrie (nicht den ganzen
-  // Viewer) um zwei Frames, damit der Browser den billigen Zwischenzustand
-  // (Canvas ohne Container + Milchglas-Overlay) tatsaechlich zeichnen kann,
-  // bevor die teure Berechnung den Haupt-Thread blockiert - siehe
-  // hooks/useDeferredMount.ts und ViewerLoadingOverlay.tsx.
-  const ready = useDeferredMount();
+  // Container.tsx meldet sich per onReady, sobald sein CSG-Aufbau (Waende +
+  // Eckbeschlaege) WIRKLICH fertig ist - nicht nur "gemountet" (Container
+  // gibt seine 14 Teile selbst stueckweise frei, siehe dort/
+  // hooks/useChunkedReveal.ts). Solange das nicht der Fall ist, zeigt das
+  // Milchglas-Overlay unten den gestuften Ladezustand.
+  const [containerReady, setContainerReady] = useState(false);
 
   return (
     <div className="relative h-full w-full">
@@ -131,26 +130,23 @@ export function Scene({
           castShadow={shadowsEnabled}
           shadow-mapSize={[2048, 2048]}
         />
-        {ready && (
-          <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor, insideUnpainted }}>
-            <SectionPlaneProvider value={section.sectionPlane}>
-              <Container size={size} wallThickness={wallThickness} openings={openings} />
-            </SectionPlaneProvider>
-          </DisplaySettingsProvider>
-        )}
+        <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor, insideUnpainted }}>
+          <SectionPlaneProvider value={section.sectionPlane}>
+            <Container size={size} wallThickness={wallThickness} openings={openings} onReady={() => setContainerReady(true)} />
+          </SectionPlaneProvider>
+        </DisplaySettingsProvider>
 
-        {ready &&
-          (isTerrain ? (
-            <>
-              <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
-              <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
-            </>
-          ) : (
-            <>
-              <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
-              <Environment files="/hdri/studio_small_03_1k.hdr" />
-            </>
-          ))}
+        {isTerrain ? (
+          <>
+            <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
+            <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
+          </>
+        ) : (
+          <>
+            <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
+            <Environment files="/hdri/studio_small_03_1k.hdr" />
+          </>
+        )}
 
         <OrbitControls
           ref={controlsRef}
@@ -180,7 +176,7 @@ export function Scene({
         </GizmoHelper>
       </Canvas>
 
-      <ViewerLoadingOverlay contentNotReady={!ready} />
+      <ViewerLoadingOverlay contentNotReady={!containerReady} />
 
       <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
 

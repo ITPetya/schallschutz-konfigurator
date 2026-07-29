@@ -1,3 +1,4 @@
+import { useEffect, useRef, type ReactNode } from "react";
 import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
@@ -10,6 +11,7 @@ import {
   CORNER_BLOCK_HEIGHT_MM,
   CORNER_WALL_RECESS_MM,
 } from "./CornerCasting";
+import { useChunkedReveal } from "../hooks/useChunkedReveal";
 
 const SIGNS = [1, -1] as const;
 
@@ -17,6 +19,13 @@ interface ContainerProps {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
+  // Wird EINMAL aufgerufen, sobald alle 14 Bauteile (6 Waende + 8
+  // Eckbeschlaege) tatsaechlich gemountet/berechnet sind - Scene.tsx/
+  // ProjectScene3D.tsx nutzen das, um ihr Lade-Overlay so lange sichtbar zu
+  // halten, wie der CSG-Aufbau DIESES Containers noch laeuft (siehe
+  // hooks/useChunkedReveal.ts fuer den Grund, warum das stueckweise statt
+  // in einem Rutsch passiert).
+  onReady?: () => void;
 }
 
 const MM_TO_M = 1 / 1000;
@@ -47,7 +56,7 @@ const MM_TO_M = 1 / 1000;
 // types/openings.ts) in die fuer Wall/DoorLeaf erwartete Mitte umgerechnet -
 // beide Konzepte (Einheit + Bezugspunkt) an derselben Stelle aufgeloest,
 // damit Wall.tsx/DoorLeaf.tsx von beidem nichts wissen muessen.
-export function Container({ size, wallThickness, openings }: ContainerProps) {
+export function Container({ size, wallThickness, openings, onReady }: ContainerProps) {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
@@ -111,97 +120,117 @@ export function Container({ size, wallThickness, openings }: ContainerProps) {
     return filtered.map((o) => ({ ...o, v: o.v - wallRecess }));
   };
 
-  return (
-    <group>
-      {/* Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen
-          die LAENGE (X) auf, liegen an den Enden der BREITE (Z). */}
-      <Wall
-        position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
-        rotation={[0, 0, 0]}
-        panelWidth={effectiveL}
-        panelHeight={effectiveH}
-        thickness={t}
-        openings={openingsFor("left")}
-        outwardSign={1}
-      />
-      <Wall
-        position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
-        rotation={[0, 0, 0]}
-        panelWidth={effectiveL}
-        panelHeight={effectiveH}
-        thickness={t}
-        openings={openingsFor("right")}
-        outwardSign={-1}
-      />
+  // Alle 14 Bauteile (6 Waende + 8 Eckbeschlaege) als flache Liste statt
+  // direkt im JSX - so kann useChunkedReveal sie STUECKWEISE freigeben statt
+  // in einem einzigen synchronen CSG-Rutsch (Jonas' Fehlerbericht 2026-07-29:
+  // "keine Ladeanimation... auch alles hat sehr lange geladen", siehe
+  // hooks/useChunkedReveal.ts fuer die Begruendung der adaptiven statt
+  // festen Rate).
+  const parts: ReactNode[] = [
+    // Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen die
+    // LAENGE (X) auf, liegen an den Enden der BREITE (Z).
+    <Wall
+      key="wall-left"
+      position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
+      rotation={[0, 0, 0]}
+      panelWidth={effectiveL}
+      panelHeight={effectiveH}
+      thickness={t}
+      openings={openingsFor("left")}
+      outwardSign={1}
+    />,
+    <Wall
+      key="wall-right"
+      position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
+      rotation={[0, 0, 0]}
+      panelWidth={effectiveL}
+      panelHeight={effectiveH}
+      thickness={t}
+      openings={openingsFor("right")}
+      outwardSign={-1}
+    />,
+    // Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen die
+    // BREITE (Z) auf, liegen an den Enden der LAENGE (X).
+    <Wall
+      key="wall-back"
+      position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
+      rotation={[0, Math.PI / 2, 0]}
+      panelWidth={effectiveW}
+      panelHeight={effectiveH}
+      thickness={t}
+      openings={openingsFor("back")}
+      outwardSign={-1}
+    />,
+    <Wall
+      key="wall-front"
+      position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
+      rotation={[0, Math.PI / 2, 0]}
+      panelWidth={effectiveW}
+      panelHeight={effectiveH}
+      thickness={t}
+      openings={openingsFor("front")}
+      outwardSign={1}
+    />,
+    // Oben/Unten: horizontale Platten, um X gekippt statt um Y - lokal X
+    // bleibt Welt-X (Laenge), lokal Y wird zu Welt-Z (Breite).
+    <Wall
+      key="wall-top"
+      position={[0, H - t / 2 - wallRecess, 0]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      panelWidth={effectiveL}
+      panelHeight={effectiveW}
+      thickness={t}
+      openings={openingsFor("top")}
+      outwardSign={1}
+    />,
+    <Wall
+      key="wall-bottom"
+      position={[0, t / 2 + wallRecess, 0]}
+      rotation={[Math.PI / 2, 0, 0]}
+      panelWidth={effectiveL}
+      panelHeight={effectiveW}
+      thickness={t}
+      openings={openingsFor("bottom")}
+      outwardSign={1}
+    />,
+    // Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto + echte
+    // ISO-1161-Masse 178x162x118mm): an allen 8 Container-Ecken je ein Block
+    // mit Langloch oben/unten + Rundloch an den beiden aussenliegenden
+    // Seitenflaechen - siehe CornerCasting.tsx. Position buendig mit den
+    // echten Aussenmassen (dieselbe "Aussenmass minus halbe Bauteilgroesse"-
+    // Logik wie bei den Wall-Positionen oben, VOR dem wallRecess-Abzug) - die
+    // Eckbloecke selbst wachsen NICHT mehr darueber hinaus (Jonas'
+    // Fehlerbericht: das ueberschritt die konfigurierten Aussenmasse),
+    // stattdessen weichen die Waende oben um wallRecess zurueck.
+    ...SIGNS.flatMap((outwardX) =>
+      SIGNS.flatMap((outwardZ) =>
+        SIGNS.map((outwardY) => (
+          <CornerCasting
+            key={`corner-${outwardX}-${outwardY}-${outwardZ}`}
+            position={[
+              outwardX * (L / 2 - cornerLength / 2),
+              outwardY === 1 ? H - cornerHeight / 2 : cornerHeight / 2,
+              outwardZ * (W / 2 - cornerWidth / 2),
+            ]}
+            outwardX={outwardX}
+            outwardY={outwardY}
+            outwardZ={outwardZ}
+          />
+        ))
+      )
+    ),
+  ];
 
-      {/* Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen
-          die BREITE (Z) auf, liegen an den Enden der LAENGE (X). */}
-      <Wall
-        position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
-        rotation={[0, Math.PI / 2, 0]}
-        panelWidth={effectiveW}
-        panelHeight={effectiveH}
-        thickness={t}
-        openings={openingsFor("back")}
-        outwardSign={-1}
-      />
-      <Wall
-        position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
-        rotation={[0, Math.PI / 2, 0]}
-        panelWidth={effectiveW}
-        panelHeight={effectiveH}
-        thickness={t}
-        openings={openingsFor("front")}
-        outwardSign={1}
-      />
+  const revealed = useChunkedReveal(parts.length);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  useEffect(() => {
+    if (revealed >= parts.length) onReadyRef.current?.();
+    // parts.length ist pro Render stabil (haengt nur von SIGNS/den 6 festen
+    // Waenden ab, nie von Props) - absichtlich nicht in den Deps, um nicht
+    // bei jeder Neuberechnung von "parts" (jedes Render) neu zu feuern.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed]);
 
-      {/* Oben/Unten: horizontale Platten, um X gekippt statt um Y - lokal X bleibt Welt-X (Laenge), lokal Y wird zu Welt-Z (Breite). */}
-      <Wall
-        position={[0, H - t / 2 - wallRecess, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        panelWidth={effectiveL}
-        panelHeight={effectiveW}
-        thickness={t}
-        openings={openingsFor("top")}
-        outwardSign={1}
-      />
-      <Wall
-        position={[0, t / 2 + wallRecess, 0]}
-        rotation={[Math.PI / 2, 0, 0]}
-        panelWidth={effectiveL}
-        panelHeight={effectiveW}
-        thickness={t}
-        openings={openingsFor("bottom")}
-        outwardSign={1}
-      />
-
-      {/* Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto + echte
-          ISO-1161-Masse 178x162x118mm): an allen 8 Container-Ecken je ein
-          Block mit Langloch oben/unten + Rundloch an den beiden
-          aussenliegenden Seitenflaechen - siehe CornerCasting.tsx. Position
-          buendig mit den echten Aussenmassen (dieselbe "Aussenmass minus
-          halbe Bauteilgroesse"-Logik wie bei den urspruenglichen
-          Wall-Positionen oben, VOR dem wallRecess-Abzug) - die Eckbloecke
-          selbst wachsen NICHT mehr darueber hinaus (Jonas' Fehlerbericht:
-          das ueberschritt die konfigurierten Aussenmasse), stattdessen
-          weichen die Waende oben um wallRecess zurueck. */}
-      {SIGNS.flatMap((outwardX) =>
-        SIGNS.flatMap((outwardZ) =>
-          SIGNS.map((outwardY) => (
-            <CornerCasting
-              key={`${outwardX}-${outwardY}-${outwardZ}`}
-              position={[
-                outwardX * (L / 2 - cornerLength / 2),
-                outwardY === 1 ? H - cornerHeight / 2 : cornerHeight / 2,
-                outwardZ * (W / 2 - cornerWidth / 2),
-              ]}
-              outwardX={outwardX}
-              outwardY={outwardY}
-              outwardZ={outwardZ}
-            />
-          ))
-        )
-      )}
-    </group>
-  );
+  return <group>{parts.slice(0, revealed)}</group>;
 }

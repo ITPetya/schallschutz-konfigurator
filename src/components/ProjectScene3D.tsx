@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
@@ -13,7 +13,6 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
-import { useStaggeredReveal } from "../hooks/useStaggeredReveal";
 
 const MM_TO_M = 1 / 1000;
 
@@ -131,13 +130,28 @@ export function ProjectScene3D({
   // (oder der ersten, falls keine ausgewaehlt) und schreibt beim Klick auf
   // ALLE Instanzen zurueck (siehe onSetAllViewStyle).
   const displayedViewStyle = (selectedInstance ?? instances[0])?.config.viewStyle ?? "realistic";
-  // Container werden STUECKWEISE freigegeben statt alle in einem Rutsch zu
-  // mounten (Jonas' Fehlerbericht 2026-07-29: der CSG-Aufbau mehrerer
-  // Container in EINEM synchronen Commit blockierte den Haupt-Thread so
-  // lange, dass selbst ein Ladescreen nicht dazwischen aktualisiert werden
-  // konnte) - siehe hooks/useStaggeredReveal.ts.
-  const revealedCount = useStaggeredReveal(instances.length);
-  const contentNotReady = revealedCount < instances.length;
+  // Jede Instanz gibt ihre eigenen 14 Teile (Waende + Eckbeschlaege) bereits
+  // STUECKWEISE via useChunkedReveal frei (siehe Container.tsx) - dadurch
+  // blockiert der Haupt-Thread nie so lange, dass ein Ladescreen dazwischen
+  // nicht aktualisiert werden koennte. Hier wird nur noch getrackt, WELCHE
+  // Instanzen ihr onReady bereits gemeldet haben, um das Milchglas-Overlay
+  // anzuzeigen, bis WIRKLICH alle Container fertig sind (Jonas' Fehlerbericht
+  // 2026-07-29, zweite Runde).
+  const [readyIds, setReadyIds] = useState<Set<string>>(new Set());
+  const handleInstanceReady = useCallback((id: string) => {
+    setReadyIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+  // Wenn sich die Instanzliste aendert (Container hinzugefuegt/entfernt),
+  // muessen bereits verschwundene IDs aus dem Ready-Set fallen, sonst bleibt
+  // eine neu hinzugefuegte Instanz faelschlich als "schon fertig" gezaehlt.
+  useEffect(() => {
+    const validIds = new Set(instances.map((i) => i.id));
+    setReadyIds((prev) => {
+      const filtered = new Set([...prev].filter((id) => validIds.has(id)));
+      return filtered.size === prev.size ? prev : filtered;
+    });
+  }, [instances]);
+  const contentNotReady = instances.length > 0 && readyIds.size < instances.length;
 
   function handlePointerEvent(id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") {
     e.stopPropagation();
@@ -169,7 +183,7 @@ export function ProjectScene3D({
           shadow-mapSize={[2048, 2048]}
         />
 
-        {instances.slice(0, revealedCount).map((inst) => (
+        {instances.map((inst) => (
           <InstanceGroup
             key={inst.id}
             instance={inst}
@@ -180,6 +194,7 @@ export function ProjectScene3D({
             onPointerDown={(e) => handlePointerEvent(inst.id, e, "down")}
             onPointerMove={(e) => handlePointerEvent(inst.id, e, "move")}
             onPointerUp={(e) => handlePointerEvent(inst.id, e, "up")}
+            onReady={() => handleInstanceReady(inst.id)}
           />
         ))}
 
@@ -262,6 +277,9 @@ interface InstanceGroupProps {
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
   onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
   onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
+  // Wird EINMAL aufgerufen, sobald der Container DIESER Instanz alle 14
+  // Bauteile fertig freigegeben hat - siehe Container.tsx's onReady.
+  onReady: () => void;
 }
 
 // Rand, um den das Grundriss-Rechteck ueber die tatsaechliche
@@ -274,7 +292,7 @@ interface InstanceGroupProps {
 // Container hervor und bleibt so aus jedem Blickwinkel sichtbar.
 const FOOTPRINT_MARGIN_M = 0.6;
 
-function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, onPointerDown, onPointerMove, onPointerUp }: InstanceGroupProps) {
+function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, onPointerDown, onPointerMove, onPointerUp, onReady }: InstanceGroupProps) {
   const lengthM = instance.config.size.length * MM_TO_M;
   const widthM = instance.config.size.width * MM_TO_M;
   const xM = instance.position.x * MM_TO_M;
@@ -317,7 +335,7 @@ function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, 
         }}
       >
         <SectionPlaneProvider value={worldSectionPlane}>
-          <Container size={instance.config.size} wallThickness={instance.config.wallThickness} openings={instance.config.openings} />
+          <Container size={instance.config.size} wallThickness={instance.config.wallThickness} openings={instance.config.openings} onReady={onReady} />
         </SectionPlaneProvider>
       </DisplaySettingsProvider>
     </group>
