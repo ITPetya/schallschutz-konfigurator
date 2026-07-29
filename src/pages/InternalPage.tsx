@@ -6,24 +6,15 @@ import type { ProjectConfig } from "../config/projectTypes";
 import { KonfiguratorPage } from "./KonfiguratorPage";
 import { InternalProjectViewer } from "./InternalProjectViewer";
 
-const inputClass =
-  "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
-
-// "Geheime" interne Seite fuer Mitarbeiter (Jonas' Vorgabe 2026-07-23) - NICHT
-// in Menü/Navigation verlinkt, nur ueber die direkte URL (/intern) erreichbar.
-// Der Zugangscode ist EIN CLIENT-SEITIGER Text-Vergleich, keine echte Auth
-// (es gibt keinen Server) - das ist eine Abschreckung gegen zufaellige
-// Besucher, kein Schutz gegen jemanden, der den JS-Code liest. Nach
-// Freischaltung kann eine .sszkonfig-Datei geladen und in derselben
-// schreibgeschuetzten Detailansicht wie frueher der Konstrukteur-Viewer
-// betrachtet werden.
-const ACCESS_CODE = "ssk-intern-2026";
-
+// "Interne" Seite fuer Mitarbeiter (Jonas' Vorgabe 2026-07-23) - NICHT in
+// Menü/Navigation verlinkt, nur ueber die direkte URL (/intern) erreichbar.
+// Bewusst OHNE Zugangscode (Jonas' Vorgabe 2026-07-29: "es werden ja keine
+// sensiblen Daten preisgegeben, es ist ja nur eine einfachere Variante des
+// Viewers" - ein fruehrer clientseitiger Code-Vergleich war ohnehin keine
+// echte Auth, siehe Git-Historie). Nach dem Laden einer .sszkonfig-/
+// .sszprojekt-Datei erscheint dieselbe schreibgeschuetzte Detailansicht wie
+// frueher der Konstrukteur-Viewer.
 export function InternalPage() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [codeInput, setCodeInput] = useState("");
-  const [accessError, setAccessError] = useState<string | null>(null);
-
   const [config, setConfig] = useState<ContainerConfig | null>(null);
   // Baugruppen jetzt gleichwertig ladbar (Jonas' Vorgabe 2026-07-25: "soll
   // man Baugruppen auch genauso gleichwertig wie einzelne Container laden
@@ -35,15 +26,6 @@ export function InternalPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleUnlock() {
-    if (codeInput === ACCESS_CODE) {
-      setUnlocked(true);
-      setAccessError(null);
-    } else {
-      setAccessError("Falscher Zugangscode.");
-    }
-  }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -70,33 +52,6 @@ export function InternalPage() {
           : "Datei konnte nicht gelesen werden – ist es eine gültige .sszkonfig-Datei?",
       );
     }
-  }
-
-  if (!unlocked) {
-    return (
-      <div className="flex h-full items-center justify-center px-6">
-        <div className="w-full max-w-sm space-y-3 rounded-lg border border-slate-200 bg-white p-6 shadow-md dark:border-slate-700 dark:bg-slate-800">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand">Interner Bereich</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Nur für Mitarbeiter.</p>
-          <input
-            type="password"
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-            placeholder="Zugangscode"
-            className={inputClass}
-          />
-          {accessError && <p className="text-xs text-red-600 dark:text-red-400">{accessError}</p>}
-          <button
-            type="button"
-            onClick={handleUnlock}
-            className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-          >
-            Bestätigen
-          </button>
-        </div>
-      </div>
-    );
   }
 
   if (!config && !project) {
