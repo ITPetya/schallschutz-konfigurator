@@ -3,7 +3,9 @@ import { ProjectScene3D } from "../components/ProjectScene3D";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
+import { LoadingScreen } from "../components/LoadingScreen";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
+import { useDeferredMount } from "../hooks/useDeferredMount";
 import type { ProjectConfig } from "../config/projectTypes";
 
 interface InternalProjectViewerProps {
@@ -23,6 +25,13 @@ interface InternalProjectViewerProps {
 // (ProjectScene3D bekommt hier bewusst nur No-Op-Handler fuer Drag/Undo).
 export function InternalProjectViewer({ project, fileName, onOpenInstance }: InternalProjectViewerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Jonas' Fehlerbericht 2026-07-29: der CSG-Aufbau ALLER Container der
+  // Baugruppe (ProjectScene3D -> Container.tsx je Instanz) laeuft synchron
+  // und blockiert ohne diesen Gate jedes Malen, auch das eines Ladescreens -
+  // siehe hooks/useDeferredMount.ts.
+  const ready = useDeferredMount();
+
+  if (!ready) return <LoadingScreen />;
 
   return (
     <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
