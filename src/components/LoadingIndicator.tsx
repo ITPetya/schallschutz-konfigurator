@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { useLoadingPhase } from "../hooks/useLoadingPhase";
-import { Progress, ProgressIndicator } from "./primitives/Progress";
+import { OrbitIcon } from "./icons/OrbitIcon";
+import { DiscIcon } from "./icons/DiscIcon";
 
 interface LoadingIndicatorProps {
   // Ob gerade tatsaechlich geladen wird - steuert die Drei-Stufen-Logik aus
@@ -13,6 +13,12 @@ interface LoadingIndicatorProps {
   // false: fuellt den Elterncontainer normal aus (z. B. Ganzseiten-
   // Ladezustand beim Routenwechsel).
   overlay?: boolean;
+  // "saving": Speichern-Vorgaenge (disc-3-Icon) - "generic": alles andere
+  // (orbit-Icon). Jonas' Vorgabe 2026-07-29: statt eines Ladebalkens (der
+  // einen Fortschrittswert vorgaeuscht, den es fuer Route-Chunks/CSG-Aufbau/
+  // Speicher-Kodierung nie wirklich gibt) ein generisches, dauerhaft
+  // rotierendes Icon - kein Fortschritt zu berechnen, kein Aufwand.
+  kind?: "generic" | "saving";
 }
 
 // Einheitliches Lade-UI fuer JEDE Stelle im Projekt, an der Ladezeit
@@ -21,34 +27,15 @@ interface LoadingIndicatorProps {
 // Zeigt je nach Dauer (siehe useLoadingPhase.ts) nichts, ein einfaches
 // Ladesymbol, oder zusaetzlich eine Entschuldigung mit absteigender
 // Restzeit-Schaetzung.
-export function LoadingIndicator({ active = true, overlay = false }: LoadingIndicatorProps) {
+export function LoadingIndicator({ active = true, overlay = false, kind = "generic" }: LoadingIndicatorProps) {
   const { phase, etaSeconds } = useLoadingPhase(active);
-  // Kein echter Fortschrittswert bekannt (weder fuer einen Route-Chunk noch
-  // fuer CSG-Aufbau/Asset-Ladezeit) - naehert sich asymptotisch 90% an
-  // (haelt dort, bis der eigentliche Inhalt fertig ist und dieser Fallback
-  // verschwindet), dasselbe Prinzip wie z. B. YouTubes/NProgress' Ladebalken.
-  const [value, setValue] = useState(15);
-  useEffect(() => {
-    if (phase === "idle") {
-      setValue(15);
-      return;
-    }
-    const id = window.setInterval(() => setValue((v) => v + (90 - v) * 0.1), 200);
-    return () => window.clearInterval(id);
-  }, [phase]);
-
   if (phase === "idle") return null;
+
+  const Icon = kind === "saving" ? DiscIcon : OrbitIcon;
 
   const content = (
     <div className="flex flex-col items-center gap-3 px-6 text-center text-sm text-slate-400 dark:text-slate-500">
-      {/* Groesse/Farben 1:1 wie animate-ui.com's Standard-"Progress"-Komponente
-          (bg-primary/20 + bg-primary, h-2, rounded-full auf Track UND
-          Indikator, siehe apps/www/registry/components/radix/progress) -
-          vorher ein eigener, kleinerer Stil (h-1.5, w-40), der deshalb nicht
-          wie das bekannte animate-ui-Element aussah. */}
-      <Progress value={value} className="h-2 w-56 overflow-hidden rounded-full bg-brand/20">
-        <ProgressIndicator className="h-full w-full rounded-full bg-brand" />
-      </Progress>
+      <Icon size={32} className="text-brand" />
       <span>Lädt…</span>
       {phase === "eta" && (
         <p className="max-w-xs text-xs text-slate-400 dark:text-slate-500">

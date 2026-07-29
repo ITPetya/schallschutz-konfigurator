@@ -5,6 +5,7 @@ import { getActiveHistoryId, hasMeaningfulProjectDraft, loadProjectDraft } from 
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { Shine } from "../components/primitives/Shine";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { useTour } from "../tour/TourContext";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
@@ -112,18 +113,20 @@ export function StartPage() {
             der Hinweistext darunter erklaert, warum der Button fehlt, statt
             ihn einfach kommentarlos verschwinden zu lassen. */}
         {!isPhone && (
-          <AnimatedButton
-            type="button"
-            data-tour="start-configuration"
-            onClick={() => {
-              notifyEvent("project-started");
-              navigate("/projekt", { state: { fresh: true } });
-            }}
-            className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-          >
-            Konfiguration starten
-            <ArrowRightIcon size={18} />
-          </AnimatedButton>
+          <Shine asChild>
+            <AnimatedButton
+              type="button"
+              data-tour="start-configuration"
+              onClick={() => {
+                notifyEvent("project-started");
+                navigate("/projekt", { state: { fresh: true } });
+              }}
+              className="flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+            >
+              Konfiguration starten
+              <ArrowRightIcon size={18} />
+            </AnimatedButton>
+          </Shine>
         )}
 
         {/* "Projekt laden" ist IMMER derselbe, optisch unveraenderte Button
@@ -136,10 +139,12 @@ export function StartPage() {
         {hasCache ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
-                <UploadIcon size={18} />
-                Projekt laden
-              </AnimatedButton>
+              <Shine asChild>
+                <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
+                  <UploadIcon size={18} />
+                  Projekt laden
+                </AnimatedButton>
+              </Shine>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="center"
@@ -161,10 +166,12 @@ export function StartPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
-            <UploadIcon size={18} />
-            Projekt laden
-          </AnimatedButton>
+          <Shine asChild>
+            <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
+              <UploadIcon size={18} />
+              Projekt laden
+            </AnimatedButton>
+          </Shine>
         )}
         <input
           ref={fileInputRef}

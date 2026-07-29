@@ -8,6 +8,7 @@ import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
+import { LoadingIcon } from "../components/LoadingIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
 import type { Opening } from "../types/openings";
@@ -198,6 +199,12 @@ export function WorkspacePage() {
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Steuert das Disc-Icon (statt Download-Icon) auf den "Speichern"-Buttons,
+  // solange die asynchrone Kodierung laeuft (Jonas' Vorgabe 2026-07-29:
+  // generisches animiertes Icon statt Ladebalken, siehe LoadingIcon.tsx) -
+  // heute i. d. R. sofort fertig, haelt aber fuer groessere Baugruppen bereit.
+  const [savingInstance, setSavingInstance] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
 
 
   // Falls die gerade bearbeitete Instanz nicht mehr existiert (z. B. durch
@@ -388,10 +395,15 @@ export function WorkspacePage() {
 
   async function handleDownloadInstance() {
     if (!editingInstance) return;
-    const safeName = sanitizeFileName(editingInstance.label);
-    const blob = await encodeConfig(editingInstance.config);
-    downloadBlob(blob, `${safeName}${CONFIG_FILE_EXTENSION}`);
-    flashStatus("Konfigurationsdatei wurde heruntergeladen.");
+    setSavingInstance(true);
+    try {
+      const safeName = sanitizeFileName(editingInstance.label);
+      const blob = await encodeConfig(editingInstance.config);
+      downloadBlob(blob, `${safeName}${CONFIG_FILE_EXTENSION}`);
+      flashStatus("Konfigurationsdatei wurde heruntergeladen.");
+    } finally {
+      setSavingInstance(false);
+    }
   }
 
   // ---------- Baugruppen-Handler ----------
@@ -489,8 +501,13 @@ export function WorkspacePage() {
   }
 
   async function handleDownloadProject() {
-    const blob = await encodeProject(project);
-    downloadBlob(blob, `${sanitizeFileName(project.name)}${PROJECT_FILE_EXTENSION}`);
+    setSavingProject(true);
+    try {
+      const blob = await encodeProject(project);
+      downloadBlob(blob, `${sanitizeFileName(project.name)}${PROJECT_FILE_EXTENSION}`);
+    } finally {
+      setSavingProject(false);
+    }
   }
 
   // Anfragen gibt es nur noch auf Projekt-Ebene, nicht mehr pro einzelnem
@@ -624,9 +641,10 @@ export function WorkspacePage() {
                   <AnimatedButton
                     type="button"
                     onClick={handleDownloadInstance}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    disabled={savingInstance}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
-                    <DownloadIcon size={16} />
+                    {savingInstance ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
                     Speichern
                   </AnimatedButton>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
@@ -838,9 +856,10 @@ export function WorkspacePage() {
                     <AnimatedButton
                       type="button"
                       onClick={handleDownloadProject}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                      disabled={savingProject}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     >
-                      <DownloadIcon size={16} />
+                      {savingProject ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
                       Speichern
                     </AnimatedButton>
                     <AnimatedButton
