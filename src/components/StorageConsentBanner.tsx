@@ -29,7 +29,7 @@ export function StorageConsentBanner() {
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">
       <div className="flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-800">
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Dein Projekt wird automatisch nur in deinem Browser zwischengespeichert, damit bei einem
+          Deine Projekte werden automatisch nur in deinem Browser zwischengespeichert, damit bei einem
           Absturz oder Neuladen nichts verloren geht – diese Daten verlassen deinen Browser nicht.
           Möchtest du das erlauben?
         </p>

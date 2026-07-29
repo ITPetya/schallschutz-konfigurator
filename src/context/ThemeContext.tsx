@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
+import { isStorageAllowed } from "../config/storageConsent";
 
 export type Theme = "light" | "dark";
 
-const THEME_KEY = "ssk_theme";
+// Exportiert (statt modulintern), damit "Meine Daten löschen"
+// (projectHistoryStore.ts) diesen Key mit entfernen kann.
+export const THEME_KEY = "ssk_theme";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -29,7 +32,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(THEME_KEY, theme);
+    // Nur bei erteilter Speicher-Einwilligung schreiben (Jonas' Vorgabe
+    // 2026-07-29: ein "Nein" im StorageConsentBanner muss WIRKLICH jede
+    // weitere Speicherung verhindern, nicht nur die Projekt-Historie).
+    if (isStorageAllowed()) localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   // "Swoosh"-Animation beim Umschalten (Jonas' Vorgabe 2026-07-28, siehe

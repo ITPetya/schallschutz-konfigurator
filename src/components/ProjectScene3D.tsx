@@ -198,6 +198,8 @@ export function ProjectScene3D({
           />
         ))}
 
+        {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
+            Herkunft dieser HDRI-Dateien. */}
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={maxReachM} />

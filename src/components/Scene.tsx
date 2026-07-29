@@ -136,6 +136,10 @@ export function Scene({
           </SectionPlaneProvider>
         </DisplaySettingsProvider>
 
+        {/* HDRI-Umgebungsbilder (public/hdri/) - dem Dateinamen nach vermutlich
+            von Poly Haven (dort CC0/gemeinfrei) bezogen, aber die genaue
+            Bezugsquelle ist im Projekt bisher nicht dokumentiert/bestaetigt -
+            vor Live-Schaltung als Unterseite pruefen/bestaetigen. */}
         {isTerrain ? (
           <>
             <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />

@@ -1,5 +1,7 @@
 import type { ProjectConfig } from "./projectTypes";
 import { isStorageAllowed } from "./storageConsent";
+import { THEME_KEY } from "../context/ThemeContext";
+import { SEEN_KEY } from "../tour/tourStore";
 
 // Verlauf mehrerer zuletzt offener Projekte (Jonas' Vorgabe 2026-07-28: "man
 // sollte mehrere Container/Projekte auch im local storage gespeichert haben
@@ -114,12 +116,16 @@ export function hasMeaningfulProjectDraft(): boolean {
 
 // "Meine Daten löschen" (AppShell.tsx) und das Ablehnen der Speicher-
 // Einwilligung (StorageConsentBanner.tsx) meinen explizit ALLE lokal
-// zwischengespeicherten Projektdaten, nicht nur den aktiven Eintrag - siehe
-// dortigen Bestaetigungstext "alle lokal zwischengespeicherten Projektdaten".
+// gespeicherten Daten der App, nicht nur die Projekt-Historie (Jonas'
+// Fehlerbericht 2026-07-29: vorher blieben Theme-Praeferenz und "Tour schon
+// gesehen"-Merker auch nach "Daten löschen"/"Nein" bestehen) - deshalb
+// zusaetzlich die Keys aus ThemeContext.tsx und tourStore.ts mit entfernen.
 export function clearProjectDraft() {
   try {
     localStorage.removeItem(HISTORY_KEY);
     localStorage.removeItem(ACTIVE_ID_KEY);
+    localStorage.removeItem(THEME_KEY);
+    localStorage.removeItem(SEEN_KEY);
   } catch {
     // s.o.
   }
