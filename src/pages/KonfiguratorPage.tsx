@@ -4,9 +4,7 @@ import { OpeningsSummary } from "../components/OpeningsSummary";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
-import { LoadingScreen } from "../components/LoadingScreen";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
-import { useDeferredMount } from "../hooks/useDeferredMount";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
@@ -35,10 +33,6 @@ interface KonfiguratorPageProps {
 // Moduswechsel-Logik (die gibt es nur im editierbaren WorkspacePage.tsx).
 export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel }: KonfiguratorPageProps) {
   const config = initialConfig;
-  // Jonas' Fehlerbericht 2026-07-29: der CSG-Aufbau (Container.tsx via
-  // Scene.tsx) laeuft synchron und blockiert ohne diesen Gate jedes Malen,
-  // auch das eines Ladescreens - siehe hooks/useDeferredMount.ts.
-  const ready = useDeferredMount();
 
   const [size] = useState<ContainerSize>(config.size);
   const [wallThickness] = useState(config.wallThickness);
@@ -52,8 +46,6 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
   const [insideUnpainted] = useState(config.insideUnpainted ?? false);
   const [outsideNotes] = useState(config.outsideNotes ?? "");
   const [insideNotes] = useState(config.insideNotes ?? "");
-
-  if (!ready) return <LoadingScreen />;
 
   return (
     // Kein eigener Header/Accent-Bar mehr hier (Jonas' Fehlerbericht

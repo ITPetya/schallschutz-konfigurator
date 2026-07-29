@@ -10,8 +10,10 @@ import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { DisplaySettingsProvider, type ViewStyle } from "../context/DisplaySettingsContext";
 import { useTheme } from "../context/ThemeContext";
 import { ViewerToolbar } from "./ViewerToolbar";
+import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
+import { useStaggeredReveal } from "../hooks/useStaggeredReveal";
 
 const MM_TO_M = 1 / 1000;
 
@@ -129,6 +131,13 @@ export function ProjectScene3D({
   // (oder der ersten, falls keine ausgewaehlt) und schreibt beim Klick auf
   // ALLE Instanzen zurueck (siehe onSetAllViewStyle).
   const displayedViewStyle = (selectedInstance ?? instances[0])?.config.viewStyle ?? "realistic";
+  // Container werden STUECKWEISE freigegeben statt alle in einem Rutsch zu
+  // mounten (Jonas' Fehlerbericht 2026-07-29: der CSG-Aufbau mehrerer
+  // Container in EINEM synchronen Commit blockierte den Haupt-Thread so
+  // lange, dass selbst ein Ladescreen nicht dazwischen aktualisiert werden
+  // konnte) - siehe hooks/useStaggeredReveal.ts.
+  const revealedCount = useStaggeredReveal(instances.length);
+  const contentNotReady = revealedCount < instances.length;
 
   function handlePointerEvent(id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") {
     e.stopPropagation();
@@ -160,7 +169,7 @@ export function ProjectScene3D({
           shadow-mapSize={[2048, 2048]}
         />
 
-        {instances.map((inst) => (
+        {instances.slice(0, revealedCount).map((inst) => (
           <InstanceGroup
             key={inst.id}
             instance={inst}
@@ -216,6 +225,8 @@ export function ProjectScene3D({
           />
         </GizmoHelper>
       </Canvas>
+
+      <ViewerLoadingOverlay contentNotReady={contentNotReady} />
 
       <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
 
