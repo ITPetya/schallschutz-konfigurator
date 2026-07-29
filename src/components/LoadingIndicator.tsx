@@ -41,8 +41,13 @@ export function LoadingIndicator({ active = true, overlay = false }: LoadingIndi
 
   const content = (
     <div className="flex flex-col items-center gap-3 px-6 text-center text-sm text-slate-400 dark:text-slate-500">
-      <Progress value={value} className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-        <ProgressIndicator className="h-full w-full bg-brand" />
+      {/* Groesse/Farben 1:1 wie animate-ui.com's Standard-"Progress"-Komponente
+          (bg-primary/20 + bg-primary, h-2, rounded-full auf Track UND
+          Indikator, siehe apps/www/registry/components/radix/progress) -
+          vorher ein eigener, kleinerer Stil (h-1.5, w-40), der deshalb nicht
+          wie das bekannte animate-ui-Element aussah. */}
+      <Progress value={value} className="h-2 w-56 overflow-hidden rounded-full bg-brand/20">
+        <ProgressIndicator className="h-full w-full rounded-full bg-brand" />
       </Progress>
       <span>Lädt…</span>
       {phase === "eta" && (
