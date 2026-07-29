@@ -7,8 +7,17 @@ import * as THREE from "three";
 // Gewinn bei ueblicher Betrachtungsdistanz im Konfigurator). EIN Kachel-
 // Quadrat mit den beiden Diagonalen ("X") ergibt beim nahtlosen Wiederholen
 // automatisch das durchgehende Rautengitter (jede Kachel = eine Raute).
-const TILE_PX = 128;
-const STRAND_RATIO = 0.34; // Strangbreite relativ zur Kachelgroesse, nach Referenzfoto
+// Jonas' Fehlerbericht 2026-07-29: "man kann das Streckgitter nicht
+// erkennen, sieht eher rau aus" - bei sehr vielen Wiederholungen (1cm-
+// Zellen ueber mehrere Meter Wandbreite) verwischt das Muster sonst per
+// Mipmapping zu einem gleichmaessigen Grauschleier statt als Raute erkennbar
+// zu bleiben. Fix: groessere Kachelaufloesung (sauberere Mipmap-Kette),
+// deutlich mehr Kontrast zwischen Loch/Strang, kraeftigerer Strang UND
+// Anisotropic Filtering (siehe getStreckgitterMaps unten) statt nur an der
+// (weiterhin unveraenderten, physikalisch korrekten) 1cm-Zellengroesse
+// selbst zu drehen.
+const TILE_PX = 256;
+const STRAND_RATIO = 0.42; // Strangbreite relativ zur Kachelgroesse - kraeftiger als vorher
 
 function drawX(ctx: CanvasRenderingContext2D, size: number, color: string, width: number) {
   ctx.strokeStyle = color;
@@ -51,22 +60,28 @@ export function getStreckgitterMaps(): StreckgitterMaps {
   const colorCanvas = document.createElement("canvas");
   colorCanvas.width = colorCanvas.height = TILE_PX;
   const colorCtx = colorCanvas.getContext("2d")!;
-  colorCtx.fillStyle = "#8b8f94"; // Loch-/Hintergrundflaeche, dezent verschattet
+  colorCtx.fillStyle = "#4a4d51"; // Loch-/Hintergrundflaeche - deutlich dunkler als vorher fuer mehr Kontrast
   colorCtx.fillRect(0, 0, TILE_PX, TILE_PX);
-  drawX(colorCtx, TILE_PX, "#d8dadd", strandWidth); // Metall-Straenge, hell/silbrig
+  drawX(colorCtx, TILE_PX, "#e8eaec", strandWidth); // Metall-Straenge, hell/silbrig
 
   const bumpCanvas = document.createElement("canvas");
   bumpCanvas.width = bumpCanvas.height = TILE_PX;
   const bumpCtx = bumpCanvas.getContext("2d")!;
-  bumpCtx.fillStyle = "#202020"; // Loch = zurueckgesetzt
+  bumpCtx.fillStyle = "#101010"; // Loch = zurueckgesetzt
   bumpCtx.fillRect(0, 0, TILE_PX, TILE_PX);
-  drawX(bumpCtx, TILE_PX, "#f2f2f2", strandWidth); // Strang = erhaben
+  drawX(bumpCtx, TILE_PX, "#ffffff", strandWidth); // Strang = erhaben
 
   const map = new THREE.CanvasTexture(colorCanvas);
   const bumpMap = new THREE.CanvasTexture(bumpCanvas);
   for (const tex of [map, bumpMap]) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.colorSpace = tex === map ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    // Ohne Anisotropic Filtering wird das feine Muster bei den fuer diesen
+    // Viewer typischen schraegen Kamerawinkeln per Mipmap zu einem
+    // gleichfoermigen Grau verwischt (Jonas' Fehlerbericht: "sieht eher rau
+    // aus") - ein fester, moderater Wert (die meisten GPUs erlauben deutlich
+    // mehr) reicht hier, ohne extra Renderer-Referenz einzuholen.
+    tex.anisotropy = 8;
   }
 
   cached = { map, bumpMap };

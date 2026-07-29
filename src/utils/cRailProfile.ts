@@ -18,7 +18,15 @@ const LIP_ANGLE = (49 * Math.PI) / 180; // Lippen-Winkel gegen die Senkrechte (S
 function centerline(): THREE.Vector2[] {
   const hw = WIDTH / 2;
   const legTop = new THREE.Vector2(-hw, HEIGHT);
-  const lipDir = new THREE.Vector2(Math.sin(LIP_ANGLE), Math.cos(LIP_ANGLE));
+  // Jonas' Fehlerbericht 2026-07-29: "die Backen sind in die falsche
+  // Richtung gekantet, nach aussen statt nach innen" - die Lippe darf vom
+  // Schenkel-Ende nicht einfach geradlinig weiter nach aussen/oben laufen
+  // (das war der vorherige Versuch, negatives Vorzeichen fehlte), sondern
+  // muss zurueck in Richtung Wand/Ruecken haken (klassische Einhänge-Nase
+  // einer Klemm-/Halfen-Schiene, die einen Schraubenkopf von HINTEN
+  // untergreift) - deshalb hier -cos statt +cos: die Lippe wandert beim
+  // Einwaertsdrehen wieder nach UNTEN (Richtung Wand), nicht weiter nach oben.
+  const lipDir = new THREE.Vector2(Math.sin(LIP_ANGLE), -Math.cos(LIP_ANGLE));
   const leftTip = legTop.clone().addScaledVector(lipDir, LIP_LENGTH);
 
   return [
@@ -80,5 +88,9 @@ export function getCRailProfileShape(): THREE.Shape {
   return cachedShape;
 }
 
-export const C_RAIL_DEPTH_M = HEIGHT + LIP_LENGTH * Math.cos(LIP_ANGLE);
+// Groesste Tiefe (Ruecken bis Schenkel-Oberkante) - die Lippe selbst haekt
+// wieder ZURUECK Richtung Wand, ragt also nicht mehr darueber hinaus.
+export const C_RAIL_DEPTH_M = HEIGHT;
 export const C_RAIL_PITCH_M = 0.558; // Achse-zu-Achse, Jonas' Vorgabe 2026-07-29
+export const C_RAIL_WIDTH_M = WIDTH; // Aussenbreite - fuer den Wandausschnitt (siehe railLayout.ts)
+export const C_RAIL_SHEET_THICKNESS_M = THICKNESS; // Blechstaerke - fuer die Einsenk-Tiefe im Wandausschnitt

@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
-import { getCRailProfileShape, C_RAIL_PITCH_M } from "../utils/cRailProfile";
+import { getCRailProfileShape, C_RAIL_SHEET_THICKNESS_M } from "../utils/cRailProfile";
+import { computeRailLayout } from "../utils/railLayout";
 import { getStreckgitterFieldMaps } from "../utils/streckgitterTexture";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 
@@ -15,44 +16,20 @@ interface InteriorCladdingProps {
   clippingPlanes: THREE.Plane[];
 }
 
-// Aussenbreite der C-Schiene (siehe cRailProfile.ts) - fuer den Toleranz-
-// Bereich, ab dem eine Oeffnung als "unter dieser Schiene liegend" gilt.
-const RAIL_PROFILE_WIDTH_M = 0.046;
-// Reststuecke unter dieser Hoehe werden nicht mehr als eigenes Feld gerendert
-// (z. B. ein 3mm-Rest direkt ueber einer Tuer) - optische Bereinigung.
-const MIN_SEGMENT_HEIGHT_M = 0.02;
+// Streckgitter-Felder liegen ein kleines Stueck VOR der eigentlichen
+// Wand-Innenflaeche (statt exakt koplanar) - zwei deckungsgleiche Flaechen
+// an EXAKT derselben Tiefe fuehren sonst zu Z-Fighting/Flackern (Jonas'
+// Fehlerbericht 2026-07-29: "es flackern die Innenwaende ... liegt
+// vermutlich am Streckgitter").
+const STRECKGITTER_OFFSET_M = 0.002;
 
-// Verschmilzt ueberlappende "blockierte" Hoehenbereiche (Oeffnungen) und
-// liefert die dazwischen/darueber/darunter freien Hoehenbereiche innerhalb
-// [0, total] - dieselbe Aussparungs-Logik wird sowohl fuer die C-Schienen als
-// auch fuer die Streckgitter-Felder gebraucht.
-function freeSegments(blocked: [number, number][], total: number): [number, number][] {
-  if (blocked.length === 0) return [[0, total]];
-  const sorted = [...blocked].sort((a, b) => a[0] - b[0]);
-  const merged: [number, number][] = [sorted[0]];
-  for (let i = 1; i < sorted.length; i++) {
-    const last = merged[merged.length - 1];
-    const [from, to] = sorted[i];
-    if (from <= last[1]) last[1] = Math.max(last[1], to);
-    else merged.push([from, to]);
-  }
-  const free: [number, number][] = [];
-  let cursor = 0;
-  for (const [from, to] of merged) {
-    if (from > cursor) free.push([cursor, from]);
-    cursor = Math.max(cursor, to);
-  }
-  if (cursor < total) free.push([cursor, total]);
-  return free.filter(([from, to]) => to - from > MIN_SEGMENT_HEIGHT_M);
-}
-
-// Innenverkleidung der Seitenwaende (Jonas' Vorgabe 2026-07-29): Streckgitter-
-// Bleche zwischen senkrechten C-Klemmschienen (558mm Achse-Achse), zur
-// Befestigung von Aggregaten/Halterungen. Tueren/Einbauten sparen sowohl
-// Schienen als auch Gitterfelder an der jeweiligen Stelle aus (siehe
-// freeSegments) - beide werden pro Wand aus deren openings berechnet, exakt
-// wie der CSG-Ausschnitt der Wand selbst (Wall.tsx), nur eben additiv statt
-// subtraktiv.
+// Innenverkleidung der Seitenwaende/des Dachs (Jonas' Vorgabe 2026-07-29):
+// Streckgitter-Bleche zwischen senkrechten (bzw. am Dach: querlaufenden)
+// C-Klemmschienen (558mm Achse-Achse), zur Befestigung von Aggregaten/
+// Halterungen. Tueren/Einbauten sparen sowohl Schienen als auch Gitterfelder
+// an der jeweiligen Stelle aus, siehe utils/railLayout.ts (von Wall.tsx UND
+// hier gemeinsam genutzt, damit der dortige Wandausschnitt exakt zu den
+// hier gerenderten Schienen passt).
 export function InteriorCladding({ panelWidth, panelHeight, thickness, openings, outwardSign, clippingPlanes }: InteriorCladdingProps) {
   const { viewStyle } = useDisplaySettings();
   // Jonas' Fehlerbericht 2026-07-29: das Streckgitter soll nur in
@@ -74,29 +51,31 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
     return geom;
   }, []);
 
-  const innerZ = -outwardSign * (thickness / 2); // Wandinnenflaeche, siehe Wall.tsx's edgeGeometry
+  // Wandinnenflaeche, siehe Wall.tsx's edgeGeometry.
+  const innerZ = -outwardSign * (thickness / 2);
+  // Jonas' Fehlerbericht 2026-07-29: "die Schienen liegen noch immer AUF
+  // der Wand, sollen aber in der Wand VERSUNKEN sein, mit einem Ausschnitt
+  // in der Wand an der Stelle" - der Schienen-Ruecken sitzt deshalb nicht
+  // mehr direkt auf der Innenflaeche, sondern um die eigene Blechstaerke
+  // (2mm) Richtung Aussenflaeche zurueckversetzt, GENAU in dem flachen
+  // Ausschnitt, den Wall.tsx an derselben Stelle aus der Wand entfernt
+  // (siehe dort und railLayout.ts - beide nutzen dieselbe Tiefe).
+  const railBaseZ = innerZ + outwardSign * C_RAIL_SHEET_THICKNESS_M;
+  const streckgitterZ = innerZ - outwardSign * STRECKGITTER_OFFSET_M;
 
-  // Feste Schienenteilung (558mm Achse-Achse, NICHT gestreckt/gestaucht wie
-  // die Lamellen des Wetterschutzgitters - das ist eine reale
-  // Befestigungsraster-Vorgabe) - Rest-Randstuecke links/rechts werden
-  // gleichmaessig aufgeteilt statt eine Schiene an den Rand zu zwingen.
-  const { railU, bays } = useMemo(() => {
-    const count = Math.max(1, Math.floor(panelWidth / C_RAIL_PITCH_M) + 1);
-    const margin = (panelWidth - (count - 1) * C_RAIL_PITCH_M) / 2;
-    const u = Array.from({ length: count }, (_, i) => -panelWidth / 2 + margin + i * C_RAIL_PITCH_M);
+  const { railSegments, baySegments } = useMemo(
+    () => computeRailLayout(panelWidth, panelHeight, openings),
+    [panelWidth, panelHeight, openings],
+  );
 
-    const bayBounds: { uStart: number; uEnd: number; map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture }[] = [];
-    const addBay = (uStart: number, uEnd: number) => {
-      if (uEnd - uStart < 0.02) return;
-      const { map, bumpMap } = getStreckgitterFieldMaps(uEnd - uStart, panelHeight);
-      bayBounds.push({ uStart, uEnd, map, bumpMap });
-    };
-    if (u[0] > -panelWidth / 2) addBay(-panelWidth / 2, u[0]);
-    for (let i = 0; i < u.length - 1; i++) addBay(u[i], u[i + 1]);
-    if (u[u.length - 1] < panelWidth / 2) addBay(u[u.length - 1], panelWidth / 2);
-
-    return { railU: u, bays: bayBounds };
-  }, [panelWidth, panelHeight]);
+  const bayFields = useMemo(
+    () =>
+      baySegments.map((bay) => ({
+        ...bay,
+        ...getStreckgitterFieldMaps(bay.uEnd - bay.uStart, bay.to - bay.from),
+      })),
+    [baySegments],
+  );
 
   return (
     <group>
@@ -104,48 +83,37 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
           pro freiem Hoehenabschnitt nur Y-skaliert (Extrusionslaenge=1m)
           statt neu berechnet. Immer sichtbar (Realistisch UND Schattiert
           mit Kanten), Kantenlinien nur im letzteren. */}
-      {railU.map((u, i) => {
-        const blocked = openings
-          .filter((o) => Math.abs(o.u - u) < o.width / 2 + RAIL_PROFILE_WIDTH_M / 2)
-          .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
-        return freeSegments(blocked, panelHeight).map(([from, to], j) => (
-          <mesh
-            key={`rail-${i}-${j}`}
-            geometry={railGeometry}
-            position={[u, from - panelHeight / 2, innerZ]}
-            scale={[1, to - from, outwardSign]}
-            castShadow
-          >
-            <meshStandardMaterial color="#b8bcc0" roughness={0.5} metalness={0.7} clippingPlanes={clippingPlanes} />
-            {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
-          </mesh>
-        ));
-      })}
+      {railSegments.map(({ u, from, to }, i) => (
+        <mesh
+          key={`rail-${i}`}
+          geometry={railGeometry}
+          position={[u, from - panelHeight / 2, railBaseZ]}
+          scale={[1, to - from, outwardSign]}
+          castShadow
+        >
+          <meshStandardMaterial color="#b8bcc0" roughness={0.5} metalness={0.7} clippingPlanes={clippingPlanes} />
+          {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
+        </mesh>
+      ))}
 
       {/* Streckgitter-Felder zwischen den Schienen (inkl. der beiden
           schmaleren Randfelder links/rechts) - nur in "Schattiert mit
           Kanten" (siehe shaded oben). */}
       {shaded &&
-        bays.map(({ uStart, uEnd, map, bumpMap }, i) => {
-          const bayCenter = (uStart + uEnd) / 2;
-          const blocked = openings
-            .filter((o) => o.u + o.width / 2 > uStart && o.u - o.width / 2 < uEnd)
-            .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
-          return freeSegments(blocked, panelHeight).map(([from, to], j) => (
-            <mesh key={`bay-${i}-${j}`} position={[bayCenter, (from + to) / 2 - panelHeight / 2, innerZ]}>
-              <planeGeometry args={[uEnd - uStart, to - from]} />
-              <meshStandardMaterial
-                map={map}
-                bumpMap={bumpMap}
-                bumpScale={0.4}
-                roughness={0.55}
-                metalness={0.6}
-                side={THREE.DoubleSide}
-                clippingPlanes={clippingPlanes}
-              />
-            </mesh>
-          ));
-        })}
+        bayFields.map(({ uStart, uEnd, from, to, map, bumpMap }, i) => (
+          <mesh key={`bay-${i}`} position={[(uStart + uEnd) / 2, (from + to) / 2 - panelHeight / 2, streckgitterZ]}>
+            <planeGeometry args={[uEnd - uStart, to - from]} />
+            <meshStandardMaterial
+              map={map}
+              bumpMap={bumpMap}
+              bumpScale={0.4}
+              roughness={0.55}
+              metalness={0.6}
+              side={THREE.DoubleSide}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+        ))}
     </group>
   );
 }

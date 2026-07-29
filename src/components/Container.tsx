@@ -4,6 +4,7 @@ import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { isVerticalWall } from "../types/openings";
 import { Wall } from "./Wall";
+import { RoofRidge } from "./RoofRidge";
 import {
   CornerCasting,
   CORNER_BLOCK_LENGTH_MM,
@@ -259,6 +260,10 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
         ))
       )
     ),
+    // First-Schraege aussen aufs Dach (Jonas' Vorgabe 2026-07-29) - rein
+    // additiv, sitzt auf der Aussenflaeche des flachen Dach-Panels
+    // (wall-top) oben drauf, siehe RoofRidge.tsx.
+    <RoofRidge key="roof-ridge" lengthM={effectiveL} widthM={effectiveW} baseY={H - wallRecess} />,
   ];
 
   const revealed = useChunkedReveal(parts.length);
