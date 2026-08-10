@@ -220,23 +220,34 @@ export function Scene({
             Welt-Y) "Z", und die Welt-Z-Achse (Containerbreite) "Y" -
             "X ist von links nach rechts, Y ist die Tiefe, Z ist die Höhe".
             Jonas' Fehlerbericht 2026-08-10: "soll wie in Inventor sein...
-            nur ein Infomaterial, wenn mans braucht" - Inventors kleines
-            Achsenkreuz ist flach (keine 3D-Pfeilspitzen), nicht anklickbar
-            und deutlich kleiner als der ViewCube. disabled (keine
-            Kamera-Interaktion, reine Anzeige), hideAxisHeads (Linien statt
-            Pfeilspitzen/Kegel) und hideNegativeAxes (nur 3 statt 6 Arme) fuer
-            den flachen Look, zusaetzlich per group scale verkleinert (auf
-            GizmoHelper selbst wirkt scale NICHT - das ist reines Prop-
-            Durchreichen an eine feste HUD-Kamera, kein normaler
-            Szenen-Node). */}
-        <GizmoHelper alignment="bottom-left" margin={[56, 56]}>
+            nur ein Infomaterial, wenn mans braucht" - disabled (keine
+            Kamera-Interaktion, reine Anzeige) und hideNegativeAxes (nur 3
+            statt 6 Arme) fuer den reduzierten Look, per group scale
+            verkleinert (auf GizmoHelper selbst wirkt scale NICHT - das ist
+            reines Prop-Durchreichen an eine feste HUD-Kamera, kein normaler
+            Szenen-Node). KEIN hideAxisHeads mehr - Jonas' Fehlerbericht:
+            "es steht kein X,Y,Z am Kreuz" - drei's GizmoViewport zeichnet
+            die Buchstaben-Beschriftung NUR in dieselbe Sprite-Textur wie den
+            "Kopf" jeder Achse (siehe node_modules/@react-three/drei/core/
+            GizmoViewport.js: AxisHead), hideAxisHeads entfernt beides
+            zusammen - es gibt keine Moeglichkeit, nur die Pfeilspitze ohne
+            das Label zu verstecken.
+            renderPriority={2} auf DIESEM zweiten GizmoHelper ist wichtig:
+            drei's Hud-Komponente (beide GizmoHelper nutzen sie intern)
+            raeumt bei renderPriority===1 den kompletten Canvas leer und
+            zeichnet die Hauptszene neu, BEVOR sie ihren eigenen Inhalt
+            zeichnet - zwei GizmoHelper mit demselben Default (1) haben sich
+            deshalb gegenseitig ueberschrieben (der zweite hat den ViewCube
+            des ersten mit weggeraeumt). Mit renderPriority={2} macht der
+            zweite Hud nur noch autoClear=false + zeichnet obendrauf, ohne
+            den ViewCube wieder zu loeschen. */}
+        <GizmoHelper alignment="bottom-left" margin={[56, 56]} renderPriority={2}>
           <group scale={0.6}>
             <GizmoViewport
               labels={["X", "Z", "Y"]}
               axisColors={["#dc2626", "#16a34a", "#008eb4"]}
               labelColor="white"
               disabled
-              hideAxisHeads
               hideNegativeAxes
             />
           </group>
