@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
@@ -350,14 +350,43 @@ export function SectionAndViewPanel({
 // ziehbar (Maus UND Touch).
 function SectionSlider({ min, max, value, onChange }: { min: number; max: number; value: number; onChange: (v: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingClientX = useRef<number | null>(null);
   const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
 
-  function setFromClientX(clientX: number) {
-    const rect = trackRef.current!.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  function applyFromClientX(clientX: number) {
+    const rect = trackRef.current;
+    if (!rect) return;
+    const bounds = rect.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - bounds.left) / bounds.width));
     const raw = min + ratio * (max - min);
     onChange(Math.round(raw / 10) * 10);
   }
+
+  // Jonas' Fehlerbericht 2026-08-10: "Anpassen der Tiefe des Schnitts laggt" -
+  // jedes rohe pointermove hat bisher SOFORT ein onChange (State-Update im
+  // Elternteil, siehe useSectionPlane) ausgeloest, das bei aktiver
+  // Schnittansicht die komplette Szene (potenziell hunderte C-Schienen-/
+  // Streckgitter-Meshes) neu rendert - ein schneller Drag feuert leicht
+  // 60-120+ pointermove-Events/Sekunde. rAF-Throttling laesst pro
+  // Bildwiederholung nur noch eine Aktualisierung durch (der jeweils
+  // NEUESTE Wert innerhalb eines Frames gewinnt), statt jedes einzelne
+  // Event sofort zu verarbeiten.
+  function scheduleFromClientX(clientX: number) {
+    pendingClientX.current = clientX;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (pendingClientX.current !== null) applyFromClientX(pendingClientX.current);
+    });
+  }
+
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
 
   return (
     <div
@@ -365,10 +394,10 @@ function SectionSlider({ min, max, value, onChange }: { min: number; max: number
       className="relative h-6 w-full touch-none rounded-full bg-slate-100 dark:bg-slate-700"
       onPointerDown={(e) => {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        setFromClientX(e.clientX);
+        applyFromClientX(e.clientX);
       }}
       onPointerMove={(e) => {
-        if (e.buttons === 1) setFromClientX(e.clientX);
+        if (e.buttons === 1) scheduleFromClientX(e.clientX);
       }}
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-brand-light/50" style={{ width: `${pct}%` }} />

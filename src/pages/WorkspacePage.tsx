@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
@@ -189,6 +189,76 @@ export function WorkspacePage() {
   const [alignError, setAlignError] = useState<string | null>(null);
   const [showResetProjectConfirm, setShowResetProjectConfirm] = useState(false);
   const workspaceDragRef = useRef<DragState | null>(null);
+  // Jonas' Fehlerbericht 2026-08-10 ("Verschieben von Containern lagt sehr,
+  // Auswaehlen von Containern dauert sehr lange"): die Drag-/Auswahl-Handler
+  // unten (onPointerDown/-Move/-Up an ProjectScene3D) lasen bisher `project`
+  // direkt aus dem Closure - dadurch bekam JEDE Instanz in der Baugruppe bei
+  // JEDEM Renderaufruf eine NEUE Handler-Referenz, was React.memo (siehe
+  // InstanceGroup in ProjectScene3D.tsx) komplett wirkungslos machte: JEDER
+  // Container in der Baugruppe wurde bei JEDER Positionsaenderung/Auswahl
+  // neu gerendert, nicht nur der betroffene - bei vielen Containern (mit
+  // jeweils dutzenden C-Schienen-/Streckgitter-Meshes) summiert sich das
+  // spuerbar. projectRef haelt den JEWEILS AKTUELLEN Stand, damit die Handler
+  // unten OHNE `project`-Abhaengigkeit (also mit stabiler Referenz ueber
+  // useCallback) trotzdem immer korrekt gegen die aktuellen Positionen
+  // pruefen/kollidieren koennen.
+  const projectRef = useRef(project);
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
+
+  // Stabile (leere Dependency-Liste) Referenzen - lesen den Container-Stand
+  // ausschliesslich ueber projectRef.current statt aus dem `project`-Closure,
+  // damit React.memo in ProjectScene3D/InstanceGroup tatsaechlich greift
+  // (siehe projectRef-Kommentar oben).
+  const handleInstancePointerDown = useCallback((id: string, ground: { x: number; z: number }) => {
+    const inst = projectRef.current.instances.find((i) => i.id === id);
+    if (!inst) return;
+    workspaceDragRef.current = {
+      id,
+      offsetXMm: ground.x * M_TO_MM - inst.position.x,
+      offsetZMm: ground.z * M_TO_MM - inst.position.z,
+      lastValidMm: { ...inst.position },
+    };
+    setDraggingId(id);
+    setDragValid(true);
+  }, []);
+
+  const handleInstancePointerMove = useCallback((id: string, ground: { x: number; z: number }) => {
+    const drag = workspaceDragRef.current;
+    if (!drag || drag.id !== id) return;
+    const candidatePos = { x: ground.x * M_TO_MM - drag.offsetXMm, z: ground.z * M_TO_MM - drag.offsetZMm };
+    const inst = projectRef.current.instances.find((i) => i.id === id);
+    if (!inst) return;
+    const candidate: OrientedRect = {
+      x: candidatePos.x,
+      z: candidatePos.z,
+      halfWidth: inst.config.size.length / 2,
+      halfDepth: inst.config.size.width / 2,
+      rotationDeg: inst.rotationY,
+    };
+    const others = projectRef.current.instances.filter((i) => i.id !== id);
+    const valid = !collidesWithAny(candidate, others);
+    setDragValid(valid);
+    if (valid) drag.lastValidMm = candidatePos;
+    setProject((p) => ({
+      ...p,
+      instances: p.instances.map((i) => (i.id === id ? { ...i, position: candidatePos } : i)),
+    }));
+  }, []);
+
+  const handleInstancePointerUp = useCallback((id: string) => {
+    const drag = workspaceDragRef.current;
+    if (!drag || drag.id !== id) return;
+    const finalPos = drag.lastValidMm;
+    setProject((p) => ({
+      ...p,
+      instances: p.instances.map((i) => (i.id === id ? { ...i, position: finalPos } : i)),
+    }));
+    workspaceDragRef.current = null;
+    setDraggingId(null);
+    setDragValid(true);
+  }, []);
 
   // Falls gesetzt: zeigt die Detailbearbeitung EINER Container-Instanz statt
   // der Projekt-Uebersicht - "Zurück zur Baugruppe" schaltet einfach wieder
@@ -1005,52 +1075,9 @@ export function WorkspacePage() {
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}
                 canRedo={redoStack.length > 0}
-                onPointerDown={(id, ground) => {
-                  const inst = project.instances.find((i) => i.id === id);
-                  if (!inst) return;
-                  workspaceDragRef.current = {
-                    id,
-                    offsetXMm: ground.x * M_TO_MM - inst.position.x,
-                    offsetZMm: ground.z * M_TO_MM - inst.position.z,
-                    lastValidMm: { ...inst.position },
-                  };
-                  setDraggingId(id);
-                  setDragValid(true);
-                }}
-                onPointerMove={(id, ground) => {
-                  const drag = workspaceDragRef.current;
-                  if (!drag || drag.id !== id) return;
-                  const candidatePos = { x: ground.x * M_TO_MM - drag.offsetXMm, z: ground.z * M_TO_MM - drag.offsetZMm };
-                  const inst = project.instances.find((i) => i.id === id);
-                  if (!inst) return;
-                  const candidate: OrientedRect = {
-                    x: candidatePos.x,
-                    z: candidatePos.z,
-                    halfWidth: inst.config.size.length / 2,
-                    halfDepth: inst.config.size.width / 2,
-                    rotationDeg: inst.rotationY,
-                  };
-                  const others = project.instances.filter((i) => i.id !== id);
-                  const valid = !collidesWithAny(candidate, others);
-                  setDragValid(valid);
-                  if (valid) drag.lastValidMm = candidatePos;
-                  setProject((p) => ({
-                    ...p,
-                    instances: p.instances.map((i) => (i.id === id ? { ...i, position: candidatePos } : i)),
-                  }));
-                }}
-                onPointerUp={(id) => {
-                  const drag = workspaceDragRef.current;
-                  if (!drag || drag.id !== id) return;
-                  const finalPos = drag.lastValidMm;
-                  setProject((p) => ({
-                    ...p,
-                    instances: p.instances.map((i) => (i.id === id ? { ...i, position: finalPos } : i)),
-                  }));
-                  workspaceDragRef.current = null;
-                  setDraggingId(null);
-                  setDragValid(true);
-                }}
+                onPointerDown={handleInstancePointerDown}
+                onPointerMove={handleInstancePointerMove}
+                onPointerUp={handleInstancePointerUp}
               />
             </>
           )}

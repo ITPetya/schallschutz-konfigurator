@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
@@ -153,30 +153,40 @@ export function ProjectScene3D({
   }, [instances]);
   const contentNotReady = instances.length > 0 && readyIds.size < instances.length;
 
-  function handlePointerEvent(id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") {
-    // Jonas' Vorgabe 2026-08-10: nur die LINKE Maustaste darf einen Container
-    // auswaehlen/verschieben - mittlere/rechte Taste sind fuer die Kamera
-    // reserviert (Pan, siehe OrbitControls' mouseButtons unten) und sollen
-    // beim Draufdruecken auf einen Container weder etwas auswaehlen noch
-    // ihn verschieben. Ohne dieses Gate wuerde JEDER Tastendruck (auch
-    // Mitte/Rechts) hier landen und gleichzeitig (a) den Container
-    // auswaehlen/zu verschieben beginnen UND (b) OrbitControls' natives
-    // Pan ausloesen, da e.stopPropagation() nur die r3f/three.js-
-    // Raycasting-Ausbreitung stoppt, nicht den nativen DOM-Listener von
-    // OrbitControls (siehe Kommentar dort) - fuehrte zu gleichzeitigem
-    // Kamera-Pan + Container-Drag.
-    if (action === "down" && e.button !== 0) return;
-    e.stopPropagation();
-    if (action === "down") {
-      (e.target as unknown as Element).setPointerCapture?.(e.pointerId);
-      onSelect(id);
-      onPointerDown(id, rayToGroundXZ(e.ray));
-    } else if (action === "move") {
-      onPointerMove(id, rayToGroundXZ(e.ray));
-    } else {
-      onPointerUp(id);
-    }
-  }
+  // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
+  // lagt sehr"): EINE stabile (useCallback) Funktion statt vormals einer neu
+  // erzeugten Closure PRO Instanz PRO Render (`(e) => handlePointerEvent(inst.id, e, ...)`
+  // in der .map() unten) - nur so kann InstanceGroup unten sinnvoll per
+  // React.memo verglichen werden, sonst haette jede Instanz bei JEDEM Render
+  // (auch fuer Aenderungen an ANDEREN Instanzen) eine "neue" Prop-Referenz
+  // bekommen und waere zwangslaeufig neu gerendert worden.
+  const handlePointerEvent = useCallback(
+    (id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") => {
+      // Jonas' Vorgabe 2026-08-10: nur die LINKE Maustaste darf einen
+      // Container auswaehlen/verschieben - mittlere/rechte Taste sind fuer
+      // die Kamera reserviert (Pan, siehe OrbitControls' mouseButtons
+      // unten) und sollen beim Draufdruecken auf einen Container weder
+      // etwas auswaehlen noch ihn verschieben. Ohne dieses Gate wuerde
+      // JEDER Tastendruck (auch Mitte/Rechts) hier landen und gleichzeitig
+      // (a) den Container auswaehlen/zu verschieben beginnen UND (b)
+      // OrbitControls' natives Pan ausloesen, da e.stopPropagation() nur
+      // die r3f/three.js-Raycasting-Ausbreitung stoppt, nicht den nativen
+      // DOM-Listener von OrbitControls (siehe Kommentar dort) - fuehrte zu
+      // gleichzeitigem Kamera-Pan + Container-Drag.
+      if (action === "down" && e.button !== 0) return;
+      e.stopPropagation();
+      if (action === "down") {
+        (e.target as unknown as Element).setPointerCapture?.(e.pointerId);
+        onSelect(id);
+        onPointerDown(id, rayToGroundXZ(e.ray));
+      } else if (action === "move") {
+        onPointerMove(id, rayToGroundXZ(e.ray));
+      } else {
+        onPointerUp(id);
+      }
+    },
+    [onSelect, onPointerDown, onPointerMove, onPointerUp],
+  );
 
   return (
     <div className="relative h-full w-full">
@@ -201,12 +211,16 @@ export function ProjectScene3D({
             instance={inst}
             selected={selectedId === inst.id}
             dragging={draggingId === inst.id}
-            dragValid={dragValid}
+            // Zu EINEM Bool zusammengefasst statt dragValid roh
+            // durchzureichen: fuer alle NICHT gezogenen Instanzen bleibt
+            // dragInvalid dadurch dauerhaft "false" (stabiler Primitive-
+            // Wert), auch waehrend dragValid sich beim Ziehen laufend
+            // aendert - sonst haette JEDE Instanz bei JEDER
+            // Kollisionspruefung neu gerendert, nicht nur die gezogene.
+            dragInvalid={draggingId === inst.id && !dragValid}
             sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
-            onPointerDown={(e) => handlePointerEvent(inst.id, e, "down")}
-            onPointerMove={(e) => handlePointerEvent(inst.id, e, "move")}
-            onPointerUp={(e) => handlePointerEvent(inst.id, e, "up")}
-            onReady={() => handleInstanceReady(inst.id)}
+            onPointerEvent={handlePointerEvent}
+            onInstanceReady={handleInstanceReady}
           />
         ))}
 
@@ -281,7 +295,11 @@ interface InstanceGroupProps {
   instance: ContainerInstance;
   selected: boolean;
   dragging: boolean;
-  dragValid: boolean;
+  // Siehe Aufrufstelle unten (ProjectScene3D) - schon zu dragging&&!dragValid
+  // zusammengefasst uebergeben, damit nicht gezogene Instanzen einen
+  // stabilen (immer "false") Wert bekommen statt bei jeder
+  // Kollisionspruefung neu zu rendern.
+  dragInvalid: boolean;
   // In der LOKALEN Achse der Instanz berechnet (wie in Scene.tsx, wo der
   // Container immer im Weltursprung steht) - three.js' clippingPlanes sind
   // aber IMMER Welt-Koordinaten, unabhaengig vom Mesh/Group-Transform.
@@ -290,12 +308,12 @@ interface InstanceGroupProps {
   // ein Schnitt an einem verschobenen/gedrehten Container an der falschen
   // Stelle (relativ zum echten Weltursprung) auftauchen.
   sectionPlane: THREE.Plane | null;
-  onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
-  // Wird EINMAL aufgerufen, sobald der Container DIESER Instanz alle 14
-  // Bauteile fertig freigegeben hat - siehe Container.tsx's onReady.
-  onReady: () => void;
+  // EINE stabile Funktion statt separater onPointerDown/Move/Up (siehe
+  // Aufrufstelle) - noetig, damit React.memo unten ueberhaupt greifen kann.
+  onPointerEvent: (id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") => void;
+  // Wird aufgerufen, sobald der Container DIESER Instanz alle 14 Bauteile
+  // fertig freigegeben hat - siehe Container.tsx's onReady.
+  onInstanceReady: (id: string) => void;
 }
 
 // Rand, um den das Grundriss-Rechteck ueber die tatsaechliche
@@ -308,15 +326,29 @@ interface InstanceGroupProps {
 // Container hervor und bleibt so aus jedem Blickwinkel sichtbar.
 const FOOTPRINT_MARGIN_M = 0.6;
 
-function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, onPointerDown, onPointerMove, onPointerUp, onReady }: InstanceGroupProps) {
+// Jonas' Fehlerbericht 2026-08-10 ("Auswaehlen/Verschieben von Containern
+// lagt sehr"): React.memo, damit das Aendern EINER Instanz (Auswahl/Drag/
+// Ready-Status) nicht mehr automatisch ALLE anderen Instanzen der Baugruppe
+// neu rendert - greift nur, weil ALLE Props unten jetzt referenzstabil sind,
+// solange sich fuer DIESE Instanz nichts aendert (siehe onPointerEvent/
+// onInstanceReady/dragInvalid-Kommentare an der Aufrufstelle).
+const InstanceGroup = memo(function InstanceGroup({
+  instance,
+  selected,
+  dragging,
+  dragInvalid,
+  sectionPlane,
+  onPointerEvent,
+  onInstanceReady,
+}: InstanceGroupProps) {
   const lengthM = instance.config.size.length * MM_TO_M;
   const widthM = instance.config.size.width * MM_TO_M;
   const xM = instance.position.x * MM_TO_M;
   const zM = instance.position.z * MM_TO_M;
   const rotRad = (instance.rotationY * Math.PI) / 180;
 
-  const footprintColor = dragging && !dragValid ? "#dc2626" : selected ? "#0284c7" : "#94a3b8";
-  const footprintOpacity = dragging && !dragValid ? 0.6 : dragging || selected ? 0.4 : 0.12;
+  const footprintColor = dragInvalid ? "#dc2626" : selected ? "#0284c7" : "#94a3b8";
+  const footprintOpacity = dragInvalid ? 0.6 : dragging || selected ? 0.4 : 0.12;
 
   const worldSectionPlane = useMemo(() => {
     if (!sectionPlane) return null;
@@ -334,9 +366,9 @@ function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, 
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.01, 0]}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        onPointerDown={(e) => onPointerEvent(instance.id, e, "down")}
+        onPointerMove={(e) => onPointerEvent(instance.id, e, "move")}
+        onPointerUp={(e) => onPointerEvent(instance.id, e, "up")}
       >
         <planeGeometry args={[lengthM + FOOTPRINT_MARGIN_M, widthM + FOOTPRINT_MARGIN_M]} />
         <meshBasicMaterial color={footprintColor} transparent opacity={footprintOpacity} depthWrite={false} />
@@ -351,9 +383,14 @@ function InstanceGroup({ instance, selected, dragging, dragValid, sectionPlane, 
         }}
       >
         <SectionPlaneProvider value={worldSectionPlane}>
-          <Container size={instance.config.size} wallThickness={instance.config.wallThickness} openings={instance.config.openings} onReady={onReady} />
+          <Container
+            size={instance.config.size}
+            wallThickness={instance.config.wallThickness}
+            openings={instance.config.openings}
+            onReady={() => onInstanceReady(instance.id)}
+          />
         </SectionPlaneProvider>
       </DisplaySettingsProvider>
     </group>
   );
-}
+});

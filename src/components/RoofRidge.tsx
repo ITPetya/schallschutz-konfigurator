@@ -17,6 +17,9 @@ interface RoofRidgeProps {
 }
 
 const evaluator = new Evaluator();
+// Siehe Wall.tsx: kein CSG-Gruppen-Tracking noetig, hier nur ein einziges
+// Material (outsideColor) - reine Mehrarbeit ohne Nutzen.
+evaluator.useGroups = false;
 
 // Jonas' Vorgabe 2026-07-29: das Dach bekommt aussen eine leichte First-
 // Schraege wie ein Hausdach - je 1° Neigung von der Mitte (First, laengs)

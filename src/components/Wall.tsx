@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
 import type { OpeningTypeDef } from "../types/openings";
@@ -53,6 +53,16 @@ interface WallProps {
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
 // siehe three-bvh-csg-Doku.
 const evaluator = new Evaluator();
+// Jonas' Fehlerbericht 2026-08-10 ("durch die C-Schienen dauert alles enorm
+// lange"): jede Wand mit interiorCladding macht bis zu ~20+ sequenzielle
+// evaluate()-Aufrufe (ein SUBTRACTION pro Schienen-Ausschnitt). useGroups
+// (three-bvh-csg-Default: true) laesst den Evaluator bei JEDEM dieser
+// Aufrufe zusaetzlich Material-Gruppen mitfuehren/konsolidieren - reine
+// Mehrarbeit hier, weil splitByOutward() unten die Gruppen ohnehin komplett
+// verwirft und von Grund auf neu (anhand der Dreiecks-Normalen) aufbaut.
+// Deaktivieren aendert laut Doku NUR das Gruppen-Tracking, nicht die
+// resultierende Geometrie selbst.
+evaluator.useGroups = false;
 
 // Jonas' Fehlerbericht 2026-07-25: Wetterschutzgitter "ca. 10m lang" statt
 // 12mm. Root Cause: protrusionDepth in OPENING_TYPES ist wie ALLE Masse dort
@@ -236,16 +246,29 @@ export function Wall({
     // (Z-Fighting, Jonas' Fehlerbericht Runde 4: "eine Flaeche in Innenfarbe
     // die rumbuggt"). railSegments oben schon um claddingInsetU/-V
     // (Nachbarwandstaerke an allen Raendern) bereinigt.
-    if (interiorCladding) {
+    // Jonas' Fehlerbericht 2026-08-10 ("durch die C-Schienen dauert alles
+    // enorm lange"): vorher EIN evaluate()-Aufruf PRO Schienen-Ausschnitt
+    // (leicht 20+ pro Wand bei 558mm-Raster) - jeder einzelne Aufruf baut
+    // dabei intern seine eigene BVH neu auf, was sich bei vielen kleinen,
+    // voneinander UNABHAENGIGEN (nicht ueberlappenden) Ausschnitten stark
+    // summiert. Da die Ausschnitt-Boxen sich nie beruehren, lassen sie sich
+    // gefahrlos zu EINER zusammengesetzten Geometrie mergen (reines
+    // THREE.BufferGeometryUtils.mergeGeometries, KEIN CSG-Union - jede Box
+    // bleibt fuer sich genommen ein sauberes, geschlossenes Volumen) und in
+    // EINEM einzigen SUBTRACTION-Aufruf entfernen statt in vielen.
+    if (interiorCladding && railSegments.length > 0) {
       const cutDepth = getWallCutDepthM(thickness);
       const recessZ = -outwardSign * (thickness / 2 - cutDepth / 2);
-      for (const { u, from, to } of railSegments) {
-        const cutGeom = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, cutDepth);
-        const cutBrush = new Brush(cutGeom);
-        cutBrush.position.set(u, (from + to) / 2 - panelHeight / 2, recessZ);
-        cutBrush.updateMatrixWorld();
-        result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
-      }
+      const cutGeoms = railSegments.map(({ u, from, to }) => {
+        const g = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, cutDepth);
+        g.translate(u, (from + to) / 2 - panelHeight / 2, recessZ);
+        return g;
+      });
+      const mergedCutGeom = mergeGeometries(cutGeoms);
+      cutGeoms.forEach((g) => g.dispose());
+      const cutBrush = new Brush(mergedCutGeom);
+      cutBrush.updateMatrixWorld();
+      result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
     }
 
     // mergeVertices bleibt fuer die SOLIDE Flaeche sinnvoll (glattere

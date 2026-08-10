@@ -77,6 +77,9 @@ const SLOT_DEPTH = SLOT_DEPTH_MM * MM_TO_M;
 
 // Ein Evaluator reicht global, siehe Wall.tsx.
 const evaluator = new Evaluator();
+// Siehe Wall.tsx: kein CSG-Gruppen-Tracking noetig, hier nur ein einziges
+// Material - reine Mehrarbeit ohne Nutzen.
+evaluator.useGroups = false;
 
 // Langloch/Kapsel-Schneidgeometrie: Quader-Mittelteil + je ein Halbzylinder
 // an beiden Enden, per ADDITION zu EINER zusammenhaengenden Brush verklebt,
