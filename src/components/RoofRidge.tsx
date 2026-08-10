@@ -55,10 +55,57 @@ function surfaceHeightAt(z: number, halfW: number, peak: number): number {
   return peak * (1 - Math.min(Math.abs(z), clampedHalfW) / clampedHalfW);
 }
 
-// Feste Aussenkontur des Keil-Prismas (9 Kanten: 2x Dreieck-Umfang an den
-// Enden + 3 Laengskanten) - unabhaengig von Durchbruechen, siehe
-// surfaceHeightAt fuer die Herleitung der Querschnitts-Eckpunkte.
-function buildWedgeContourEdges(lengthM: number, halfW: number, peak: number): number[] {
+// Jonas' Fehlerbericht 2026-08-10: die Linie im First-Knick war zwar korrekt
+// positioniert, wurde aber von Durchbruechen nicht unterbrochen (lief einfach
+// durch). Liefert die von einem Durchbruch blockierte X-Spanne AN GENAU DER
+// Z-Position zLine - bei runden Durchbruechen ist das die Sehnenbreite an
+// dieser Stelle (schmaler als der volle Durchmesser, ausser genau in der
+// Mitte des Kreises), nicht der volle Durchmesser wie bei rechteckigen.
+function blockedXAtZ(opening: Opening, typeDef: OpeningTypeDef, widthM: number, zLine: number): [number, number] | null {
+  const cx = opening.u;
+  const cz = widthM / 2 - opening.v;
+  if (typeDef.shape === "round") {
+    const r = opening.width / 2;
+    const dz = zLine - cz;
+    if (Math.abs(dz) >= r) return null;
+    const dx = Math.sqrt(r * r - dz * dz);
+    return [cx - dx, cx + dx];
+  }
+  const hh = opening.height / 2;
+  if (Math.abs(zLine - cz) >= hh) return null;
+  const hw = opening.width / 2;
+  return [cx - hw, cx + hw];
+}
+
+// Analog railLayout.ts's freeSegments, nur auf einem beliebigen [xMin,xMax]-
+// Bereich statt [0,total] (die First-Laengskanten sind nicht bei 0 zentriert).
+function freeXSegments(blocked: [number, number][], xMin: number, xMax: number): [number, number][] {
+  if (blocked.length === 0) return [[xMin, xMax]];
+  const sorted = [...blocked].sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    const [from, to] = sorted[i];
+    if (from <= last[1]) last[1] = Math.max(last[1], to);
+    else merged.push([from, to]);
+  }
+  const free: [number, number][] = [];
+  let cursor = xMin;
+  for (const [from, to] of merged) {
+    if (from > cursor) free.push([cursor, from]);
+    cursor = Math.max(cursor, to);
+  }
+  if (cursor < xMax) free.push([cursor, xMax]);
+  return free.filter(([from, to]) => to - from > 1e-4);
+}
+
+// Feste Aussenkontur des Keil-Prismas (2x Dreieck-Umfang an den Stirnseiten
+// + 3 Laengskanten, siehe surfaceHeightAt fuer die Herleitung der
+// Querschnitts-Eckpunkte). Die Stirnseiten-Dreiecke bleiben durchgehend
+// (Durchbrueche stehen praktisch nie exakt an der Containerkante), die 3
+// LAENGS laufenden Kanten (First-Knick + beide Traufkanten) werden an jeder
+// Stelle unterbrochen, an der sie tatsaechlich durch einen Durchbruch laufen.
+function buildWedgeContourEdges(lengthM: number, halfW: number, peak: number, openings: Opening[], widthM: number): number[] {
   const x0 = -lengthM / 2;
   const x1 = lengthM / 2;
   // [z, y] Eckpunkte der Dreieck-Querschnittsflaeche.
@@ -75,7 +122,14 @@ function buildWedgeContourEdges(lengthM: number, halfW: number, peak: number): n
       verts.push(x, y0, z0, x, y1, z1);
     }
   }
-  for (const [z, y] of cross) verts.push(x0, y, z, x1, y, z);
+  for (const [z, y] of cross) {
+    const blocked: [number, number][] = [];
+    for (const opening of openings) {
+      const span = blockedXAtZ(opening, OPENING_TYPES[opening.kind], widthM, z);
+      if (span) blocked.push(span);
+    }
+    for (const [fromX, toX] of freeXSegments(blocked, x0, x1)) verts.push(fromX, y, z, toX, y, z);
+  }
   return verts;
 }
 
@@ -182,7 +236,7 @@ export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) 
   const edgeGeometry = useMemo(() => {
     const halfW = widthM / 2;
     const peak = halfW * Math.tan((SLOPE_DEG * Math.PI) / 180);
-    const positions = buildWedgeContourEdges(lengthM, halfW, peak);
+    const positions = buildWedgeContourEdges(lengthM, halfW, peak, openings, widthM);
     for (const opening of openings) {
       positions.push(...buildRidgeOpeningRimEdges(opening, OPENING_TYPES[opening.kind], widthM));
     }

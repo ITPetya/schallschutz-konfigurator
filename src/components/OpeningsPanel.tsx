@@ -57,7 +57,15 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
   const [expanded, setExpanded] = useState(false);
   const typeDef = OPENING_TYPES[o.kind];
   const maxU = Math.max(0, panelSpanU(o.panel, size) / 2 - o.width / 2);
-  const vBounds = verticalBounds(typeDef, o.height, panelSpanV(o.panel, size));
+  // Bei runden Durchbruechen ist width der Durchmesser und height wird laut
+  // Datenmodell ignoriert (siehe types/openings.ts) - hier trotzdem effektiv
+  // auf width umgelegt, falls height (z. B. aus einem aelteren Speicherstand
+  // oder vor dem Fix unten) noch veraltet/abweichend ist (Jonas'
+  // Fehlerbericht 2026-08-10: "eckiger Schlitz statt rund" an einem
+  // vergroesserten runden Dach-Durchbruch, siehe railLayout.ts's
+  // verticalSpan fuer denselben Fix an der eigentlichen Ausschnitt-Stelle).
+  const effectiveHeight = typeDef.shape === "round" ? o.width : o.height;
+  const vBounds = verticalBounds(typeDef, effectiveHeight, panelSpanV(o.panel, size));
   const [uLabel, vLabel] = positionLabels(o.panel, !!typeDef.isDoor);
   const widthMin = typeDef.minWidth ?? typeDef.minSize;
   const widthMax = typeDef.maxWidth ?? typeDef.maxSize;
@@ -149,7 +157,13 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
                     min={widthMin}
                     max={widthMax}
                     value={Math.round(o.width)}
-                    onChange={(v) => onUpdate(o.id, { width: v })}
+                    // Rund hat kein eigenes Hoehenfeld (siehe rect-Zweig
+                    // unten) - height muss deshalb hier synchron mitlaufen,
+                    // sonst bleibt sie auf ihrem Erstellungswert stehen,
+                    // waehrend der tatsaechliche Durchmesser (width) sich
+                    // aendert (Jonas' Fehlerbericht 2026-08-10, siehe
+                    // effectiveHeight oben).
+                    onChange={(v) => onUpdate(o.id, typeDef.shape === "round" ? { width: v, height: v } : { width: v })}
                     className={inputClass}
                   />
                 </label>

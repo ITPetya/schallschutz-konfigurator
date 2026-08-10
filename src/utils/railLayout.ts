@@ -48,6 +48,22 @@ function freeSegments(blocked: [number, number][], total: number): [number, numb
   return free.filter(([from, to]) => to - from > MIN_SEGMENT_HEIGHT_M);
 }
 
+// Jonas' Fehlerbericht 2026-08-10: an einem runden Dach-Durchbruch war die
+// Schienen-/Streckgitter-Aussparung "eckig statt rund, wie ein Schlitz" -
+// Ursache: o.height wird beim Vergroessern/Verkleinern eines RUNDEN
+// Durchbruchs (OpeningsPanel.tsx zeigt fuer shape="round" bewusst nur ein
+// "Durchmesser"-Feld, das ausschliesslich o.width schreibt) nie mitgepflegt
+// und blieb dadurch oft auf dem Default (z. B. 100mm) stehen, WAEHREND o.width
+// (der tatsaechliche Durchmesser) laengst groesser/kleiner war. Diese Stelle
+// hier nutzte bisher ueberall direkt o.height fuer die blockierte
+// Hoehen-Spanne - bei einem runden Durchbruch muss das aber der Durchmesser
+// (o.width) sein, nicht das u. U. veraltete o.height (das laut
+// types/openings.ts bei "round" ohnehin als ignoriert dokumentiert ist).
+function verticalSpan(o: Opening): [number, number] {
+  const h = OPENING_TYPES[o.kind].shape === "round" ? o.width : o.height;
+  return [o.v - h / 2, o.v + h / 2];
+}
+
 // Schneidet from/to-Segmente auf [lo, hi] zu (Rest verworfen, wenn er unter
 // MIN_SEGMENT_HEIGHT_M faellt) - siehe insetV-Parameter unten.
 function clipSegments<T extends { from: number; to: number }>(segments: T[], lo: number, hi: number): T[] {
@@ -97,7 +113,7 @@ export function computeRailLayout(
     // oberhalb/unterhalb weiterhin sinnvoll ist und daher nur die von der
     // Oeffnung blockierte Hoehe ausgespart wird (siehe freeSegments unten).
     if (nearby.some((o) => OPENING_TYPES[o.kind].isDoor)) continue;
-    const blocked = nearby.map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
+    const blocked = nearby.map(verticalSpan);
     for (const [from, to] of freeSegments(blocked, panelHeight)) railSegments.push({ u, from, to });
   }
 
@@ -125,7 +141,7 @@ export function computeRailLayout(
     if (uEnd - uStart < MIN_BAY_WIDTH_M) continue;
     const blocked = openings
       .filter((o) => o.u + o.width / 2 > uStart && o.u - o.width / 2 < uEnd)
-      .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
+      .map(verticalSpan);
     for (const [from, to] of freeSegments(blocked, panelHeight)) baySegments.push({ uStart, uEnd, from, to });
   }
 
