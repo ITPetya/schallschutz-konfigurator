@@ -320,9 +320,19 @@ export function ProjectScene3D({
           />
         </GizmoHelper>
         {/* Siehe Scene.tsx fuer die Herleitung der vertauschten Y/Z-
-            Beschriftung (Jonas' Vorgabe 2026-08-10). */}
-        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
-          <GizmoViewport labels={["X", "Z", "Y"]} axisColors={["#dc2626", "#16a34a", "#008eb4"]} labelColor="white" />
+            Beschriftung sowie den flachen/kleinen "nur Infomaterial"-Look
+            (Jonas' Vorgabe 2026-08-10). */}
+        <GizmoHelper alignment="bottom-left" margin={[56, 56]}>
+          <group scale={0.6}>
+            <GizmoViewport
+              labels={["X", "Z", "Y"]}
+              axisColors={["#dc2626", "#16a34a", "#008eb4"]}
+              labelColor="white"
+              disabled
+              hideAxisHeads
+              hideNegativeAxes
+            />
+          </group>
         </GizmoHelper>
       </Canvas>
 

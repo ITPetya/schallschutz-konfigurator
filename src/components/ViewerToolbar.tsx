@@ -105,44 +105,50 @@ export function ViewerToolbar({
           right-2 (Jonas' Fehlerbericht: "mehr Randabstand, eher wie vor und
           zurück oder home"). */}
       <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
-        <div data-tour="section-view" className="flex items-center justify-end gap-2">
-          <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
+        <ToolSlot dataTour="section-view" panel={<SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />}>
           <ToolButton onClick={() => section.setSectionEnabled((v) => !v)} label="Schnitt" active={section.sectionEnabled}>
             <SectionIcon size={16} />
           </ToolButton>
-        </div>
+        </ToolSlot>
 
         {canShowView && (
-          <div data-tour="view-style-panel" className="flex items-center justify-end gap-2">
-            <ViewResultPanel
-              active={viewOpen}
-              viewStyle={viewStyle!}
-              background={background!}
-              shadowsEnabled={shadowsEnabled!}
-              terrainDetail={terrainDetail!}
-              onViewStyleChange={onViewStyleChange!}
-              onBackgroundChange={onBackgroundChange!}
-              onShadowsEnabledChange={onShadowsEnabledChange!}
-              onTerrainDetailChange={onTerrainDetailChange}
-            />
+          <ToolSlot
+            dataTour="view-style-panel"
+            panel={
+              <ViewResultPanel
+                active={viewOpen}
+                viewStyle={viewStyle!}
+                background={background!}
+                shadowsEnabled={shadowsEnabled!}
+                terrainDetail={terrainDetail!}
+                onViewStyleChange={onViewStyleChange!}
+                onBackgroundChange={onBackgroundChange!}
+                onShadowsEnabledChange={onShadowsEnabledChange!}
+                onTerrainDetailChange={onTerrainDetailChange}
+              />
+            }
+          >
             <ToolButton onClick={() => setViewOpen((v) => !v)} label="Ansicht" active={viewOpen}>
               <ViewIcon size={16} />
             </ToolButton>
-          </div>
+          </ToolSlot>
         )}
 
         {onToggleMeasure && (
-          <div className="flex items-center justify-end gap-2">
-            <MeasureResultPanel
-              active={!!measureActive}
-              selected={measureSelected ?? []}
-              unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
-              onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
-            />
+          <ToolSlot
+            panel={
+              <MeasureResultPanel
+                active={!!measureActive}
+                selected={measureSelected ?? []}
+                unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
+                onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
+              />
+            }
+          >
             <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
               <RulerIcon size={16} />
             </ToolButton>
-          </div>
+          </ToolSlot>
         )}
       </div>
       {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
@@ -163,6 +169,26 @@ export function ViewerToolbar({
           Platzhalter statt eines echten Tour-Ziels darauf. */}
       <div data-tour="viewcube-anchor" aria-hidden className="pointer-events-none absolute bottom-4 right-4 h-24 w-24" />
     </>
+  );
+}
+
+// Jonas' Fehlerbericht 2026-08-10: "die Buttons sollen sich nicht wegbewegen,
+// wenn ein Fenster oeffnet" - vorher lagen Panel+Button als normale
+// Flex-Geschwister in EINER Reihe innerhalb der vertikal gestapelten
+// Werkzeugleiste; sobald ein Panel (unterschiedlich hoch/breit je nach
+// Inhalt) erschien, wuchs diese Reihe und verschob dadurch die GESAMTE
+// Home-Kruecken-Zentrierung (top-1/2 -translate-y-1/2) des ganzen Stapels -
+// alle drei Buttons ruckten mit, nicht nur der geoeffnete. Fix: das Panel
+// haengt jetzt absolut positioniert (rechte Kante an der linken Kante DIESES
+// Slots, "right-full") am Button, statt normal im Fluss mitgezaehlt zu
+// werden - der Slot selbst hat dadurch IMMER exakt die Groesse des Buttons,
+// unabhaengig davon, ob/was gerade daneben aufklappt.
+function ToolSlot({ panel, dataTour, children }: { panel: React.ReactNode; dataTour?: string; children: React.ReactNode }) {
+  return (
+    <div data-tour={dataTour} className="relative">
+      <div className="absolute right-full top-1/2 mr-2 -translate-y-1/2">{panel}</div>
+      {children}
+    </div>
   );
 }
 

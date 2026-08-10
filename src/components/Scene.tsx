@@ -218,9 +218,28 @@ export function Scene({
             Text, nicht die echte Geometrie/Kamera-Logik): Jonas nennt die
             Welt-Y-Achse (echte Hoehe, siehe Container.tsx: H liegt auf
             Welt-Y) "Z", und die Welt-Z-Achse (Containerbreite) "Y" -
-            "X ist von links nach rechts, Y ist die Tiefe, Z ist die Höhe". */}
-        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
-          <GizmoViewport labels={["X", "Z", "Y"]} axisColors={["#dc2626", "#16a34a", "#008eb4"]} labelColor="white" />
+            "X ist von links nach rechts, Y ist die Tiefe, Z ist die Höhe".
+            Jonas' Fehlerbericht 2026-08-10: "soll wie in Inventor sein...
+            nur ein Infomaterial, wenn mans braucht" - Inventors kleines
+            Achsenkreuz ist flach (keine 3D-Pfeilspitzen), nicht anklickbar
+            und deutlich kleiner als der ViewCube. disabled (keine
+            Kamera-Interaktion, reine Anzeige), hideAxisHeads (Linien statt
+            Pfeilspitzen/Kegel) und hideNegativeAxes (nur 3 statt 6 Arme) fuer
+            den flachen Look, zusaetzlich per group scale verkleinert (auf
+            GizmoHelper selbst wirkt scale NICHT - das ist reines Prop-
+            Durchreichen an eine feste HUD-Kamera, kein normaler
+            Szenen-Node). */}
+        <GizmoHelper alignment="bottom-left" margin={[56, 56]}>
+          <group scale={0.6}>
+            <GizmoViewport
+              labels={["X", "Z", "Y"]}
+              axisColors={["#dc2626", "#16a34a", "#008eb4"]}
+              labelColor="white"
+              disabled
+              hideAxisHeads
+              hideNegativeAxes
+            />
+          </group>
         </GizmoHelper>
       </Canvas>
 
