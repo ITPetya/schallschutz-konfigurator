@@ -120,8 +120,18 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
       <div className="flex items-center gap-1.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
+            {/* hoverScale/tapScale=1 (Jonas' Fehlerbericht 2026-08-10: "die
+                Zoomanimation auf den Feldern für die Farbe ist komisch und
+                too much") - der Standard-Zoom von AnimatedButton passt fuer
+                kompakte Icon-Buttons, wirkt aber bei einem breiten,
+                volle-Breite einnehmenden Zeilen-Button wie diesem unruhig
+                und kollidiert leicht mit Nachbarelementen, siehe dieselbe
+                Begruendung bei den Schnitt/Ansicht-Umschalt-Leisten in
+                AnimatedButton.tsx. */}
             <AnimatedButton
               type="button"
+              hoverScale={1}
+              tapScale={1}
               className="flex min-w-0 flex-1 items-center gap-2 rounded border border-slate-300 bg-white px-2 py-1 text-left text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               <span className="h-5 w-5 shrink-0 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: value }} aria-hidden />

@@ -8,6 +8,7 @@ import { NumberInput } from "./NumberInput";
 import { TrashIcon } from "./icons/TrashIcon";
 import { AnimatedButton } from "./AnimatedButton";
 import { SonderBadge } from "./SonderBadge";
+import { SONDER_DOOR_TEXT } from "../utils/containerWarnings";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
@@ -84,9 +85,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
           <span className="font-medium text-brand-dark">{typeDef.label}</span>
           <span className="text-xs text-slate-500 dark:text-slate-400">{PANEL_LABELS[o.panel]}</span>
         </button>
-        {typeDef.isDoor && typeDef.category === "free" && (
-          <SonderBadge text="Sondertür (frei nach Maß) – Sondereinbauten sind mit Aufpreis verbunden." />
-        )}
+        {typeDef.isDoor && typeDef.category === "free" && <SonderBadge text={SONDER_DOOR_TEXT} />}
         <AnimatedButton
           type="button"
           onClick={() => onRemove(o.id)}

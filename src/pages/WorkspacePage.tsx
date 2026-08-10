@@ -7,7 +7,9 @@ import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { SoundClassControls } from "../components/SoundClassControls";
+import { ContainerWarningBadge } from "../components/ContainerWarningBadge";
 import { DEFAULT_SOUND_CLASS } from "../constants/lcStandard";
+import { getContainerWarnings } from "../utils/containerWarnings";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
@@ -781,6 +783,17 @@ export function WorkspacePage() {
                             onClick={(e) => e.stopPropagation()}
                             className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           />
+                          {/* Sammel-Hinweis fuer diesen Container (Jonas'
+                              Vorgabe 2026-08-10: "wenn an einem Container
+                              etwas Orange oder rot ist, soll das auch in der
+                              Baugruppe übertragen werden ... ein kleines
+                              oranges/rotes Ausrufezeichen bei dem jeweiligen
+                              Container") - stopPropagation wie bei
+                              Drehen/Entfernen daneben, sonst wuerde ein Klick
+                              auf das Badge zusaetzlich die Zeile auswaehlen. */}
+                          <span onClick={(e) => e.stopPropagation()} className="shrink-0">
+                            <ContainerWarningBadge warnings={getContainerWarnings(inst.config)} />
+                          </span>
                           <AnimatedButton
                             type="button"
                             onClick={(e) => {

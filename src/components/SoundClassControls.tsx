@@ -1,4 +1,5 @@
-import { LC_SOUND_WALL_THICKNESS_HINT, SOUND_CLASSES, type SoundClass } from "../constants/lcStandard";
+import { SOUND_CLASSES, type SoundClass } from "../constants/lcStandard";
+import { getSoundClassSelectionWarning, getSoundClassWallConflictWarning } from "../utils/containerWarnings";
 import { SonderBadge } from "./SonderBadge";
 
 interface SoundClassControlsProps {
@@ -11,23 +12,21 @@ interface SoundClassControlsProps {
 // soll man bei der Konfiguration auch noch einstellen können") - vier
 // Stufen (siehe lcStandard.ts), "Standard" ist im Grundpreis enthalten,
 // alle anderen sind Sonderausstattung (SonderBadge). Ab "Silent" ist eine
-// Wandstärke von mindestens 100mm ZWINGEND erforderlich (rote Warnung,
-// nicht blockierend - Jonas: "die info würde z.B. dann in Rot angezeigt
-// werden müssen"); fuer alle anderen Klassen ist 100mm nur eine
-// unverbindliche Richtdicke (orange Empfehlung statt roter Pflichthinweis).
+// Mindest-Wandstärke ZWINGEND erforderlich (rote Warnung, nicht
+// blockierend - Jonas: "die info würde z.B. dann in Rot angezeigt werden
+// müssen"); fuer alle anderen Klassen ist die Richtdicke nur eine
+// unverbindliche Empfehlung (orange statt roter Pflichthinweis). Texte
+// kommen aus utils/containerWarnings.ts (einzige Quelle, auch fuer den
+// Sammel-Hinweis in der Baugruppen-Liste).
 export function SoundClassControls({ soundClass, wallThickness, onChange }: SoundClassControlsProps) {
-  const active = SOUND_CLASSES.find((c) => c.id === soundClass) ?? SOUND_CLASSES[0];
-  const requiredWall = active.minWallThicknessRequired;
-  const mandatoryViolation = requiredWall !== undefined && wallThickness < requiredWall;
-  const adviceHint = !mandatoryViolation && wallThickness < LC_SOUND_WALL_THICKNESS_HINT;
+  const selectionWarning = getSoundClassSelectionWarning(soundClass);
+  const wallConflict = getSoundClassWallConflictWarning(soundClass, wallThickness);
 
   return (
     <div>
       <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
         Schallschutzklasse
-        {active.id !== "standard" && (
-          <SonderBadge text={`${active.label} (${active.rangeLabel}) – Sonderausstattung mit Aufpreis gegenüber der Standardklasse.`} />
-        )}
+        {selectionWarning && <SonderBadge text={selectionWarning.text} />}
       </p>
       <div className="grid grid-cols-2 gap-1">
         {SOUND_CLASSES.map((c) => (
@@ -46,15 +45,13 @@ export function SoundClassControls({ soundClass, wallThickness, onChange }: Soun
           </button>
         ))}
       </div>
-      {mandatoryViolation && (
-        <p className="mt-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
-          Für {active.label} ist eine Wandstärke von mindestens {requiredWall} mm zwingend erforderlich (aktuell {wallThickness} mm).
-        </p>
-      )}
-      {adviceHint && (
-        <p className="mt-1.5 text-[11px] text-orange-600 dark:text-orange-400">
-          Für alle Schallschutzklassen wird eine Wandstärke von mindestens {LC_SOUND_WALL_THICKNESS_HINT} mm empfohlen, sonst wird die Klasse ggf.
-          nicht erreicht.
+      {wallConflict && (
+        <p
+          className={`mt-1.5 text-[11px] ${
+            wallConflict.severity === "red" ? "font-medium text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"
+          }`}
+        >
+          {wallConflict.text}
         </p>
       )}
     </div>
