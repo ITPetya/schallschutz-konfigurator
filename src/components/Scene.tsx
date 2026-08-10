@@ -158,12 +158,16 @@ export function Scene({
           minDistance={2}
           maxDistance={40}
           target={[0, heightM / 2, 0]}
-          // Jonas' Vorgabe 2026-08-10: mittlere Maustaste soll NICHTS mehr
-          // verschieben - widerruft die fruehere Vorgabe vom 2026-07-25
-          // (die hatte MIDDLE extra auf Pan gelegt). MIDDLE bleibt jetzt
-          // bewusst weg (kein Pan, kein Dolly, keine Aktion). Rechte Taste
-          // bleibt Pan, Zoom weiterhin ueber das Mausrad.
-          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
+          // Mittlere Maustaste verschiebt die ANSICHT (Jonas' Vorgabe
+          // 2026-07-25, am 2026-08-10 nochmal bestaetigt: "die Ansicht soll
+          // verschoben werden mit der mittleren Maustaste, aber keine
+          // Container/Objekte, nur die Ansicht") - ersetzt das three.js-
+          // Standardverhalten (Dolly/Zoom auf der mittleren Taste), Zoom
+          // bleibt ueber das Mausrad weiterhin moeglich. Rechte Taste bleibt
+          // zusaetzlich Pan. Dass dabei NIE ein Container mitverschoben
+          // wird, stellt nicht diese Zuordnung sicher, sondern das
+          // e.button===0-Gate in ProjectScene3D.tsx's handlePointerEvent.
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
         />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}

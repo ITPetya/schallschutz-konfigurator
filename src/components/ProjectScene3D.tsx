@@ -240,8 +240,10 @@ export function ProjectScene3D({
           minDistance={2}
           maxDistance={80}
           target={[0, 1.2, 0]}
-          // Siehe Scene.tsx: mittlere Maustaste ist bewusst ohne Aktion.
-          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
+          // Siehe Scene.tsx: mittlere Maustaste verschiebt die Ansicht. Dass
+          // dabei nie ein Container mitverschoben wird, regelt das
+          // e.button===0-Gate in handlePointerEvent oben, nicht diese Zeile.
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
         />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewcube
