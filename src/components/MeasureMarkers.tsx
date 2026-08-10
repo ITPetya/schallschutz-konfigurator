@@ -1,10 +1,7 @@
-import { useMemo } from "react";
-import * as THREE from "three";
-import { Line } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { MeasurePoint } from "../utils/measurePoints";
 import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
-import { MeasureDistanceLabel } from "./MeasureDistanceLabel";
+import { MeasureDimensions } from "./MeasureDimensions";
 import type { LengthUnit } from "../utils/lengthUnits";
 
 interface MeasureMarkersProps {
@@ -34,11 +31,6 @@ const MARKER_RADIUS_M = 0.08;
 // sichtbar noch anklickbar (muss man sich per Kamera-Drehung zugaenglich
 // machen, genau wie bei echten CAD-Messwerkzeugen).
 export function MeasureMarkers({ points, selected, onPick, unit }: MeasureMarkersProps) {
-  const linePoints = useMemo<[THREE.Vector3, THREE.Vector3] | null>(() => {
-    if (selected.length !== 2) return null;
-    return [new THREE.Vector3(...selected[0].position), new THREE.Vector3(...selected[1].position)];
-  }, [selected]);
-
   function handleClick(e: ThreeEvent<MouseEvent>, p: MeasurePoint) {
     e.stopPropagation();
     onPick(p);
@@ -64,12 +56,7 @@ export function MeasureMarkers({ points, selected, onPick, unit }: MeasureMarker
           </mesh>
         );
       })}
-      {linePoints && (
-        <>
-          <Line points={linePoints} color="#0284c7" lineWidth={2} transparent />
-          <MeasureDistanceLabel a={selected[0].position} b={selected[1].position} unit={unit} />
-        </>
-      )}
+      {selected.length === 2 && <MeasureDimensions a={selected[0].position} b={selected[1].position} unit={unit} />}
     </group>
   );
 }

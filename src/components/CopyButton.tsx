@@ -19,7 +19,7 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
 
   // Stoppt die Ausbreitung, damit ein Klick auf den Copy-Button NICHT auch
   // z. B. den Direkt/XYZ-Umschalter der In-Viewer-Bemaßung mitausloest
-  // (MeasureDistanceLabel.tsx) - der Button sitzt dort innerhalb des
+  // (MeasureSegmentLabel.tsx) - der Button sitzt dort innerhalb des
   // klickbaren Beschriftungs-Containers.
   async function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();

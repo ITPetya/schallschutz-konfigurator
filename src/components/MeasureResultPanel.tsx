@@ -162,7 +162,7 @@ function MeasureResultRows({ a, b, prefs }: { a: [number, number, number]; b: [n
 
 // Copy-Symbol ist im Panel IMMER sichtbar (Jonas' Vorgabe 2026-08-10: "das
 // Symbol soll in dem Fenster immer sein") - anders als die In-Viewer-
-// Beschriftung (MeasureDistanceLabel.tsx), wo es erst beim Hover einblendet.
+// Beschriftung (MeasureSegmentLabel.tsx), wo es erst beim Hover einblendet.
 function MeasureRow({ label, meters, prefs }: { label: string; meters: number; prefs: UnitPreferences }) {
   return (
     <div className="flex items-center justify-between gap-2 text-slate-500 dark:text-slate-400">
