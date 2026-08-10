@@ -154,6 +154,18 @@ export function ProjectScene3D({
   const contentNotReady = instances.length > 0 && readyIds.size < instances.length;
 
   function handlePointerEvent(id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") {
+    // Jonas' Vorgabe 2026-08-10: nur die LINKE Maustaste darf einen Container
+    // auswaehlen/verschieben - mittlere/rechte Taste sind fuer die Kamera
+    // reserviert (Pan, siehe OrbitControls' mouseButtons unten) und sollen
+    // beim Draufdruecken auf einen Container weder etwas auswaehlen noch
+    // ihn verschieben. Ohne dieses Gate wuerde JEDER Tastendruck (auch
+    // Mitte/Rechts) hier landen und gleichzeitig (a) den Container
+    // auswaehlen/zu verschieben beginnen UND (b) OrbitControls' natives
+    // Pan ausloesen, da e.stopPropagation() nur die r3f/three.js-
+    // Raycasting-Ausbreitung stoppt, nicht den nativen DOM-Listener von
+    // OrbitControls (siehe Kommentar dort) - fuehrte zu gleichzeitigem
+    // Kamera-Pan + Container-Drag.
+    if (action === "down" && e.button !== 0) return;
     e.stopPropagation();
     if (action === "down") {
       (e.target as unknown as Element).setPointerCapture?.(e.pointerId);
@@ -228,8 +240,8 @@ export function ProjectScene3D({
           minDistance={2}
           maxDistance={80}
           target={[0, 1.2, 0]}
-          // Siehe Scene.tsx: mittlere Maustaste verschiebt statt zu dollyen.
-          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
+          // Siehe Scene.tsx: mittlere Maustaste ist bewusst ohne Aktion.
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
         />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewcube

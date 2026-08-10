@@ -158,13 +158,12 @@ export function Scene({
           minDistance={2}
           maxDistance={40}
           target={[0, heightM / 2, 0]}
-          // Mittlere Maustaste verschiebt die Ansicht (Jonas' Vorgabe
-          // 2026-07-25: "am PC mit der mittleren Maustaste die Ansicht
-          // verschieben können, das geht am Handy/iPad schon mit zwei
-          // Fingern") - ersetzt das three.js-Standardverhalten (Dolly/Zoom
-          // auf der mittleren Taste), Zoom bleibt ueber das Mausrad
-          // weiterhin moeglich. Rechte Taste bleibt zusaetzlich Pan.
-          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
+          // Jonas' Vorgabe 2026-08-10: mittlere Maustaste soll NICHTS mehr
+          // verschieben - widerruft die fruehere Vorgabe vom 2026-07-25
+          // (die hatte MIDDLE extra auf Pan gelegt). MIDDLE bleibt jetzt
+          // bewusst weg (kein Pan, kein Dolly, keine Aktion). Rechte Taste
+          // bleibt Pan, Zoom weiterhin ueber das Mausrad.
+          mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
         />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}
