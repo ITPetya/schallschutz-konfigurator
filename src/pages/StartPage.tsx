@@ -113,7 +113,14 @@ export function StartPage() {
             der Hinweistext darunter erklaert, warum der Button fehlt, statt
             ihn einfach kommentarlos verschwinden zu lassen. */}
         {!isPhone && (
-          <Shine asChild>
+          // loop + loopDelay (Jonas' Vorgabe 2026-08-10: "die Glimm-Animation
+          // soll nicht nur einmal sein, sondern wiederkehrend, aber nicht zu
+          // aufdringlich - einmal Animation, kurze Pause, dann wieder im
+          // Loop") - Shine.tsx unterstuetzt das bereits eingebaut: nach jedem
+          // Durchlauf wartet es loopDelay ms, bevor der naechste startet,
+          // statt (wie vorher, Standardwert loop=false) nur einmal beim
+          // Mounten zu spielen.
+          <Shine asChild loop loopDelay={2600}>
             <AnimatedButton
               type="button"
               data-tour="start-configuration"
@@ -139,7 +146,7 @@ export function StartPage() {
         {hasCache ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Shine asChild>
+              <Shine asChild loop loopDelay={2600}>
                 <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
                   <UploadIcon size={18} />
                   Projekt laden
@@ -166,7 +173,7 @@ export function StartPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Shine asChild>
+          <Shine asChild loop loopDelay={2600}>
             <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
               <UploadIcon size={18} />
               Projekt laden
