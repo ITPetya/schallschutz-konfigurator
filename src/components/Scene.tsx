@@ -220,6 +220,7 @@ export function Scene({
         canRedo={canRedo}
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
+        measureSelected={measureSelected}
       />
 
       <SectionAndViewPanel
@@ -232,7 +233,6 @@ export function Scene({
         onBackgroundChange={onBackgroundChange}
         onShadowsEnabledChange={onShadowsEnabledChange}
         onTerrainDetailChange={onTerrainDetailChange}
-        measure={{ active: measureActive, selected: measureSelected }}
       />
     </div>
   );

@@ -322,6 +322,7 @@ export function ProjectScene3D({
         canRedo={canRedo}
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
+        measureSelected={measureSelected}
       />
 
       <SectionAndViewPanel
@@ -335,7 +336,6 @@ export function ProjectScene3D({
         onShadowsEnabledChange={setShadowsEnabled}
         onTerrainDetailChange={setTerrainDetail}
         sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
-        measure={{ active: measureActive, selected: measureSelected }}
       />
     </div>
   );

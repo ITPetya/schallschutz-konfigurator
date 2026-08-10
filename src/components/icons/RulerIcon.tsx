@@ -6,9 +6,13 @@ interface RulerIconProps {
   className?: string;
 }
 
+// Ticks gleiten beim Hover ein Stueck die Lineal-Diagonale entlang (statt
+// nur leicht heller zu werden) - deutlicher als vorher erkennbare
+// "Mess"-Bewegung, Jonas' Fehlerbericht 2026-08-10 ("soll auch animiert
+// sein").
 const ticks: Variants = {
-  initial: { opacity: 0.7 },
-  animate: { opacity: 1, transition: { duration: 0.3, ease: "easeInOut" } },
+  initial: { x: 0, y: 0 },
+  animate: { x: 1.5, y: -1.5, transition: { duration: 0.3, ease: "easeInOut" } },
 };
 
 // Lucide "ruler", animiert mit Motion (gleiche Konvention wie die anderen

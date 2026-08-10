@@ -5,7 +5,6 @@ import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/Displ
 import { Chevron } from "./icons/Chevron";
 import { AnimatedButton } from "./AnimatedButton";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./primitives/Collapsible";
-import type { MeasurePoint } from "../utils/measurePoints";
 
 export type SectionAxis = "x" | "y" | "z";
 
@@ -112,13 +111,6 @@ interface SectionAndViewPanelProps {
   // NUR "Schnitt" - "Ansicht" (Hintergrund/Schatten/Stil) gilt fuer die ganze
   // geteilte 3D-Szene und bleibt deshalb immer bedienbar, auch ohne Auswahl.
   sectionDisabledHint?: string;
-  // Jonas' Vorgabe 2026-08-10: eigenes "Messen"-Panel im selben Stil wie
-  // Schnitt/Ansicht, statt nur eines Textes in der ViewerStatusBar - nur
-  // sichtbar, solange das Messwerkzeug aktiv ist (siehe ViewerToolbar.tsx).
-  measure?: {
-    active: boolean;
-    selected: MeasurePoint[]; // 0, 1 oder 2 Punkte, Welt-Meter
-  };
 }
 
 // Unten links im Viewer: "Schnitt" und "Ansicht" nebeneinander, beide
@@ -139,13 +131,8 @@ export function SectionAndViewPanel({
   onShadowsEnabledChange,
   onTerrainDetailChange,
   sectionDisabledHint,
-  measure,
 }: SectionAndViewPanelProps) {
   const [viewPanelOpen, setViewPanelOpen] = useState(false);
-  // Immer neu true, sobald das Panel ueberhaupt gemountet wird (siehe unten,
-  // nur gerendert waehrend measure.active) - das Messwerkzeug einzuschalten
-  // soll das Panel direkt zeigen, wie bei "Schnitt".
-  const [measurePanelOpen, setMeasurePanelOpen] = useState(true);
   const isTerrain = background === "terrain";
   const {
     sectionEnabled,
@@ -238,35 +225,6 @@ export function SectionAndViewPanel({
           </CollapsibleTrigger>
         </div>
       </Collapsible>
-
-      {measure?.active && (
-        <Collapsible open={measurePanelOpen} onOpenChange={setMeasurePanelOpen}>
-          <div className="w-56 rounded-lg border border-slate-200 bg-white/95 text-sm shadow-md dark:border-slate-700 dark:bg-slate-800/95">
-            <CollapsibleContent>
-              <div className="space-y-1.5 border-b border-slate-200 p-3 dark:border-slate-700">
-                {measure.selected.length < 2 ? (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {measure.selected.length === 0 ? "Ersten Punkt anklicken" : "Zweiten Punkt anklicken"}
-                  </p>
-                ) : (
-                  <MeasureResultRows a={measure.selected[0].position} b={measure.selected[1].position} />
-                )}
-              </div>
-            </CollapsibleContent>
-            <CollapsibleTrigger asChild>
-              <AnimatedButton
-                type="button"
-                hoverScale={1}
-                tapScale={1}
-                className="flex w-full items-center justify-between p-3 font-medium text-brand-dark dark:text-brand-light [&[data-state=closed]>svg]:rotate-180"
-              >
-                Messen
-                <ChevronDownGlyph />
-              </AnimatedButton>
-            </CollapsibleTrigger>
-          </div>
-        </Collapsible>
-      )}
 
       {onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && (
         <Collapsible open={viewPanelOpen} onOpenChange={setViewPanelOpen}>
@@ -384,38 +342,6 @@ export function SectionAndViewPanel({
           </div>
         </Collapsible>
       )}
-    </div>
-  );
-}
-
-// Jonas' Vorgabe 2026-08-10: "es sollen immer Abstaende in X,Y,Z Richtung
-// gegeben werden und der direkte Abstand" - Betraege je Achse (nicht
-// vorzeichenbehaftet, reine Distanz "wie weit auseinander") plus der
-// euklidische Direktabstand als letzte, hervorgehobene Zeile.
-function MeasureResultRows({ a, b }: { a: [number, number, number]; b: [number, number, number] }) {
-  const dxMm = Math.round(Math.abs(a[0] - b[0]) * 1000);
-  const dyMm = Math.round(Math.abs(a[1] - b[1]) * 1000);
-  const dzMm = Math.round(Math.abs(a[2] - b[2]) * 1000);
-  const directMm = Math.round(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * 1000);
-
-  return (
-    <div className="space-y-1 text-xs">
-      <MeasureRow label="X" valueMm={dxMm} />
-      <MeasureRow label="Y" valueMm={dyMm} />
-      <MeasureRow label="Z" valueMm={dzMm} />
-      <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5 font-semibold text-brand-dark dark:border-slate-700 dark:text-brand-light">
-        <span>Direkt</span>
-        <span>{directMm} mm</span>
-      </div>
-    </div>
-  );
-}
-
-function MeasureRow({ label, valueMm }: { label: string; valueMm: number }) {
-  return (
-    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-      <span>{label}</span>
-      <span>{valueMm} mm</span>
     </div>
   );
 }
