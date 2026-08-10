@@ -48,17 +48,47 @@ function freeSegments(blocked: [number, number][], total: number): [number, numb
   return free.filter(([from, to]) => to - from > MIN_SEGMENT_HEIGHT_M);
 }
 
+// Schneidet from/to-Segmente auf [lo, hi] zu (Rest verworfen, wenn er unter
+// MIN_SEGMENT_HEIGHT_M faellt) - siehe insetV-Parameter unten.
+function clipSegments<T extends { from: number; to: number }>(segments: T[], lo: number, hi: number): T[] {
+  const out: T[] = [];
+  for (const seg of segments) {
+    const from = Math.max(seg.from, lo);
+    const to = Math.min(seg.to, hi);
+    if (to - from > MIN_SEGMENT_HEIGHT_M) out.push({ ...seg, from, to });
+  }
+  return out;
+}
+
 // Gemeinsame Raster-/Aussparungs-Berechnung fuer C-Schienen + Streckgitter-
 // Felder - von InteriorCladding.tsx (Platzierung) UND Wall.tsx (CSG-
 // Ausschnitt in der Wand an jeder Schienen-Position, siehe dortigen
 // Kommentar "Schienen versenkt") gemeinsam genutzt, damit beide IMMER exakt
 // dieselben Positionen verwenden.
-export function computeRailLayout(panelWidth: number, panelHeight: number, openings: Opening[]): RailLayout {
+//
+// insetV (Jonas' Fehlerbericht 2026-08-10, "Schienen im Dach zu lang,
+// durchbrechen die Aussenhaut"): bei Links/Rechts/Vorne/Hinten ist
+// panelHeight bereits die korrekte lichte Innenhoehe (verticalWallHeight,
+// siehe Container.tsx - dort schon um Boden-/Dachstaerke gekuerzt), aber
+// beim Dach-Panel ("top") ist panelHeight = effectiveW bewusst UNGEKUERZT
+// (traegt die volle Breite, siehe dortiger Wandkeil-Kommentar) - dessen
+// Schienen liefen deshalb bis an/über die Seitenwand-Staerke hinaus. Anders
+// als beim u-Achsen-Pendant (claddingWidth in Wall.tsx) wird hier NICHT die
+// Gesamtbreite selbst geschrumpft (v ist KANTEN-relativ, nicht mittig wie u
+// - ein geschrumpftes "total" wuerde die Oeffnungs-v-Werte gegen die falsche
+// Kante rechnen), sondern erst NACH der normalen Berechnung auf
+// [insetV, panelHeight-insetV] zugeschnitten.
+export function computeRailLayout(
+  panelWidth: number,
+  panelHeight: number,
+  openings: Opening[],
+  insetV = 0,
+): RailLayout {
   const count = Math.max(1, Math.floor(panelWidth / C_RAIL_PITCH_M) + 1);
   const margin = (panelWidth - (count - 1) * C_RAIL_PITCH_M) / 2;
   const railU = Array.from({ length: count }, (_, i) => -panelWidth / 2 + margin + i * C_RAIL_PITCH_M);
 
-  const railSegments: RailSegment[] = [];
+  let railSegments: RailSegment[] = [];
   for (const u of railU) {
     const nearby = openings.filter((o) => Math.abs(o.u - u) < o.width / 2 + C_RAIL_WIDTH_M / 2);
     // Jonas' Fehlerbericht 2026-08-10: ueber Tueren sollen GAR KEINE Schienen
@@ -76,13 +106,18 @@ export function computeRailLayout(panelWidth: number, panelHeight: number, openi
   for (let i = 0; i < railU.length - 1; i++) bayBounds.push({ uStart: railU[i], uEnd: railU[i + 1] });
   if (railU[railU.length - 1] < panelWidth / 2) bayBounds.push({ uStart: railU[railU.length - 1], uEnd: panelWidth / 2 });
 
-  const baySegments: BaySegment[] = [];
+  let baySegments: BaySegment[] = [];
   for (const { uStart, uEnd } of bayBounds) {
     if (uEnd - uStart < MIN_BAY_WIDTH_M) continue;
     const blocked = openings
       .filter((o) => o.u + o.width / 2 > uStart && o.u - o.width / 2 < uEnd)
       .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
     for (const [from, to] of freeSegments(blocked, panelHeight)) baySegments.push({ uStart, uEnd, from, to });
+  }
+
+  if (insetV > 0) {
+    railSegments = clipSegments(railSegments, insetV, panelHeight - insetV);
+    baySegments = clipSegments(baySegments, insetV, panelHeight - insetV);
   }
 
   return { railSegments, baySegments };

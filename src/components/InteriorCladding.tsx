@@ -10,6 +10,10 @@ import { useDisplaySettings } from "../context/DisplaySettingsContext";
 interface InteriorCladdingProps {
   panelWidth: number;
   panelHeight: number;
+  // Siehe Wall.tsx's gleichnamiger Prop - noetig beim Dach, dessen Schienen
+  // sonst quer bis in die Seitenwand-Staerke liefen (Jonas' Fehlerbericht
+  // 2026-08-10, "Schienen im Dach zu lang").
+  claddingInsetV?: number;
   thickness: number;
   openings: Opening[];
   outwardSign: 1 | -1;
@@ -30,7 +34,15 @@ const STRECKGITTER_OFFSET_M = 0.002;
 // an der jeweiligen Stelle aus, siehe utils/railLayout.ts (von Wall.tsx UND
 // hier gemeinsam genutzt, damit der dortige Wandausschnitt exakt zu den
 // hier gerenderten Schienen passt).
-export function InteriorCladding({ panelWidth, panelHeight, thickness, openings, outwardSign, clippingPlanes }: InteriorCladdingProps) {
+export function InteriorCladding({
+  panelWidth,
+  panelHeight,
+  claddingInsetV = 0,
+  thickness,
+  openings,
+  outwardSign,
+  clippingPlanes,
+}: InteriorCladdingProps) {
   const { viewStyle } = useDisplaySettings();
   // Jonas' Fehlerbericht 2026-07-29: das Streckgitter soll nur in
   // "Schattiert mit Kanten" sichtbar sein (technische Detailansicht) - in
@@ -63,8 +75,8 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
   const streckgitterZ = innerZ - outwardSign * STRECKGITTER_OFFSET_M;
 
   const { railSegments, baySegments } = useMemo(
-    () => computeRailLayout(panelWidth, panelHeight, openings),
-    [panelWidth, panelHeight, openings],
+    () => computeRailLayout(panelWidth, panelHeight, openings, claddingInsetV),
+    [panelWidth, panelHeight, openings, claddingInsetV],
   );
 
   const bayFields = useMemo(

@@ -158,12 +158,12 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   const parts: ReactNode[] = [
     // Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen die
     // LAENGE (X) auf, liegen an den Enden der BREITE (Z).
-    // claddingInset={t} bei Links/Rechts/Oben (Jonas' Fehlerbericht
+    // claddingInsetU={t} bei Links/Rechts/Oben (Jonas' Fehlerbericht
     // 2026-08-10): diese drei Panels bleiben in panelWidth bewusst VOLL
     // (siehe Wandkeil-Kommentar oben), die Innenverkleidung darauf lief
     // dadurch bis in die Wandstaerke der angrenzenden, bereits um t
     // gekuerzten Stirnwaende (vorne/hinten) hinein. Vorne/Hinten selbst
-    // brauchen kein claddingInset - ihr eigenes panelWidth (endWallWidth)
+    // brauchen kein claddingInsetU - ihr eigenes panelWidth (endWallWidth)
     // ist bereits die korrekte lichte Innenbreite.
     <Wall
       key="wall-left"
@@ -175,7 +175,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("left")}
       outwardSign={1}
       interiorCladding
-      claddingInset={t}
+      claddingInsetU={t}
     />,
     <Wall
       key="wall-right"
@@ -187,7 +187,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("right")}
       outwardSign={-1}
       interiorCladding
-      claddingInset={t}
+      claddingInsetU={t}
     />,
     // Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen die
     // BREITE (Z) auf, liegen an den Enden der LAENGE (X).
@@ -222,6 +222,13 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     // laufen laesst) bereits effectiveW (Breite), panelWidth (die Achse mit
     // dem 558mm-Raster) bereits effectiveL (Laenge) - genau die gewuenschte
     // Ausrichtung ergibt sich automatisch aus der bestehenden Dach-Rotation.
+    // claddingInsetV={t} (Jonas' Fehlerbericht 2026-08-10, "Schienen im
+    // Dach zu lang, durchbrechen die Aussenhaut"): anders als bei den
+    // Seitenwaenden ist panelHeight hier effectiveW - die volle, UNGEKUERZTE
+    // Breite (Wandkeil: "Oben/Unten bleiben voll") - die quer laufenden
+    // Dachschienen liefen deshalb bis in/ueber die Staerke von Links/Rechts
+    // hinaus. Nur wall-top betroffen (einziges Panel mit interiorCladding,
+    // dessen panelHeight nicht schon anderweitig korrekt gekuerzt ist).
     <Wall
       key="wall-top"
       position={[0, H - t / 2 - wallRecess, 0]}
@@ -232,7 +239,8 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("top")}
       outwardSign={1}
       interiorCladding
-      claddingInset={t}
+      claddingInsetU={t}
+      claddingInsetV={t}
     />,
     <Wall
       key="wall-bottom"

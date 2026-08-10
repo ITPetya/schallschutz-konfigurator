@@ -36,10 +36,18 @@ interface WallProps {
   // Stirnwaende sind gemaess Wandkeil-Mitering in ihrer eigenen Breite
   // bereits um die eigene Wandstaerke gekuerzt, siehe Container.tsx, aber
   // Links/Rechts/Oben selbst bleiben in panelWidth bewusst VOLL, damit die
-  // Aussenecke sauber bleibt). claddingInset zieht NUR die Innenverkleidung
-  // (nicht die tragende Wandflaeche/den Aussenumriss) an jedem Ende um
-  // diesen Betrag zurueck, auf die echte lichte Innenmasse.
-  claddingInset?: number;
+  // Aussenecke sauber bleibt). claddingInsetU zieht NUR die Innenverkleidung
+  // (nicht die tragende Wandflaeche/den Aussenumriss) an jedem Ende der
+  // u-Achse (panelWidth) um diesen Betrag zurueck, auf die echte lichte
+  // Innenmasse.
+  claddingInsetU?: number;
+  // Dasselbe fuer die v-Achse (panelHeight) - noetig NUR beim Dach: dessen
+  // Schienen laufen quer ueber panelHeight=effectiveW (volle Breite, siehe
+  // Wandkeil-Kommentar in Container.tsx) und liefen dadurch bis in/ueber die
+  // Seitenwand-Staerke hinaus ("Schienen im Dach zu lang", Jonas'
+  // Fehlerbericht 2026-08-10). Bei allen anderen Waenden ist panelHeight
+  // (verticalWallHeight) bereits korrekt gekuerzt, dort bleibt es bei 0.
+  claddingInsetV?: number;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -166,9 +174,28 @@ function splitByOutward(geometry: THREE.BufferGeometry, outwardSign: number): TH
 // protrusionDepth (aktuell nur das Wetterschutzgitter, "baut 12mm nach aussen
 // auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
 // AUFGESETZTEN Block auf der Aussenseite.
-export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, claddingInset = 0 }: WallProps) {
+export function Wall({
+  position,
+  rotation,
+  panelWidth,
+  panelHeight,
+  thickness,
+  openings,
+  outwardSign,
+  interiorCladding,
+  claddingInsetU = 0,
+  claddingInsetV = 0,
+}: WallProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
-  const claddingWidth = panelWidth - 2 * claddingInset;
+  const claddingWidth = panelWidth - 2 * claddingInsetU;
+
+  // Einmal berechnet, von der CSG-Ausschnitt-Geometrie UND den Kantenlinien
+  // (edgeGeometry, "sichtbarer Ausschnitt" - Jonas' Fehlerbericht 2026-08-10)
+  // gemeinsam genutzt, damit beide exakt dieselben Segmente verwenden.
+  const railSegments = useMemo(
+    () => (interiorCladding ? computeRailLayout(claddingWidth, panelHeight, openings, claddingInsetV).railSegments : []),
+    [interiorCladding, claddingWidth, panelHeight, openings, claddingInsetV],
+  );
 
   const geometry = useMemo(() => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
@@ -205,11 +232,9 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
     // aufnehmen, nicht nur die duenne Rueckenplatte (siehe getRailRecessDepthM
     // in cRailProfile.ts, von hier UND InteriorCladding.tsx's railBaseZ
     // gemeinsam genutzt, damit Ausschnitt und Schienen-Position exakt
-    // zusammenpassen). claddingWidth statt panelWidth, weil die Innen-
-    // verkleidung (und damit auch ihre Ausschnitte) an Links/Rechts/Oben um
-    // die Nachbarwandstaerke eingezogen ist (siehe claddingInset oben).
+    // zusammenpassen). railSegments oben schon um claddingInsetU/-V
+    // (Nachbarwandstaerke an allen Raendern) bereinigt.
     if (interiorCladding) {
-      const { railSegments } = computeRailLayout(claddingWidth, panelHeight, openings);
       const recessDepth = getRailRecessDepthM(thickness);
       const recessZ = -outwardSign * (thickness / 2 - recessDepth / 2);
       for (const { u, from, to } of railSegments) {
@@ -226,7 +251,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
     // fuer die Diagonallinien im "Schattiert mit Kanten"-Modus - siehe
     // buildOpeningRimEdges oben fuer den echten Grund und Fix.
     return splitByOutward(mergeVertices(result.geometry), outwardSign);
-  }, [panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, claddingWidth]);
+  }, [panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, railSegments]);
 
   // Kantenlinien fuer "Schattiert mit Kanten" werden bewusst NICHT mehr aus
   // der CSG-Restgeometrie abgeleitet (siehe buildOpeningRimEdges), sondern
@@ -281,10 +306,35 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       positions.push(...buildOpeningRimEdges(opening, OPENING_TYPES[opening.kind], panelHeight, thickness));
     }
 
+    // Jonas' Fehlerbericht 2026-08-10: "es sollte ein Ausschnitt fuer die
+    // Schiene da sein... aktuell kein wirklich sichtbarer Ausschnitt" - der
+    // Wandausschnitt (siehe interiorCladding-Block oben) existierte zwar
+    // schon geometrisch, hatte aber (anders als Tueren/Durchbrueche) keine
+    // eigene Umrandungslinie, war dadurch im "Schattiert mit Kanten"-Modus
+    // kaum als Loch erkennbar. Rechteck an der Wandinnenflaeche (Muendung
+    // der Vertiefung), exakt so breit wie die Schiene selbst (C_RAIL_WIDTH_M).
+    for (const { u, from, to } of railSegments) {
+      const cx = u;
+      const cy = (from + to) / 2 - panelHeight / 2;
+      const hw = C_RAIL_WIDTH_M / 2;
+      const hh = (to - from) / 2;
+      const corners: [number, number][] = [
+        [cx - hw, cy - hh],
+        [cx + hw, cy - hh],
+        [cx + hw, cy + hh],
+        [cx - hw, cy + hh],
+      ];
+      for (let i = 0; i < 4; i++) {
+        const [x0, y0] = corners[i];
+        const [x1, y1] = corners[(i + 1) % 4];
+        positions.push(x0, y0, innerZ, x1, y1, innerZ);
+      }
+    }
+
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     return geom;
-  }, [panelWidth, panelHeight, thickness, openings, outwardSign]);
+  }, [panelWidth, panelHeight, thickness, openings, outwardSign, railSegments]);
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
@@ -426,6 +476,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
         <InteriorCladding
           panelWidth={claddingWidth}
           panelHeight={panelHeight}
+          claddingInsetV={claddingInsetV}
           thickness={thickness}
           openings={openings}
           outwardSign={outwardSign}
