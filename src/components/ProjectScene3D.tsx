@@ -11,6 +11,7 @@ import { DisplaySettingsProvider, type ViewStyle } from "../context/DisplaySetti
 import { useTheme } from "../context/ThemeContext";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
+import { ViewerStatusBar } from "./ViewerStatusBar";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
 
@@ -272,6 +273,7 @@ export function ProjectScene3D({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
+      <ViewerStatusBar buildProgress={{ done: readyIds.size, total: instances.length }} containerCount={instances.length} />
 
       <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
 

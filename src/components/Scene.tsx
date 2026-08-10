@@ -7,6 +7,7 @@ import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
+import { ViewerStatusBar } from "./ViewerStatusBar";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
@@ -184,6 +185,7 @@ export function Scene({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
+      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} />
 
       <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
 

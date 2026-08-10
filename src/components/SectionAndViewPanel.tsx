@@ -146,7 +146,10 @@ export function SectionAndViewPanel({
   } = section;
 
   return (
-    <div className="absolute bottom-4 left-4 flex items-end gap-2">
+    // bottom-10 statt bottom-4 (Jonas' Vorgabe 2026-08-10, ViewerStatusBar):
+    // die neue duenne Statuszeile am unteren Viewer-Rand braucht Platz, ohne
+    // dieses Panel zu ueberlappen.
+    <div className="absolute bottom-10 left-4 flex items-end gap-2">
       <Collapsible open={sectionEnabled} onOpenChange={setSectionEnabled}>
         <div
           data-tour="section-view"
