@@ -1,4 +1,5 @@
 import type { Opening } from "../types/openings";
+import { OPENING_TYPES } from "../constants/openingTypes";
 import { C_RAIL_PITCH_M, C_RAIL_WIDTH_M } from "./cRailProfile";
 
 // Reststuecke unter dieser Hoehe werden nicht mehr als eigenes Feld/Schiene
@@ -59,9 +60,14 @@ export function computeRailLayout(panelWidth: number, panelHeight: number, openi
 
   const railSegments: RailSegment[] = [];
   for (const u of railU) {
-    const blocked = openings
-      .filter((o) => Math.abs(o.u - u) < o.width / 2 + C_RAIL_WIDTH_M / 2)
-      .map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
+    const nearby = openings.filter((o) => Math.abs(o.u - u) < o.width / 2 + C_RAIL_WIDTH_M / 2);
+    // Jonas' Fehlerbericht 2026-08-10: ueber Tueren sollen GAR KEINE Schienen
+    // stehen (auch kein Stumpf oberhalb der Tuerzarge) - anders als bei
+    // sonstigen Durchbruechen (Fenster/Lueftungsgitter), wo die Schiene
+    // oberhalb/unterhalb weiterhin sinnvoll ist und daher nur die von der
+    // Oeffnung blockierte Hoehe ausgespart wird (siehe freeSegments unten).
+    if (nearby.some((o) => OPENING_TYPES[o.kind].isDoor)) continue;
+    const blocked = nearby.map((o): [number, number] => [o.v - o.height / 2, o.v + o.height / 2]);
     for (const [from, to] of freeSegments(blocked, panelHeight)) railSegments.push({ u, from, to });
   }
 

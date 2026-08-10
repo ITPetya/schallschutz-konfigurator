@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { Edges } from "@react-three/drei";
 import type { Opening } from "../types/openings";
-import { getCRailProfileShape, C_RAIL_SHEET_THICKNESS_M } from "../utils/cRailProfile";
+import { getCRailProfileShape, getRailRecessDepthM } from "../utils/cRailProfile";
 import { computeRailLayout } from "../utils/railLayout";
 import { getStreckgitterFieldMaps } from "../utils/streckgitterTexture";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
@@ -53,14 +53,13 @@ export function InteriorCladding({ panelWidth, panelHeight, thickness, openings,
 
   // Wandinnenflaeche, siehe Wall.tsx's edgeGeometry.
   const innerZ = -outwardSign * (thickness / 2);
-  // Jonas' Fehlerbericht 2026-07-29: "die Schienen liegen noch immer AUF
-  // der Wand, sollen aber in der Wand VERSUNKEN sein, mit einem Ausschnitt
-  // in der Wand an der Stelle" - der Schienen-Ruecken sitzt deshalb nicht
-  // mehr direkt auf der Innenflaeche, sondern um die eigene Blechstaerke
-  // (2mm) Richtung Aussenflaeche zurueckversetzt, GENAU in dem flachen
-  // Ausschnitt, den Wall.tsx an derselben Stelle aus der Wand entfernt
-  // (siehe dort und railLayout.ts - beide nutzen dieselbe Tiefe).
-  const railBaseZ = innerZ + outwardSign * C_RAIL_SHEET_THICKNESS_M;
+  // Jonas' Fehlerbericht 2026-08-10: die Schiene soll BUENDIG mit der
+  // Innenwand sitzen (keine herausstehenden Teile) - der Schienen-Ruecken
+  // sitzt deshalb um die VOLLE Versenktiefe (getRailRecessDepthM, siehe
+  // cRailProfile.ts) Richtung Aussenflaeche zurueckversetzt, GENAU in dem
+  // ebenso tiefen Ausschnitt, den Wall.tsx an derselben Stelle aus der Wand
+  // entfernt (siehe dort und railLayout.ts - beide nutzen dieselbe Tiefe).
+  const railBaseZ = innerZ + outwardSign * getRailRecessDepthM(thickness);
   const streckgitterZ = innerZ - outwardSign * STRECKGITTER_OFFSET_M;
 
   const { railSegments, baySegments } = useMemo(

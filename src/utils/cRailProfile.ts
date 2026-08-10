@@ -94,3 +94,24 @@ export const C_RAIL_DEPTH_M = HEIGHT;
 export const C_RAIL_PITCH_M = 0.558; // Achse-zu-Achse, Jonas' Vorgabe 2026-07-29
 export const C_RAIL_WIDTH_M = WIDTH; // Aussenbreite - fuer den Wandausschnitt (siehe railLayout.ts)
 export const C_RAIL_SHEET_THICKNESS_M = THICKNESS; // Blechstaerke - fuer die Einsenk-Tiefe im Wandausschnitt
+
+// Jonas' Fehlerbericht 2026-08-10: die Schiene lag bisher nur mit ihrem
+// Ruecken (2mm) versenkt, ragte mit dem Rest ihrer vollen Tiefe (~31mm) in
+// den Raum hinein - er will sie stattdessen BUENDIG mit der Innenwand, d.h.
+// die GESAMTE Schienentiefe muss im Wandausschnitt verschwinden (die
+// entstehende Ausnehmung IN der Wand ist dabei genau der "Ausschnitt im
+// Innenwandblech", durch den die Schiene von innen nutzbar bleibt). +THICKNESS
+// als Sicherheitsmarge, weil strokeOutline() an der aeusseren Gehrungsecke
+// (Schenkel-Oberkante) minimal ueber HEIGHT hinaus ausschlaegt.
+export const C_RAIL_FLUSH_RECESS_M = C_RAIL_DEPTH_M + THICKNESS;
+
+// Tatsaechlich nutzbare Versenktiefe fuer eine Wand konkreter Staerke -
+// gedeckelt, damit bei sehr duennen Waenden kein Loch nach aussen entsteht
+// (mind. 5mm massive Restwand aussen stehen bleiben, nie weniger als die
+// alte reine Rueckenplatten-Tiefe). Von Wall.tsx (Ausschnitt) UND
+// InteriorCladding.tsx (Schienen-Position) gemeinsam genutzt, damit beide
+// IMMER exakt dieselbe Tiefe verwenden.
+export function getRailRecessDepthM(wallThicknessM: number): number {
+  const maxByWall = wallThicknessM - 0.005;
+  return Math.min(C_RAIL_FLUSH_RECESS_M, Math.max(maxByWall, C_RAIL_SHEET_THICKNESS_M));
+}

@@ -12,7 +12,7 @@ import { useSectionPlane } from "../context/SectionPlaneContext";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
 import { computeRailLayout } from "../utils/railLayout";
-import { C_RAIL_WIDTH_M, C_RAIL_SHEET_THICKNESS_M } from "../utils/cRailProfile";
+import { C_RAIL_WIDTH_M, getRailRecessDepthM } from "../utils/cRailProfile";
 
 interface WallProps {
   position: [number, number, number];
@@ -30,6 +30,16 @@ interface WallProps {
   // Streckgitter + C-Klemmschienen an der Innenflaeche (Jonas' Vorgabe
   // 2026-07-29) - nur an den 4 Seitenwaenden, siehe Container.tsx.
   interiorCladding?: boolean;
+  // Jonas' Fehlerbericht 2026-08-10: bei Links/Rechts/Oben lief die
+  // Innenverkleidung (Schienen+Streckgitter) ueber die volle panelWidth,
+  // also bis in die Wandstaerke der ANGRENZENDEN Stirnwand hinein (die
+  // Stirnwaende sind gemaess Wandkeil-Mitering in ihrer eigenen Breite
+  // bereits um die eigene Wandstaerke gekuerzt, siehe Container.tsx, aber
+  // Links/Rechts/Oben selbst bleiben in panelWidth bewusst VOLL, damit die
+  // Aussenecke sauber bleibt). claddingInset zieht NUR die Innenverkleidung
+  // (nicht die tragende Wandflaeche/den Aussenumriss) an jedem Ende um
+  // diesen Betrag zurueck, auf die echte lichte Innenmasse.
+  claddingInset?: number;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -156,8 +166,9 @@ function splitByOutward(geometry: THREE.BufferGeometry, outwardSign: number): TH
 // protrusionDepth (aktuell nur das Wetterschutzgitter, "baut 12mm nach aussen
 // auf") bekommen zusaetzlich einen kleinen, nicht ausgeschnittenen, sondern
 // AUFGESETZTEN Block auf der Aussenseite.
-export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding }: WallProps) {
+export function Wall({ position, rotation, panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, claddingInset = 0 }: WallProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
+  const claddingWidth = panelWidth - 2 * claddingInset;
 
   const geometry = useMemo(() => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
@@ -188,20 +199,21 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
     }
 
-    // Jonas' Fehlerbericht 2026-07-29: "die Schienen liegen noch immer auf
-    // der Wand, sollen aber in der Wand versunken sein und an der Stelle
-    // dann eben ein Ausschnitt in der Wand/Dach [sein]" - pro C-Schienen-
-    // Segment (dieselbe Position/Aufteilung wie InteriorCladding.tsx, siehe
-    // railLayout.ts) wird ein flacher, NICHT durchgehender Ausschnitt (nur
-    // die eigene Blechstaerke tief, nicht cutDepth=thickness*4 wie bei
-    // echten Durchbruechen) aus der Innenflaeche entfernt - die Schiene
-    // sitzt danach GENAU in dieser Vertiefung (siehe InteriorCladding.tsx's
-    // railBaseZ), statt einfach vor einer durchgehend flachen Wand zu liegen.
+    // Jonas' Fehlerbericht 2026-08-10: die Schiene soll BUENDIG mit der
+    // Innenwand sitzen (keine herausstehenden Teile) - der Ausschnitt in der
+    // Wand ("im Innenwandblech") muss dafuer die VOLLE Schienentiefe
+    // aufnehmen, nicht nur die duenne Rueckenplatte (siehe getRailRecessDepthM
+    // in cRailProfile.ts, von hier UND InteriorCladding.tsx's railBaseZ
+    // gemeinsam genutzt, damit Ausschnitt und Schienen-Position exakt
+    // zusammenpassen). claddingWidth statt panelWidth, weil die Innen-
+    // verkleidung (und damit auch ihre Ausschnitte) an Links/Rechts/Oben um
+    // die Nachbarwandstaerke eingezogen ist (siehe claddingInset oben).
     if (interiorCladding) {
-      const { railSegments } = computeRailLayout(panelWidth, panelHeight, openings);
-      const recessZ = -outwardSign * (thickness / 2 - C_RAIL_SHEET_THICKNESS_M / 2);
+      const { railSegments } = computeRailLayout(claddingWidth, panelHeight, openings);
+      const recessDepth = getRailRecessDepthM(thickness);
+      const recessZ = -outwardSign * (thickness / 2 - recessDepth / 2);
       for (const { u, from, to } of railSegments) {
-        const cutGeom = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, C_RAIL_SHEET_THICKNESS_M);
+        const cutGeom = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, recessDepth);
         const cutBrush = new Brush(cutGeom);
         cutBrush.position.set(u, (from + to) / 2 - panelHeight / 2, recessZ);
         cutBrush.updateMatrixWorld();
@@ -214,7 +226,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
     // fuer die Diagonallinien im "Schattiert mit Kanten"-Modus - siehe
     // buildOpeningRimEdges oben fuer den echten Grund und Fix.
     return splitByOutward(mergeVertices(result.geometry), outwardSign);
-  }, [panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding]);
+  }, [panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, claddingWidth]);
 
   // Kantenlinien fuer "Schattiert mit Kanten" werden bewusst NICHT mehr aus
   // der CSG-Restgeometrie abgeleitet (siehe buildOpeningRimEdges), sondern
@@ -412,7 +424,7 @@ export function Wall({ position, rotation, panelWidth, panelHeight, thickness, o
       })}
       {interiorCladding && (
         <InteriorCladding
-          panelWidth={panelWidth}
+          panelWidth={claddingWidth}
           panelHeight={panelHeight}
           thickness={thickness}
           openings={openings}

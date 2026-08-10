@@ -158,6 +158,13 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   const parts: ReactNode[] = [
     // Links/Rechts (vorher Osten/Westen): lange Seitenflaechen, spannen die
     // LAENGE (X) auf, liegen an den Enden der BREITE (Z).
+    // claddingInset={t} bei Links/Rechts/Oben (Jonas' Fehlerbericht
+    // 2026-08-10): diese drei Panels bleiben in panelWidth bewusst VOLL
+    // (siehe Wandkeil-Kommentar oben), die Innenverkleidung darauf lief
+    // dadurch bis in die Wandstaerke der angrenzenden, bereits um t
+    // gekuerzten Stirnwaende (vorne/hinten) hinein. Vorne/Hinten selbst
+    // brauchen kein claddingInset - ihr eigenes panelWidth (endWallWidth)
+    // ist bereits die korrekte lichte Innenbreite.
     <Wall
       key="wall-left"
       position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
@@ -168,6 +175,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("left")}
       outwardSign={1}
       interiorCladding
+      claddingInset={t}
     />,
     <Wall
       key="wall-right"
@@ -179,6 +187,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("right")}
       outwardSign={-1}
       interiorCladding
+      claddingInset={t}
     />,
     // Hinten/Vorne (vorher Norden/Sueden): kleine Stirnflaechen, spannen die
     // BREITE (Z) auf, liegen an den Enden der LAENGE (X).
@@ -223,6 +232,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
       openings={openingsFor("top")}
       outwardSign={1}
       interiorCladding
+      claddingInset={t}
     />,
     <Wall
       key="wall-bottom"
@@ -263,7 +273,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     // First-Schraege aussen aufs Dach (Jonas' Vorgabe 2026-07-29) - rein
     // additiv, sitzt auf der Aussenflaeche des flachen Dach-Panels
     // (wall-top) oben drauf, siehe RoofRidge.tsx.
-    <RoofRidge key="roof-ridge" lengthM={effectiveL} widthM={effectiveW} baseY={H - wallRecess} />,
+    <RoofRidge key="roof-ridge" lengthM={effectiveL} widthM={effectiveW} baseY={H - wallRecess} openings={openingsFor("top")} />,
   ];
 
   const revealed = useChunkedReveal(parts.length);
