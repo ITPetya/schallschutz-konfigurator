@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
-import { Edges } from "@react-three/drei";
-import type { Opening } from "../types/openings";
+import type { Opening, OpeningTypeDef } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { useSectionPlane } from "../context/SectionPlaneContext";
@@ -34,7 +33,91 @@ const evaluator = new Evaluator();
 // dadurch gehen". Fix: dieselben Ausschnitte per CSG auch aus dieser Kappe
 // entfernen (analog Wall.tsx), sonst blieben sie unter der First-Schraege
 // blickdicht verschlossen.
+//
+// Jonas' Fehlerbericht 2026-08-10 (Folgefehler des CSG-Fixes oben):
+// "Spinnenweben"-Linien kreuzen zufaellig durchs Dach, wenn Durchbrueche
+// vorhanden sind. Exakt dasselbe, bereits in Wall.tsx dokumentierte Problem
+// (siehe dortiger Kommentar zu buildOpeningRimEdges): <Edges>/EdgesGeometry
+// hasht Kanten nur ueber Vertex-POSITION - three-bvh-csg's eigene
+// Triangulierung der CSG-Restflaeche erzeugt dabei echte, einzelne innere
+// Kanten, die dann als zufaellige Diagonalen mitgezeichnet werden. Fix:
+// wie in Wall.tsx KEINE Kantenlinien mehr aus der CSG-Geometrie ableiten,
+// sondern von Hand aus der bekannten, exakten Aussenkontur des Keil-Prismas
+// (9 feste Kanten, siehe buildWedgeContourEdges) plus einer Umrandung je
+// Durchbruch (buildRidgeOpeningRimEdges) zusammensetzen.
 const SLOPE_DEG = 1;
+
+// Hoehe der First-Schraegen-Oberflaeche an gegebener Breiten-Position z
+// (0 am Rand, peak in der Mitte, linear dazwischen - deckt sich mit der
+// Dreieck-Querschnittsflaeche unten).
+function surfaceHeightAt(z: number, halfW: number, peak: number): number {
+  const clampedHalfW = Math.max(halfW, 1e-6);
+  return peak * (1 - Math.min(Math.abs(z), clampedHalfW) / clampedHalfW);
+}
+
+// Feste Aussenkontur des Keil-Prismas (9 Kanten: 2x Dreieck-Umfang an den
+// Enden + 3 Laengskanten) - unabhaengig von Durchbruechen, siehe
+// surfaceHeightAt fuer die Herleitung der Querschnitts-Eckpunkte.
+function buildWedgeContourEdges(lengthM: number, halfW: number, peak: number): number[] {
+  const x0 = -lengthM / 2;
+  const x1 = lengthM / 2;
+  // [z, y] Eckpunkte der Dreieck-Querschnittsflaeche.
+  const cross: [number, number][] = [
+    [-halfW, 0],
+    [0, peak],
+    [halfW, 0],
+  ];
+  const verts: number[] = [];
+  for (const x of [x0, x1]) {
+    for (let i = 0; i < 3; i++) {
+      const [z0, y0] = cross[i];
+      const [z1, y1] = cross[(i + 1) % 3];
+      verts.push(x, y0, z0, x, y1, z1);
+    }
+  }
+  for (const [z, y] of cross) verts.push(x0, y, z, x1, y, z);
+  return verts;
+}
+
+// Umrandung je Dach-Durchbruch, analog Wall.tsx's buildOpeningRimEdges -
+// liegt auf der (leicht geneigten) Aussenflaeche der Kappe an der jeweiligen
+// z-Position (surfaceHeightAt), nicht auf einer festen Ebene, da die First-
+// Schraege selbst geneigt ist.
+function buildRidgeOpeningRimEdges(opening: Opening, typeDef: OpeningTypeDef, widthM: number): number[] {
+  const halfW = widthM / 2;
+  const peak = halfW * Math.tan((SLOPE_DEG * Math.PI) / 180);
+  const cx = opening.u;
+  const cz = widthM / 2 - opening.v;
+  const outline: [number, number][] = [];
+
+  if (typeDef.shape === "round") {
+    const segments = 32;
+    const r = opening.width / 2;
+    for (let i = 0; i < segments; i++) {
+      const a0 = (i / segments) * Math.PI * 2;
+      const a1 = ((i + 1) / segments) * Math.PI * 2;
+      outline.push([cx + r * Math.cos(a0), cz + r * Math.sin(a0)]);
+      outline.push([cx + r * Math.cos(a1), cz + r * Math.sin(a1)]);
+    }
+  } else {
+    const hw = opening.width / 2;
+    const hh = opening.height / 2;
+    const corners: [number, number][] = [
+      [cx - hw, cz - hh],
+      [cx + hw, cz - hh],
+      [cx + hw, cz + hh],
+      [cx - hw, cz + hh],
+    ];
+    for (let i = 0; i < 4; i++) {
+      outline.push(corners[i]);
+      outline.push(corners[(i + 1) % 4]);
+    }
+  }
+
+  const verts: number[] = [];
+  for (const [x, z] of outline) verts.push(x, surfaceHeightAt(z, halfW, peak), z);
+  return verts;
+}
 
 export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) {
   const { viewStyle, outsideColor } = useDisplaySettings();
@@ -96,12 +179,28 @@ export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) 
     return result.geometry;
   }, [lengthM, widthM, openings]);
 
+  const edgeGeometry = useMemo(() => {
+    const halfW = widthM / 2;
+    const peak = halfW * Math.tan((SLOPE_DEG * Math.PI) / 180);
+    const positions = buildWedgeContourEdges(lengthM, halfW, peak);
+    for (const opening of openings) {
+      positions.push(...buildRidgeOpeningRimEdges(opening, OPENING_TYPES[opening.kind], widthM));
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geom;
+  }, [lengthM, widthM, openings]);
+
   const materialProps = shaded ? { roughness: 1, metalness: 0 } : { roughness: 0.6, metalness: 0.4 };
 
   return (
     <mesh geometry={geometry} position={[0, baseY, 0]} castShadow>
       <meshStandardMaterial color={outsideColor} side={THREE.DoubleSide} clippingPlanes={clippingPlanes} {...materialProps} />
-      {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
+      {shaded && (
+        <lineSegments geometry={edgeGeometry}>
+          <lineBasicMaterial color="#1e293b" clippingPlanes={clippingPlanes} />
+        </lineSegments>
+      )}
     </mesh>
   );
 }

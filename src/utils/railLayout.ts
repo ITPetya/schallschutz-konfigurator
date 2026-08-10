@@ -101,10 +101,24 @@ export function computeRailLayout(
     for (const [from, to] of freeSegments(blocked, panelHeight)) railSegments.push({ u, from, to });
   }
 
+  // Jonas' Fehlerbericht 2026-08-10 ("kein wirklich sichtbarer Ausschnitt,
+  // nur Textur unterbrochen"): die Bay-Grenzen lagen bisher auf den
+  // Schienen-MITTELPUNKTEN (railU) statt auf deren AUSSENKANTEN - das
+  // Streckgitter-Feld griff dadurch auf jeder Seite um die halbe
+  // Schienenbreite (23mm) in den Schienen-/Ausschnittbereich hinein und
+  // verdeckte ihn optisch (die Gitterflaeche liegt sogar naeher am Raum als
+  // die buendige Schiene, siehe streckgitterZ vs. railBaseZ in
+  // InteriorCladding.tsx). Fix: Bay-Grenzen auf die echten Schienen-
+  // AUSSENKANTEN (railU +/- C_RAIL_WIDTH_M/2) gelegt, damit exakt der vom
+  // Ausschnitt/der Schiene beanspruchte Streifen frei von Gitterflaeche
+  // bleibt statt ueberdeckt zu werden.
+  const halfRail = C_RAIL_WIDTH_M / 2;
   const bayBounds: { uStart: number; uEnd: number }[] = [];
-  if (railU[0] > -panelWidth / 2) bayBounds.push({ uStart: -panelWidth / 2, uEnd: railU[0] });
-  for (let i = 0; i < railU.length - 1; i++) bayBounds.push({ uStart: railU[i], uEnd: railU[i + 1] });
-  if (railU[railU.length - 1] < panelWidth / 2) bayBounds.push({ uStart: railU[railU.length - 1], uEnd: panelWidth / 2 });
+  if (railU[0] - halfRail > -panelWidth / 2) bayBounds.push({ uStart: -panelWidth / 2, uEnd: railU[0] - halfRail });
+  for (let i = 0; i < railU.length - 1; i++) bayBounds.push({ uStart: railU[i] + halfRail, uEnd: railU[i + 1] - halfRail });
+  if (railU[railU.length - 1] + halfRail < panelWidth / 2) {
+    bayBounds.push({ uStart: railU[railU.length - 1] + halfRail, uEnd: panelWidth / 2 });
+  }
 
   let baySegments: BaySegment[] = [];
   for (const { uStart, uEnd } of bayBounds) {
