@@ -27,8 +27,11 @@ export function AccordionSection({ title, defaultOpen = false, children, tourId 
         <AccordionPrimitive.Header>
           {/* Rotation rein ueber CSS am data-state-Attribut statt React-State
               (Jonas' Vorgabe: 1:1 wie https://animate-ui.com/docs/components/radix/accordion,
-              dort dreht sich das Chevron per "[&[data-state=open]>svg]:rotate-180"). */}
-          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-widest text-brand [&[data-state=open]>svg]:rotate-180">
+              dort dreht sich das Chevron per "[&[data-state=open]>svg]:rotate-180"). cursor-pointer
+              explizit statt nur ueber die globale button-Regel in index.css (Jonas'
+              Fehlerbericht 2026-08-10: "diese Hand fehlt noch, wenn man über diese
+              ausklappbaren Menüpunkte links in der Seitenleiste hovert"). */}
+          <AccordionPrimitive.Trigger className="flex w-full cursor-pointer items-center justify-between text-xs font-bold uppercase tracking-widest text-brand [&[data-state=open]>svg]:rotate-180">
             {title}
             <svg
               width="16"

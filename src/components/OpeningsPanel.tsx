@@ -7,6 +7,7 @@ import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
 import { NumberInput } from "./NumberInput";
 import { TrashIcon } from "./icons/TrashIcon";
 import { AnimatedButton } from "./AnimatedButton";
+import { SonderBadge } from "./SonderBadge";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
@@ -78,11 +79,14 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center justify-between text-left"
+          className="flex flex-1 cursor-pointer items-center justify-between text-left"
         >
           <span className="font-medium text-brand-dark">{typeDef.label}</span>
           <span className="text-xs text-slate-500 dark:text-slate-400">{PANEL_LABELS[o.panel]}</span>
         </button>
+        {typeDef.isDoor && typeDef.category === "free" && (
+          <SonderBadge text="Sondertür (frei nach Maß) – Sondereinbauten sind mit Aufpreis verbunden." />
+        )}
         <AnimatedButton
           type="button"
           onClick={() => onRemove(o.id)}

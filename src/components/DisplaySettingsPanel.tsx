@@ -1,5 +1,10 @@
 import { useState } from "react";
 import { RAL_SPECIAL_COLORS, RAL_STANDARD_COLORS, type RalColor } from "../constants/ralColors";
+import { AnimatedButton } from "./AnimatedButton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./primitives/DropdownMenu";
+import { Chevron } from "./icons/Chevron";
+import { CircleAlertIcon } from "./icons/CircleAlertIcon";
+import { SonderBadge } from "./SonderBadge";
 
 interface DisplaySettingsPanelProps {
   insideColor: string;
@@ -13,9 +18,6 @@ interface DisplaySettingsPanelProps {
   insideNotes: string;
   onInsideNotesChange: (v: string) => void;
 }
-
-const toggleBtn = (active: boolean) =>
-  `flex-1 rounded-full px-2 py-1.5 text-xs font-medium ${active ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"}`;
 
 // "Erweiterte Einstellungen" (Jonas' Vorgabe 2026-07-24, vorher "Darstellung")
 // - der Ansicht-Stil (Realistisch/Schattiert mit Kanten), Hintergrund
@@ -86,50 +88,95 @@ function NoteField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
+// Eigene Dropdown-Liste statt eines nativen <select> (Jonas' Vorgabe
+// 2026-08-10: "Die Farben sollen nicht mehr zwischen Sonderfarben und
+// Standardfarben so differenziert werden wie jetzt [ueber zwei Umschalt-
+// Buttons], sondern eher in einer Dropdownliste mit zwei Bereichen getrennt
+// durch eine dezente Linie. Oberhalb dann die Standardfarben und unterhalb
+// die Sonderfarben, bei den Sonderfarben dann rechts auch ein oranges
+// Ausrufezeichen mit der Info") - ein natives <select> kann kein Icon pro
+// Zeile zeigen, deshalb radix-ui's DropdownMenu (dieselbe Basis wie
+// ueberall sonst im Konfigurator). Das Ausrufezeichen IN der Liste ist rein
+// visuell (kein eigener Klick-Popover - ein interaktiver Popover-Trigger
+// verschachtelt in einem Radix-Menüeintrag fuehrt zu Fokus-/Select-
+// Konflikten zwischen den beiden Radix-Primitives); der volle klickbare
+// SonderBadge mit Erklaertext sitzt stattdessen an der AKTUELLEN Auswahl im
+// Trigger-Button selbst (Jonas: "am besten wenn man sowas ausgewählt hat
+// auch neben dem Auswahlfenster oder so").
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
-  const standardColors = RAL_STANDARD_COLORS;
-  const isStandard = standardColors.some((c) => c.hex === value);
-  const [category, setCategory] = useState<"standard" | "special">(isStandard ? "standard" : "special");
-  const options = category === "standard" ? standardColors : RAL_SPECIAL_COLORS;
-  const current = [...standardColors, ...RAL_SPECIAL_COLORS].find((c) => c.hex === value);
+  const all = [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS];
+  const current = all.find((c) => c.hex === value);
+  const isSonderfarbe = !!current && !RAL_STANDARD_COLORS.some((c) => c.hex === value);
 
   return (
     <div>
       <p className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
-      <div className="mb-1.5 flex gap-1">
-        <button
-          type="button"
-          className={toggleBtn(category === "standard")}
-          onClick={() => {
-            setCategory("standard");
-            onChange(standardColors[0].hex);
-          }}
-        >
-          Standardfarben
-        </button>
-        <button type="button" className={toggleBtn(category === "special")} onClick={() => setCategory("special")}>
-          Sonderfarben
-        </button>
-      </div>
-      <div className="flex items-center gap-2">
-        <span
-          className="h-6 w-6 shrink-0 rounded-full border border-slate-300 dark:border-slate-600"
-          style={{ backgroundColor: value }}
-          aria-hidden
-        />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-        >
-          {options.map((c: RalColor) => (
-            <option key={c.code} value={c.hex}>
-              {c.code} – {c.name}
-            </option>
-          ))}
-        </select>
+      {/* SonderBadge sitzt bewusst AUSSERHALB des Trigger-<button>s, als
+          Geschwister-Element (Jonas' Fehlerbericht 2026-08-10 an derselben
+          Stelle in OpeningsPanel.tsx: ein interaktiver Popover-Trigger
+          verschachtelt in einem ANDEREN Button ist ungueltiges HTML und
+          fuehrt zu Klick-Konflikten - hier waere es sogar ein DropdownMenu-
+          Trigger-Button UND ein Popover-Trigger-Button ineinander). */}
+      <div className="flex items-center gap-1.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <AnimatedButton
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded border border-slate-300 bg-white px-2 py-1 text-left text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <span className="h-5 w-5 shrink-0 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: value }} aria-hidden />
+              <span className="flex-1 truncate">{current ? `${current.code} – ${current.name}` : value}</span>
+              <Chevron direction="down" className="shrink-0 text-slate-400" />
+            </AnimatedButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            sideOffset={4}
+            className="z-50 max-h-72 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+          >
+            {RAL_STANDARD_COLORS.map((c) => (
+              <ColorMenuItem key={c.code} color={c} selected={c.hex === value} onSelect={() => onChange(c.hex)} />
+            ))}
+            <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
+            {RAL_SPECIAL_COLORS.map((c) => (
+              <ColorMenuItem key={c.code} color={c} selected={c.hex === value} sonder onSelect={() => onChange(c.hex)} />
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {isSonderfarbe && <SonderBadge text={`${current!.code} ${current!.name} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.`} />}
       </div>
       {!current && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Aktuell: {value}</p>}
     </div>
+  );
+}
+
+function ColorMenuItem({
+  color,
+  selected,
+  sonder,
+  onSelect,
+}: {
+  color: RalColor;
+  selected: boolean;
+  sonder?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <DropdownMenuItem
+      onSelect={onSelect}
+      className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-700 ${
+        selected ? "font-semibold text-brand-dark" : "text-ink dark:text-slate-100"
+      }`}
+    >
+      <span className="h-4 w-4 shrink-0 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: color.hex }} aria-hidden />
+      <span className="flex-1 truncate">
+        {color.code} – {color.name}
+      </span>
+      {sonder && (
+        <span title="Sonderfarbe – mit Aufpreis verbunden" className="shrink-0 text-orange-500 dark:text-orange-400">
+          <CircleAlertIcon size={14} />
+        </span>
+      )}
+    </DropdownMenuItem>
   );
 }

@@ -8,6 +8,7 @@ import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
+import { DEFAULT_SOUND_CLASS, SOUND_CLASSES } from "../constants/lcStandard";
 
 interface KonfiguratorPageProps {
   // Seit der Nacht-Session 2026-07-25 uebernimmt WorkspacePage.tsx den
@@ -46,6 +47,9 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
   const [insideUnpainted] = useState(config.insideUnpainted ?? false);
   const [outsideNotes] = useState(config.outsideNotes ?? "");
   const [insideNotes] = useState(config.insideNotes ?? "");
+  const [floorThickness] = useState(config.floorThickness ?? 0);
+  const [soundClass] = useState(config.soundClass ?? DEFAULT_SOUND_CLASS);
+  const soundClassSpec = SOUND_CLASSES.find((c) => c.id === soundClass) ?? SOUND_CLASSES[0];
 
   return (
     // Kein eigener Header/Accent-Bar mehr hier (Jonas' Fehlerbericht
@@ -79,6 +83,12 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
                 <dd>{size.height} mm</dd>
                 <dt className="text-slate-400 dark:text-slate-500">Wandstärke</dt>
                 <dd>{wallThickness} mm</dd>
+                <dt className="text-slate-400 dark:text-slate-500">Bodenisolierung</dt>
+                <dd>{floorThickness > 0 ? `${floorThickness} mm` : "Keine"}</dd>
+                <dt className="text-slate-400 dark:text-slate-500">Schallschutz</dt>
+                <dd>
+                  {soundClassSpec.label} ({soundClassSpec.rangeLabel})
+                </dd>
               </dl>
             </AccordionSection>
             <AccordionSection title="Erweiterte Einstellungen">

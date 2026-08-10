@@ -1,6 +1,7 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
+import type { SoundClass } from "../constants/lcStandard";
 
 // Kompletter Konfigurator-Zustand, wie er in eine .sszkonfig-Datei
 // geschrieben/aus ihr gelesen wird (Jonas' Vorgabe 2026-07-23: kein Server,
@@ -28,4 +29,11 @@ export interface ContainerConfig {
   insideUnpainted?: boolean;
   outsideNotes?: string;
   insideNotes?: string;
+  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-08-10): Bodenisolierung ist
+  // beim LC-Standard KEIN Teil der Wandstaerke, sondern eine eigene,
+  // optionale Schicht (0 = keine, Standard) - alte Dateien haben das Feld
+  // nicht, faellt dann auf 0 zurueck. Und die Schallschutzklasse
+  // (Standard/Schallschutz/Silent/Silent-Plus), faellt auf "standard" zurueck.
+  floorThickness?: number;
+  soundClass?: SoundClass;
 }

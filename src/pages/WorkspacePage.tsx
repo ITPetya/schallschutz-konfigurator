@@ -6,6 +6,8 @@ import { OpeningsPanel } from "../components/OpeningsPanel";
 import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
+import { SoundClassControls } from "../components/SoundClassControls";
+import { DEFAULT_SOUND_CLASS } from "../constants/lcStandard";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
@@ -674,12 +676,21 @@ export function WorkspacePage() {
                   <ContainerSizeControls
                     size={editingInstance.config.size}
                     wallThickness={editingInstance.config.wallThickness}
+                    floorThickness={editingInstance.config.floorThickness ?? 0}
                     onSizeChange={(size) => {
                       updateEditingConfig({ size });
                       notifyEvent("size-changed");
                     }}
                     onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
+                    onFloorThicknessChange={(floorThickness) => updateEditingConfig({ floorThickness })}
                   />
+                  <div className="mt-3">
+                    <SoundClassControls
+                      soundClass={editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS}
+                      wallThickness={editingInstance.config.wallThickness}
+                      onChange={(soundClass) => updateEditingConfig({ soundClass })}
+                    />
+                  </div>
                 </AccordionSection>
 
                 <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
