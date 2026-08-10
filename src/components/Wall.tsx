@@ -12,7 +12,7 @@ import { useSectionPlane } from "../context/SectionPlaneContext";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
 import { computeRailLayout } from "../utils/railLayout";
-import { C_RAIL_WIDTH_M, getRailRecessDepthM } from "../utils/cRailProfile";
+import { C_RAIL_WIDTH_M, getWallCutDepthM } from "../utils/cRailProfile";
 
 interface WallProps {
   position: [number, number, number];
@@ -228,17 +228,19 @@ export function Wall({
 
     // Jonas' Fehlerbericht 2026-08-10: die Schiene soll BUENDIG mit der
     // Innenwand sitzen (keine herausstehenden Teile) - der Ausschnitt in der
-    // Wand ("im Innenwandblech") muss dafuer die VOLLE Schienentiefe
-    // aufnehmen, nicht nur die duenne Rueckenplatte (siehe getRailRecessDepthM
-    // in cRailProfile.ts, von hier UND InteriorCladding.tsx's railBaseZ
-    // gemeinsam genutzt, damit Ausschnitt und Schienen-Position exakt
-    // zusammenpassen). railSegments oben schon um claddingInsetU/-V
+    // Wand ("im Innenwandblech") muss dafuer die volle Schienentiefe
+    // aufnehmen. getWallCutDepthM() (cRailProfile.ts) schneidet dabei bewusst
+    // 1mm TIEFER als die Schiene selbst sitzt (getRailRecessDepthM, siehe
+    // InteriorCladding.tsx's railBaseZ) - sonst waere die Ausschnitt-
+    // Grundflaeche exakt koplanar mit dem Schienen-Ruecken und es flackert
+    // (Z-Fighting, Jonas' Fehlerbericht Runde 4: "eine Flaeche in Innenfarbe
+    // die rumbuggt"). railSegments oben schon um claddingInsetU/-V
     // (Nachbarwandstaerke an allen Raendern) bereinigt.
     if (interiorCladding) {
-      const recessDepth = getRailRecessDepthM(thickness);
-      const recessZ = -outwardSign * (thickness / 2 - recessDepth / 2);
+      const cutDepth = getWallCutDepthM(thickness);
+      const recessZ = -outwardSign * (thickness / 2 - cutDepth / 2);
       for (const { u, from, to } of railSegments) {
-        const cutGeom = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, recessDepth);
+        const cutGeom = new THREE.BoxGeometry(C_RAIL_WIDTH_M, to - from, cutDepth);
         const cutBrush = new Brush(cutGeom);
         cutBrush.position.set(u, (from + to) / 2 - panelHeight / 2, recessZ);
         cutBrush.updateMatrixWorld();

@@ -95,23 +95,36 @@ export const C_RAIL_PITCH_M = 0.558; // Achse-zu-Achse, Jonas' Vorgabe 2026-07-2
 export const C_RAIL_WIDTH_M = WIDTH; // Aussenbreite - fuer den Wandausschnitt (siehe railLayout.ts)
 export const C_RAIL_SHEET_THICKNESS_M = THICKNESS; // Blechstaerke - fuer die Einsenk-Tiefe im Wandausschnitt
 
-// Jonas' Fehlerbericht 2026-08-10: die Schiene lag bisher nur mit ihrem
-// Ruecken (2mm) versenkt, ragte mit dem Rest ihrer vollen Tiefe (~31mm) in
-// den Raum hinein - er will sie stattdessen BUENDIG mit der Innenwand, d.h.
-// die GESAMTE Schienentiefe muss im Wandausschnitt verschwinden (die
-// entstehende Ausnehmung IN der Wand ist dabei genau der "Ausschnitt im
-// Innenwandblech", durch den die Schiene von innen nutzbar bleibt). +THICKNESS
-// als Sicherheitsmarge, weil strokeOutline() an der aeusseren Gehrungsecke
-// (Schenkel-Oberkante) minimal ueber HEIGHT hinaus ausschlaegt.
-export const C_RAIL_FLUSH_RECESS_M = C_RAIL_DEPTH_M + THICKNESS;
-
-// Tatsaechlich nutzbare Versenktiefe fuer eine Wand konkreter Staerke -
-// gedeckelt, damit bei sehr duennen Waenden kein Loch nach aussen entsteht
-// (mind. 5mm massive Restwand aussen stehen bleiben, nie weniger als die
-// alte reine Rueckenplatten-Tiefe). Von Wall.tsx (Ausschnitt) UND
-// InteriorCladding.tsx (Schienen-Position) gemeinsam genutzt, damit beide
-// IMMER exakt dieselbe Tiefe verwenden.
+// Jonas' Fehlerbericht 2026-08-10 (Runde 1): die Schiene lag bisher nur mit
+// ihrem Ruecken (2mm) versenkt, ragte mit dem Rest ihrer vollen Tiefe
+// (~31mm) in den Raum hinein - sie soll stattdessen BUENDIG mit der
+// Innenwand sitzen, d.h. die GESAMTE Schienentiefe (C_RAIL_DEPTH_M)
+// verschwindet im Wandausschnitt. Position der Schiene SELBST: exakt
+// C_RAIL_DEPTH_M, KEINE Sicherheitsmarge mehr (Runde 4-Korrektur - eine
+// fruehere +THICKNESS-Marge auf der Schienenposition erzeugte einen
+// sichtbaren ~2mm "Reveal"-Rahmen um die Schiene, dessen duenne
+// Ausschnitt-Seitenwaende von der generischen Aussen/Innen-Klassifizierung
+// (splitByOutward in Wall.tsx, Normale ~senkrecht zu Z = mehrdeutig)
+// teils faelschlich in Aussenfarbe gerieten - genau Jonas' Fehlerbericht
+// "in Teilen die Aussenfarbe"). Gedeckelt, damit bei sehr duennen Waenden
+// kein Loch nach aussen entsteht.
 export function getRailRecessDepthM(wallThicknessM: number): number {
   const maxByWall = wallThicknessM - 0.005;
-  return Math.min(C_RAIL_FLUSH_RECESS_M, Math.max(maxByWall, C_RAIL_SHEET_THICKNESS_M));
+  return Math.min(C_RAIL_DEPTH_M, Math.max(maxByWall, C_RAIL_SHEET_THICKNESS_M));
+}
+
+// Der Wandausschnitt selbst geht einen HAUCH (1mm) tiefer als die Schiene
+// tatsaechlich sitzt (getRailRecessDepthM) - sonst liegt die Ausschnitt-
+// Grundflaeche der Wand (Innenfarbe) EXAKT koplanar mit dem Schienen-
+// Ruecken, zwei deckungsgleiche Flaechen an derselben Tiefe = Z-Fighting
+// (Jonas' Fehlerbericht 2026-08-10 Runde 4: "eine Flaeche in Innenfarbe die
+// rumbuggt"). Die Schiene selbst bleibt an ihrer buendigen Position (siehe
+// getRailRecessDepthM oben) - nur der dahinterliegende, ohnehin von der
+// Schiene verdeckte Wandausschnitt-Boden weicht diesen einen Millimeter
+// weiter zurueck, damit die Schiene ihn immer eindeutig verdeckt.
+const WALL_CUT_HIDE_CLEARANCE_M = 0.001;
+
+export function getWallCutDepthM(wallThicknessM: number): number {
+  const railDepth = getRailRecessDepthM(wallThicknessM);
+  return Math.min(railDepth + WALL_CUT_HIDE_CLEARANCE_M, wallThicknessM - 0.002);
 }
