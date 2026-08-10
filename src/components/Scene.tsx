@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
+import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
@@ -9,7 +9,7 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
-import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
@@ -211,6 +211,17 @@ export function Scene({
             opacity={0.75}
           />
         </GizmoHelper>
+        {/* Jonas' Vorgabe 2026-08-10: Fadenkreuz unten links (Gegenstueck zum
+            ViewCube unten rechts), zeigt die Richtungen X/Y/Z. Die
+            ANGEZEIGTEN Beschriftungen weichen bewusst von drei's/three.js'
+            tatsaechlicher Achsenbenennung ab (labels-Prop tauscht NUR den
+            Text, nicht die echte Geometrie/Kamera-Logik): Jonas nennt die
+            Welt-Y-Achse (echte Hoehe, siehe Container.tsx: H liegt auf
+            Welt-Y) "Z", und die Welt-Z-Achse (Containerbreite) "Y" -
+            "X ist von links nach rechts, Y ist die Tiefe, Z ist die Höhe". */}
+        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
+          <GizmoViewport labels={["X", "Z", "Y"]} axisColors={["#dc2626", "#16a34a", "#008eb4"]} labelColor="white" />
+        </GizmoHelper>
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
@@ -222,14 +233,6 @@ export function Scene({
         onRedo={onRedo}
         canUndo={canUndo}
         canRedo={canRedo}
-        measureActive={measureActive}
-        onToggleMeasure={handleToggleMeasure}
-        measureSelected={measureSelected}
-        unitPrefs={unitPrefs}
-        onChangeUnitPrefs={setUnitPrefs}
-      />
-
-      <SectionAndViewPanel
         section={section}
         viewStyle={viewStyle}
         background={background}
@@ -239,6 +242,11 @@ export function Scene({
         onBackgroundChange={onBackgroundChange}
         onShadowsEnabledChange={onShadowsEnabledChange}
         onTerrainDetailChange={onTerrainDetailChange}
+        measureActive={measureActive}
+        onToggleMeasure={handleToggleMeasure}
+        measureSelected={measureSelected}
+        unitPrefs={unitPrefs}
+        onChangeUnitPrefs={setUnitPrefs}
       />
     </div>
   );

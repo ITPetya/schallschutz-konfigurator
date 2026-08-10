@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { AnimatedButton } from "./AnimatedButton";
 import { HomeIcon } from "./icons/HomeIcon";
 import { UndoIcon } from "./icons/UndoIcon";
 import { RedoIcon } from "./icons/RedoIcon";
 import { RulerIcon } from "./icons/RulerIcon";
+import { SectionIcon } from "./icons/SectionIcon";
+import { ViewIcon } from "./icons/ViewIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
+import { SectionResultPanel, ViewResultPanel, type SectionPlaneState } from "./SectionAndViewPanel";
 import type { MeasurePoint } from "../utils/measurePoints";
 import type { UnitPreferences } from "../config/unitPreferencesStore";
+import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 
 const DEFAULT_UNIT_PREFS: UnitPreferences = { primary: "mm", secondary: null };
 
@@ -18,6 +23,19 @@ interface ViewerToolbarProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // Schnitt (Jonas' Vorgabe 2026-08-10: jetzt Werkzeug-Button statt fester
+  // Position unten links, siehe SectionAndViewPanel.tsx's SectionResultPanel).
+  section: SectionPlaneState;
+  sectionDisabledHint?: string;
+  // Ansicht - optional wie zuvor, fehlt im schreibgeschuetzten Viewer.
+  viewStyle?: ViewStyle;
+  background?: BackgroundStyle;
+  shadowsEnabled?: boolean;
+  terrainDetail?: TerrainDetail;
+  onViewStyleChange?: (v: ViewStyle) => void;
+  onBackgroundChange?: (b: BackgroundStyle) => void;
+  onShadowsEnabledChange?: (v: boolean) => void;
+  onTerrainDetailChange?: (d: TerrainDetail) => void;
   // Jonas' Vorgabe 2026-08-10: Messwerkzeug (wie in Inventor) - optional,
   // weil nicht jeder Viewer (z. B. der schreibgeschuetzte Konstrukteur-
   // Viewer) es unbedingt anbieten muss.
@@ -40,12 +58,28 @@ export function ViewerToolbar({
   onRedo,
   canUndo,
   canRedo,
+  section,
+  sectionDisabledHint,
+  viewStyle,
+  background,
+  shadowsEnabled,
+  terrainDetail,
+  onViewStyleChange,
+  onBackgroundChange,
+  onShadowsEnabledChange,
+  onTerrainDetailChange,
   measureActive,
   onToggleMeasure,
   measureSelected,
   unitPrefs,
   onChangeUnitPrefs,
 }: ViewerToolbarProps) {
+  // "Ansicht" hat (anders als Schnitt/Messen) kein eigenes "aktiv"-Konzept
+  // im Modell - der Button ist einfach "aktiv", solange sein Panel offen
+  // ist, unabhaengig davon, was darin eingestellt wird.
+  const [viewOpen, setViewOpen] = useState(false);
+  const canShowView = !!(onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && viewStyle && background && shadowsEnabled !== undefined && terrainDetail);
+
   return (
     <>
       {onUndo && onRedo && (
@@ -59,30 +93,58 @@ export function ViewerToolbar({
         </div>
       )}
       {/* Jonas' Vorgabe 2026-08-10: eigene, vertikale, mittig am rechten
-          Viewer-Rand schwebende Werkzeugleiste fuer "Messen" und kuenftige
-          Werkzeuge - gleiche Positionierungs-Konvention wie der bestehende
-          Seitenleiste-einklappen-Button (WorkspacePage.tsx: "absolute
-          left-2 top-1/2 -translate-y-1/2"), auf die rechte Seite
-          gespiegelt, aber mit right-4 statt right-2 (Jonas' Fehlerbericht:
-          "mehr Randabstand, eher wie vor und zurück oder home") - selber
-          Randabstand wie die Rueckgaengig/Wiederholen-Buttons oben. Das
-          Ergebnis-Panel soll dabei sichtbar AUS DEM Button selbst
-          entstehen (nicht irgendwo anders auftauchen) - liegt deshalb in
-          derselben Zeile direkt links vom Button, statt z. B. bei
-          Schnitt/Ansicht unten links. */}
-      {onToggleMeasure && (
-        <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 items-center gap-2">
-          <MeasureResultPanel
-            active={!!measureActive}
-            selected={measureSelected ?? []}
-            unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
-            onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
-          />
-          <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
-            <RulerIcon size={16} />
+          Viewer-Rand schwebende Werkzeugleiste - "Schnitt"/"Ansicht" mussten
+          dafuer aus ihrer alten festen Position unten links weichen (dort
+          sitzt jetzt das Fadenkreuz, siehe Scene.tsx/ProjectScene3D.tsx) und
+          funktionieren jetzt "genauso wie Messen": eigener animierter
+          Werkzeug-Button, Panel waechst direkt AUS dem Button (siehe
+          ToolResultPanel.tsx), keine feste Position mehr. Gleiche
+          Positionierungs-Konvention wie der bestehende Seitenleiste-
+          einklappen-Button (WorkspacePage.tsx: "absolute left-2 top-1/2
+          -translate-y-1/2"), auf die rechte Seite gespiegelt, right-4 statt
+          right-2 (Jonas' Fehlerbericht: "mehr Randabstand, eher wie vor und
+          zurück oder home"). */}
+      <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
+        <div data-tour="section-view" className="flex items-center justify-end gap-2">
+          <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
+          <ToolButton onClick={() => section.setSectionEnabled((v) => !v)} label="Schnitt" active={section.sectionEnabled}>
+            <SectionIcon size={16} />
           </ToolButton>
         </div>
-      )}
+
+        {canShowView && (
+          <div data-tour="view-style-panel" className="flex items-center justify-end gap-2">
+            <ViewResultPanel
+              active={viewOpen}
+              viewStyle={viewStyle!}
+              background={background!}
+              shadowsEnabled={shadowsEnabled!}
+              terrainDetail={terrainDetail!}
+              onViewStyleChange={onViewStyleChange!}
+              onBackgroundChange={onBackgroundChange!}
+              onShadowsEnabledChange={onShadowsEnabledChange!}
+              onTerrainDetailChange={onTerrainDetailChange}
+            />
+            <ToolButton onClick={() => setViewOpen((v) => !v)} label="Ansicht" active={viewOpen}>
+              <ViewIcon size={16} />
+            </ToolButton>
+          </div>
+        )}
+
+        {onToggleMeasure && (
+          <div className="flex items-center justify-end gap-2">
+            <MeasureResultPanel
+              active={!!measureActive}
+              selected={measureSelected ?? []}
+              unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
+              onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
+            />
+            <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
+              <RulerIcon size={16} />
+            </ToolButton>
+          </div>
+        )}
+      </div>
       {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
           mit der rechten Außenkante des Würfels" - GizmoHelper platziert den
           Wuerfel mit margin=[80,80] (Zentrum 80px von rechts/unten), die

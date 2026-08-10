@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
+import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
@@ -13,7 +13,7 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
-import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
@@ -319,6 +319,11 @@ export function ProjectScene3D({
             opacity={0.75}
           />
         </GizmoHelper>
+        {/* Siehe Scene.tsx fuer die Herleitung der vertauschten Y/Z-
+            Beschriftung (Jonas' Vorgabe 2026-08-10). */}
+        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
+          <GizmoViewport labels={["X", "Z", "Y"]} axisColors={["#dc2626", "#16a34a", "#008eb4"]} labelColor="white" />
+        </GizmoHelper>
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
@@ -330,15 +335,8 @@ export function ProjectScene3D({
         onRedo={onRedo}
         canUndo={canUndo}
         canRedo={canRedo}
-        measureActive={measureActive}
-        onToggleMeasure={handleToggleMeasure}
-        measureSelected={measureSelected}
-        unitPrefs={unitPrefs}
-        onChangeUnitPrefs={setUnitPrefs}
-      />
-
-      <SectionAndViewPanel
         section={section}
+        sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
         viewStyle={displayedViewStyle}
         background={background}
         shadowsEnabled={shadowsEnabled}
@@ -347,7 +345,11 @@ export function ProjectScene3D({
         onBackgroundChange={setBackground}
         onShadowsEnabledChange={setShadowsEnabled}
         onTerrainDetailChange={setTerrainDetail}
-        sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
+        measureActive={measureActive}
+        onToggleMeasure={handleToggleMeasure}
+        measureSelected={measureSelected}
+        unitPrefs={unitPrefs}
+        onChangeUnitPrefs={setUnitPrefs}
       />
     </div>
   );
