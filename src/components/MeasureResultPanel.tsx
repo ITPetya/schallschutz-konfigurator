@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { MeasurePoint } from "../utils/measurePoints";
+import { CopyButton } from "./CopyButton";
 
 interface MeasureResultPanelProps {
   active: boolean;
@@ -53,19 +54,28 @@ function MeasureResultRows({ a, b }: { a: [number, number, number]; b: [number, 
       <MeasureRow label="X" valueMm={dxMm} />
       <MeasureRow label="Y" valueMm={dyMm} />
       <MeasureRow label="Z" valueMm={dzMm} />
-      <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5 font-semibold text-brand-dark dark:border-slate-700 dark:text-brand-light">
+      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-slate-200 pt-1.5 font-semibold text-brand-dark dark:border-slate-700 dark:text-brand-light">
         <span>Direkt</span>
-        <span>{directMm} mm</span>
+        <span className="flex items-center gap-1.5">
+          {directMm} mm
+          <CopyButton value={`${directMm} mm`} label="Direkten Abstand kopieren" />
+        </span>
       </div>
     </div>
   );
 }
 
+// Copy-Symbol ist im Panel IMMER sichtbar (Jonas' Vorgabe 2026-08-10: "das
+// Symbol soll in dem Fenster immer sein") - anders als die In-Viewer-
+// Beschriftung (MeasureDistanceLabel.tsx), wo es erst beim Hover einblendet.
 function MeasureRow({ label, valueMm }: { label: string; valueMm: number }) {
   return (
-    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+    <div className="flex items-center justify-between gap-2 text-slate-500 dark:text-slate-400">
       <span>{label}</span>
-      <span>{valueMm} mm</span>
+      <span className="flex items-center gap-1.5">
+        {valueMm} mm
+        <CopyButton value={`${valueMm} mm`} label={`${label}-Abstand kopieren`} />
+      </span>
     </div>
   );
 }

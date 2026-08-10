@@ -167,3 +167,15 @@ textarea,
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* Jonas' Fehlerbericht 2026-08-10: "bei allen klickbaren Sachen soll der
+   Mauszeiger zur Hand werden, ausser bei Eingabefeldern" - Browser setzen
+   das von sich aus nur bei <a href>, NICHT bei <button> (Tailwinds Preflight
+   laesst dort den Standard-Pfeil). input/textarea/select bleiben bewusst
+   aussen vor (native Eingabe-Cursor: Textcursor bzw. Browser-Standard). */
+button:not(:disabled),
+a[href],
+summary,
+[role="button"] {
+  cursor: pointer;
+}

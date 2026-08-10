@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { Line } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { MeasurePoint } from "../utils/measurePoints";
+import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
+import { MeasureDistanceLabel } from "./MeasureDistanceLabel";
 
 interface MeasureMarkersProps {
   points: MeasurePoint[];
@@ -45,13 +47,27 @@ export function MeasureMarkers({ points, selected, onPick }: MeasureMarkersProps
       {points.map((p) => {
         const isSelected = selected.some((s) => s.id === p.id);
         return (
-          <mesh key={p.id} position={p.position} onClick={(e) => handleClick(e, p)}>
+          <mesh
+            key={p.id}
+            position={p.position}
+            onClick={(e) => handleClick(e, p)}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setPointerCursor();
+            }}
+            onPointerOut={resetPointerCursor}
+          >
             <sphereGeometry args={[MARKER_RADIUS_M, 12, 12]} />
             <meshBasicMaterial color={isSelected ? "#0284c7" : "#f97316"} transparent opacity={isSelected ? 1 : 0.75} />
           </mesh>
         );
       })}
-      {linePoints && <Line points={linePoints} color="#0284c7" lineWidth={2} transparent />}
+      {linePoints && (
+        <>
+          <Line points={linePoints} color="#0284c7" lineWidth={2} transparent />
+          <MeasureDistanceLabel a={selected[0].position} b={selected[1].position} />
+        </>
+      )}
     </group>
   );
 }

@@ -15,6 +15,7 @@ import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
+import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
 import type { ContainerSize } from "../constants/containerSizes";
 
 const MM_TO_M = 1 / 1000;
@@ -419,6 +420,11 @@ const InstanceGroup = memo(function InstanceGroup({
         onPointerDown={(e) => onPointerEvent(instance.id, e, "down")}
         onPointerMove={(e) => onPointerEvent(instance.id, e, "move")}
         onPointerUp={(e) => onPointerEvent(instance.id, e, "up")}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setPointerCursor();
+        }}
+        onPointerOut={resetPointerCursor}
       >
         <planeGeometry args={[lengthM + FOOTPRINT_MARGIN_M, widthM + FOOTPRINT_MARGIN_M]} />
         <meshBasicMaterial color={footprintColor} transparent opacity={footprintOpacity} depthWrite={false} />
