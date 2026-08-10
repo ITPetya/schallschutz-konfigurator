@@ -10,6 +10,7 @@ import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
@@ -129,6 +130,7 @@ export function Scene({
   const [measureActive, setMeasureActive] = useState(false);
   const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
   const measurePoints = useMemo(() => computeMeasurePoints(size, wallThickness, openings), [size, wallThickness, openings]);
+  const { prefs: unitPrefs, setPrefs: setUnitPrefs } = useUnitPreferences();
 
   function handleMeasurePick(p: MeasurePoint) {
     setMeasureSelected((prev) => (prev.length >= 2 ? [p] : prev.some((s) => s.id === p.id) ? prev : [...prev, p]));
@@ -160,7 +162,9 @@ export function Scene({
           </SectionPlaneProvider>
         </DisplaySettingsProvider>
 
-        {measureActive && <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} />}
+        {measureActive && (
+          <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} unit={unitPrefs.primary} />
+        )}
 
         {/* HDRI-Umgebungsbilder (public/hdri/) - dem Dateinamen nach vermutlich
             von Poly Haven (dort CC0/gemeinfrei) bezogen, aber die genaue
@@ -221,6 +225,8 @@ export function Scene({
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
         measureSelected={measureSelected}
+        unitPrefs={unitPrefs}
+        onChangeUnitPrefs={setUnitPrefs}
       />
 
       <SectionAndViewPanel

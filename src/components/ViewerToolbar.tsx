@@ -5,6 +5,9 @@ import { RedoIcon } from "./icons/RedoIcon";
 import { RulerIcon } from "./icons/RulerIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
 import type { MeasurePoint } from "../utils/measurePoints";
+import type { UnitPreferences } from "../config/unitPreferencesStore";
+
+const DEFAULT_UNIT_PREFS: UnitPreferences = { primary: "mm", secondary: null };
 
 interface ViewerToolbarProps {
   onReset: () => void;
@@ -21,6 +24,8 @@ interface ViewerToolbarProps {
   measureActive?: boolean;
   onToggleMeasure?: () => void;
   measureSelected?: MeasurePoint[];
+  unitPrefs?: UnitPreferences;
+  onChangeUnitPrefs?: (prefs: UnitPreferences) => void;
 }
 
 // Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
@@ -38,6 +43,8 @@ export function ViewerToolbar({
   measureActive,
   onToggleMeasure,
   measureSelected,
+  unitPrefs,
+  onChangeUnitPrefs,
 }: ViewerToolbarProps) {
   return (
     <>
@@ -65,7 +72,12 @@ export function ViewerToolbar({
           Schnitt/Ansicht unten links. */}
       {onToggleMeasure && (
         <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 items-center gap-2">
-          <MeasureResultPanel active={!!measureActive} selected={measureSelected ?? []} />
+          <MeasureResultPanel
+            active={!!measureActive}
+            selected={measureSelected ?? []}
+            unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
+            onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
+          />
           <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
             <RulerIcon size={16} />
           </ToolButton>

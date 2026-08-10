@@ -17,7 +17,12 @@ interface CopyButtonProps {
 export function CopyButton({ value, label, className }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
-  async function handleCopy() {
+  // Stoppt die Ausbreitung, damit ein Klick auf den Copy-Button NICHT auch
+  // z. B. den Direkt/XYZ-Umschalter der In-Viewer-Bemaßung mitausloest
+  // (MeasureDistanceLabel.tsx) - der Button sitzt dort innerhalb des
+  // klickbaren Beschriftungs-Containers.
+  async function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);

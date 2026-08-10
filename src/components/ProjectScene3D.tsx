@@ -14,6 +14,7 @@ import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
 
@@ -186,6 +187,7 @@ export function ProjectScene3D({
   );
   const [measureActive, setMeasureActive] = useState(false);
   const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+  const { prefs: unitPrefs, setPrefs: setUnitPrefs } = useUnitPreferences();
 
   function handleMeasurePick(p: MeasurePoint) {
     setMeasureSelected((prev) => (prev.length >= 2 ? [p] : prev.some((s) => s.id === p.id) ? prev : [...prev, p]));
@@ -268,7 +270,9 @@ export function ProjectScene3D({
           />
         ))}
 
-        {measureActive && <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} />}
+        {measureActive && (
+          <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} unit={unitPrefs.primary} />
+        )}
 
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
             Herkunft dieser HDRI-Dateien. */}
@@ -329,6 +333,8 @@ export function ProjectScene3D({
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
         measureSelected={measureSelected}
+        unitPrefs={unitPrefs}
+        onChangeUnitPrefs={setUnitPrefs}
       />
 
       <SectionAndViewPanel

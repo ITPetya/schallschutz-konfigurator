@@ -5,11 +5,13 @@ import type { ThreeEvent } from "@react-three/fiber";
 import type { MeasurePoint } from "../utils/measurePoints";
 import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
 import { MeasureDistanceLabel } from "./MeasureDistanceLabel";
+import type { LengthUnit } from "../utils/lengthUnits";
 
 interface MeasureMarkersProps {
   points: MeasurePoint[];
   selected: MeasurePoint[]; // 0, 1 oder 2 Punkte
   onPick: (p: MeasurePoint) => void;
+  unit: LengthUnit;
 }
 
 // Sichtbarer Radius (Meter) der klickbaren Messpunkt-Markierungen - bewusst
@@ -31,7 +33,7 @@ const MARKER_RADIUS_M = 0.08;
 // dem anfaenglichen depthTest={false}, verdeckte Punkte sind dadurch weder
 // sichtbar noch anklickbar (muss man sich per Kamera-Drehung zugaenglich
 // machen, genau wie bei echten CAD-Messwerkzeugen).
-export function MeasureMarkers({ points, selected, onPick }: MeasureMarkersProps) {
+export function MeasureMarkers({ points, selected, onPick, unit }: MeasureMarkersProps) {
   const linePoints = useMemo<[THREE.Vector3, THREE.Vector3] | null>(() => {
     if (selected.length !== 2) return null;
     return [new THREE.Vector3(...selected[0].position), new THREE.Vector3(...selected[1].position)];
@@ -65,7 +67,7 @@ export function MeasureMarkers({ points, selected, onPick }: MeasureMarkersProps
       {linePoints && (
         <>
           <Line points={linePoints} color="#0284c7" lineWidth={2} transparent />
-          <MeasureDistanceLabel a={selected[0].position} b={selected[1].position} />
+          <MeasureDistanceLabel a={selected[0].position} b={selected[1].position} unit={unit} />
         </>
       )}
     </group>
