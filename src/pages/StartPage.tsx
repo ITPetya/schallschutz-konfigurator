@@ -120,7 +120,7 @@ export function StartPage() {
           // Durchlauf wartet es loopDelay ms, bevor der naechste startet,
           // statt (wie vorher, Standardwert loop=false) nur einmal beim
           // Mounten zu spielen.
-          <Shine asChild loop loopDelay={2600}>
+          <Shine asChild loop loopDelay={2000}>
             <AnimatedButton
               type="button"
               data-tour="start-configuration"
@@ -146,7 +146,7 @@ export function StartPage() {
         {hasCache ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Shine asChild loop loopDelay={2600}>
+              <Shine asChild loop loopDelay={2000}>
                 <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
                   <UploadIcon size={18} />
                   Projekt laden
@@ -173,7 +173,7 @@ export function StartPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Shine asChild loop loopDelay={2600}>
+          <Shine asChild loop loopDelay={2000}>
             <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
               <UploadIcon size={18} />
               Projekt laden
