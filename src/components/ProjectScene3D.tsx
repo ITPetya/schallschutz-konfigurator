@@ -12,7 +12,9 @@ import { useTheme } from "../context/ThemeContext";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
+import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
+import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
 
 const MM_TO_M = 1 / 1000;
@@ -154,6 +156,55 @@ export function ProjectScene3D({
   }, [instances]);
   const contentNotReady = instances.length > 0 && readyIds.size < instances.length;
 
+  // Jonas' Vorgabe 2026-08-10 ("wie in Inventor Bauteile messen, in der
+  // Baugruppe Abstaende von Containern oder die Container-Aussenmasse") -
+  // Messpunkte JEDER Instanz (Container-Ecken + Durchbruch-/Tuer-Merkmale,
+  // siehe utils/measurePoints.ts) einzeln in ihrem eigenen lokalen Rahmen
+  // berechnet, dann per measurePointsToWorld() um die Instanz-Position/
+  // -Rotation in Welt-Koordinaten umgerechnet - so lassen sich auch Punkte
+  // AUF VERSCHIEDENEN Containern gegeneinander messen (z. B. der Abstand
+  // zwischen zwei Containern). Punkt-IDs mit der Instanz-ID prefixed, damit
+  // sie zwischen Instanzen eindeutig bleiben.
+  const measurePoints = useMemo(
+    () =>
+      instances.flatMap((inst) =>
+        measurePointsToWorld(
+          computeMeasurePoints(inst.config.size, inst.config.wallThickness, inst.config.openings).map((p) => ({
+            ...p,
+            id: `${inst.id}:${p.id}`,
+          })),
+          inst.position,
+          inst.rotationY,
+        ),
+      ),
+    [instances],
+  );
+  const [measureActive, setMeasureActive] = useState(false);
+  const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+
+  function handleMeasurePick(p: MeasurePoint) {
+    setMeasureSelected((prev) => (prev.length >= 2 ? [p] : prev.some((s) => s.id === p.id) ? prev : [...prev, p]));
+  }
+
+  function handleToggleMeasure() {
+    setMeasureActive((v) => !v);
+    setMeasureSelected([]);
+  }
+
+  const measureText = !measureActive
+    ? null
+    : measureSelected.length === 0
+      ? "Messen: ersten Punkt anklicken"
+      : measureSelected.length === 1
+        ? "Messen: zweiten Punkt anklicken"
+        : `Abstand: ${Math.round(
+            Math.hypot(
+              measureSelected[0].position[0] - measureSelected[1].position[0],
+              measureSelected[0].position[1] - measureSelected[1].position[1],
+              measureSelected[0].position[2] - measureSelected[1].position[2],
+            ) * 1000,
+          )} mm`;
+
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
   // lagt sehr"): EINE stabile (useCallback) Funktion statt vormals einer neu
   // erzeugten Closure PRO Instanz PRO Render (`(e) => handlePointerEvent(inst.id, e, ...)`
@@ -225,6 +276,8 @@ export function ProjectScene3D({
           />
         ))}
 
+        {measureActive && <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} />}
+
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
             Herkunft dieser HDRI-Dateien. */}
         {isTerrain ? (
@@ -273,9 +326,21 @@ export function ProjectScene3D({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
-      <ViewerStatusBar buildProgress={{ done: readyIds.size, total: instances.length }} containerCount={instances.length} />
+      <ViewerStatusBar
+        buildProgress={{ done: readyIds.size, total: instances.length }}
+        containerCount={instances.length}
+        measureText={measureText}
+      />
 
-      <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
+      <ViewerToolbar
+        onReset={() => controlsRef.current?.reset()}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        measureActive={measureActive}
+        onToggleMeasure={handleToggleMeasure}
+      />
 
       <SectionAndViewPanel
         section={section}

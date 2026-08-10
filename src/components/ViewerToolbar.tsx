@@ -2,6 +2,7 @@ import { AnimatedButton } from "./AnimatedButton";
 import { HomeIcon } from "./icons/HomeIcon";
 import { UndoIcon } from "./icons/UndoIcon";
 import { RedoIcon } from "./icons/RedoIcon";
+import { RulerIcon } from "./icons/RulerIcon";
 
 interface ViewerToolbarProps {
   onReset: () => void;
@@ -12,6 +13,11 @@ interface ViewerToolbarProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // Jonas' Vorgabe 2026-08-10: Messwerkzeug (wie in Inventor) - optional,
+  // weil nicht jeder Viewer (z. B. der schreibgeschuetzte Konstrukteur-
+  // Viewer) es unbedingt anbieten muss.
+  measureActive?: boolean;
+  onToggleMeasure?: () => void;
 }
 
 // Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
@@ -20,17 +26,26 @@ interface ViewerToolbarProps {
 // 2026-07-25: "die vor und zurück buttons sollten oben rechts im viewer
 // sein"), gleicher Button-Stil (halbtransparenter weisser Kreis) an beiden
 // Stellen.
-export function ViewerToolbar({ onReset, onUndo, onRedo, canUndo, canRedo }: ViewerToolbarProps) {
+export function ViewerToolbar({ onReset, onUndo, onRedo, canUndo, canRedo, measureActive, onToggleMeasure }: ViewerToolbarProps) {
   return (
     <>
-      {onUndo && onRedo && (
+      {(onToggleMeasure || (onUndo && onRedo)) && (
         <div data-tour="viewer-toolbar" className="absolute right-4 top-4 flex gap-1.5">
-          <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
-            <UndoIcon size={15} />
-          </ToolButton>
-          <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
-            <RedoIcon size={15} />
-          </ToolButton>
+          {onToggleMeasure && (
+            <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
+              <RulerIcon size={15} />
+            </ToolButton>
+          )}
+          {onUndo && onRedo && (
+            <>
+              <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
+                <UndoIcon size={15} />
+              </ToolButton>
+              <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
+                <RedoIcon size={15} />
+              </ToolButton>
+            </>
+          )}
         </div>
       )}
       {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
@@ -58,11 +73,15 @@ function ToolButton({
   onClick,
   disabled,
   label,
+  active,
   children,
 }: {
   onClick: () => void;
   disabled?: boolean;
   label: string;
+  // Gefuellter Zustand fuer Umschalt-Buttons (bisher gab's hier nur
+  // Einmal-Aktionen) - Jonas' Vorgabe 2026-08-10, Messwerkzeug-Toggle.
+  active?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -72,7 +91,12 @@ function ToolButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-300 disabled:hover:text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400"
+      aria-pressed={active}
+      className={
+        active
+          ? "flex h-8 w-8 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-sm"
+          : "flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-500 shadow-sm hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-300 disabled:hover:text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400"
+      }
     >
       {children}
     </AnimatedButton>

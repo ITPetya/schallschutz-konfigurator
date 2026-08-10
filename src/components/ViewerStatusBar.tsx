@@ -8,6 +8,10 @@ interface ViewerStatusBarProps {
   // Nur in der Baugruppen-Ansicht gesetzt (Scene.tsx hat immer genau einen
   // Container, dafuer lohnt sich der Warnhinweis nicht).
   containerCount?: number;
+  // Fuehrungstext/-ergebnis des Messwerkzeugs (Jonas' Vorgabe 2026-08-10) -
+  // hat Vorrang vor Lade-/Warnhinweisen, weil er direktes Ergebnis der
+  // gerade laufenden Nutzeraktion ist.
+  measureText?: string | null;
 }
 
 // Ab dieser Anzahl Container in EINER Baugruppe zeigt die Fussleiste einen
@@ -26,11 +30,13 @@ const MANY_CONTAINERS_THRESHOLD = 15;
 // Baugruppe. Bewusst KEIN eigener Ladespinner/-icon - nur Text, das
 // eigentliche Ladesymbol bleibt dem Milchglas-Overlay (ViewerLoadingOverlay)
 // vorbehalten.
-export function ViewerStatusBar({ buildProgress, containerCount }: ViewerStatusBarProps) {
+export function ViewerStatusBar({ buildProgress, containerCount, measureText }: ViewerStatusBarProps) {
   const { active: assetsLoading, item, loaded, total } = useProgress();
 
   let text = "";
-  if (assetsLoading) {
+  if (measureText) {
+    text = measureText;
+  } else if (assetsLoading) {
     text = item ? `Lädt: ${item} (${loaded}/${total})` : `Lädt Umgebungstexturen… (${loaded}/${total})`;
   } else if (buildProgress.done < buildProgress.total) {
     text =

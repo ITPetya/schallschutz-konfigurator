@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube } from "@react-three/drei";
@@ -8,9 +8,11 @@ import { TerrainBackground } from "./TerrainBackground";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
+import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
+import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
 import {
@@ -116,6 +118,41 @@ export function Scene({
   // Milchglas-Overlay unten den gestuften Ladezustand.
   const [containerReady, setContainerReady] = useState(false);
 
+  // Jonas' Vorgabe 2026-08-10 ("wie in Inventor Bauteile messen"): erster/
+  // zweiter Klick auf einen Messpunkt liefert die Distanz - dritter Klick
+  // startet mit diesem Punkt als neuem ersten Punkt neu (kein extra
+  // "zuruecksetzen"-Klick noetig). Punkte selbst kommen aus
+  // utils/measurePoints.ts (Container-Ecken + Durchbruch-/Tuer-Merkmale),
+  // NICHT aus freiem Klicken auf die Mesh-Oberflaeche - siehe MeasureMarkers.tsx
+  // fuer die Begruendung (CSG-Restflaechen liefern keine sauberen Kanten/
+  // Kreise fuer generisches Snapping).
+  const [measureActive, setMeasureActive] = useState(false);
+  const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+  const measurePoints = useMemo(() => computeMeasurePoints(size, wallThickness, openings), [size, wallThickness, openings]);
+
+  function handleMeasurePick(p: MeasurePoint) {
+    setMeasureSelected((prev) => (prev.length >= 2 ? [p] : prev.some((s) => s.id === p.id) ? prev : [...prev, p]));
+  }
+
+  function handleToggleMeasure() {
+    setMeasureActive((v) => !v);
+    setMeasureSelected([]);
+  }
+
+  const measureText = !measureActive
+    ? null
+    : measureSelected.length === 0
+      ? "Messen: ersten Punkt anklicken"
+      : measureSelected.length === 1
+        ? "Messen: zweiten Punkt anklicken"
+        : `Abstand: ${Math.round(
+            Math.hypot(
+              measureSelected[0].position[0] - measureSelected[1].position[0],
+              measureSelected[0].position[1] - measureSelected[1].position[1],
+              measureSelected[0].position[2] - measureSelected[1].position[2],
+            ) * 1000,
+          )} mm`;
+
   return (
     <div className="relative h-full w-full">
       <Canvas
@@ -136,6 +173,8 @@ export function Scene({
             <Container size={size} wallThickness={wallThickness} openings={openings} onReady={() => setContainerReady(true)} />
           </SectionPlaneProvider>
         </DisplaySettingsProvider>
+
+        {measureActive && <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} />}
 
         {/* HDRI-Umgebungsbilder (public/hdri/) - dem Dateinamen nach vermutlich
             von Poly Haven (dort CC0/gemeinfrei) bezogen, aber die genaue
@@ -185,9 +224,17 @@ export function Scene({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
-      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} />
+      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} measureText={measureText} />
 
-      <ViewerToolbar onReset={() => controlsRef.current?.reset()} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />
+      <ViewerToolbar
+        onReset={() => controlsRef.current?.reset()}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        measureActive={measureActive}
+        onToggleMeasure={handleToggleMeasure}
+      />
 
       <SectionAndViewPanel
         section={section}
