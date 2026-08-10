@@ -139,20 +139,6 @@ export function Scene({
     setMeasureSelected([]);
   }
 
-  const measureText = !measureActive
-    ? null
-    : measureSelected.length === 0
-      ? "Messen: ersten Punkt anklicken"
-      : measureSelected.length === 1
-        ? "Messen: zweiten Punkt anklicken"
-        : `Abstand: ${Math.round(
-            Math.hypot(
-              measureSelected[0].position[0] - measureSelected[1].position[0],
-              measureSelected[0].position[1] - measureSelected[1].position[1],
-              measureSelected[0].position[2] - measureSelected[1].position[2],
-            ) * 1000,
-          )} mm`;
-
   return (
     <div className="relative h-full w-full">
       <Canvas
@@ -224,7 +210,7 @@ export function Scene({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
-      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} measureText={measureText} />
+      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} />
 
       <ViewerToolbar
         onReset={() => controlsRef.current?.reset()}
@@ -246,6 +232,7 @@ export function Scene({
         onBackgroundChange={onBackgroundChange}
         onShadowsEnabledChange={onShadowsEnabledChange}
         onTerrainDetailChange={onTerrainDetailChange}
+        measure={{ active: measureActive, selected: measureSelected }}
       />
     </div>
   );

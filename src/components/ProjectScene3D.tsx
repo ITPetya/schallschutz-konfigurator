@@ -191,20 +191,6 @@ export function ProjectScene3D({
     setMeasureSelected([]);
   }
 
-  const measureText = !measureActive
-    ? null
-    : measureSelected.length === 0
-      ? "Messen: ersten Punkt anklicken"
-      : measureSelected.length === 1
-        ? "Messen: zweiten Punkt anklicken"
-        : `Abstand: ${Math.round(
-            Math.hypot(
-              measureSelected[0].position[0] - measureSelected[1].position[0],
-              measureSelected[0].position[1] - measureSelected[1].position[1],
-              measureSelected[0].position[2] - measureSelected[1].position[2],
-            ) * 1000,
-          )} mm`;
-
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
   // lagt sehr"): EINE stabile (useCallback) Funktion statt vormals einer neu
   // erzeugten Closure PRO Instanz PRO Render (`(e) => handlePointerEvent(inst.id, e, ...)`
@@ -326,11 +312,7 @@ export function ProjectScene3D({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
-      <ViewerStatusBar
-        buildProgress={{ done: readyIds.size, total: instances.length }}
-        containerCount={instances.length}
-        measureText={measureText}
-      />
+      <ViewerStatusBar buildProgress={{ done: readyIds.size, total: instances.length }} containerCount={instances.length} />
 
       <ViewerToolbar
         onReset={() => controlsRef.current?.reset()}
@@ -353,6 +335,7 @@ export function ProjectScene3D({
         onShadowsEnabledChange={setShadowsEnabled}
         onTerrainDetailChange={setTerrainDetail}
         sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
+        measure={{ active: measureActive, selected: measureSelected }}
       />
     </div>
   );

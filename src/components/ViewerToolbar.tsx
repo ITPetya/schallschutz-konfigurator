@@ -29,23 +29,27 @@ interface ViewerToolbarProps {
 export function ViewerToolbar({ onReset, onUndo, onRedo, canUndo, canRedo, measureActive, onToggleMeasure }: ViewerToolbarProps) {
   return (
     <>
-      {(onToggleMeasure || (onUndo && onRedo)) && (
+      {onUndo && onRedo && (
         <div data-tour="viewer-toolbar" className="absolute right-4 top-4 flex gap-1.5">
-          {onToggleMeasure && (
-            <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
-              <RulerIcon size={15} />
-            </ToolButton>
-          )}
-          {onUndo && onRedo && (
-            <>
-              <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
-                <UndoIcon size={15} />
-              </ToolButton>
-              <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
-                <RedoIcon size={15} />
-              </ToolButton>
-            </>
-          )}
+          <ToolButton onClick={onUndo} disabled={!canUndo} label="Rückgängig (Strg+Z)">
+            <UndoIcon size={15} />
+          </ToolButton>
+          <ToolButton onClick={onRedo} disabled={!canRedo} label="Wiederholen (Strg+Y)">
+            <RedoIcon size={15} />
+          </ToolButton>
+        </div>
+      )}
+      {/* Jonas' Vorgabe 2026-08-10: eigene, vertikale, mittig am rechten
+          Viewer-Rand schwebende Werkzeugleiste fuer "Messen" und kuenftige
+          Werkzeuge - gleiche Positionierungs-Konvention wie der bestehende
+          Seitenleiste-einklappen-Button (WorkspacePage.tsx:
+          "absolute left-2 top-1/2 -translate-y-1/2"), hier auf die rechte
+          Seite gespiegelt. */}
+      {onToggleMeasure && (
+        <div className="absolute right-2 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5">
+          <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
+            <RulerIcon size={15} />
+          </ToolButton>
         </div>
       )}
       {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
