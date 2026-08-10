@@ -1078,6 +1078,10 @@ export function WorkspacePage() {
                 onPointerDown={handleInstancePointerDown}
                 onPointerMove={handleInstancePointerMove}
                 onPointerUp={handleInstancePointerUp}
+                onOpenDetail={(id) => {
+                  const inst = project.instances.find((i) => i.id === id);
+                  if (inst) handleEditInstance(inst);
+                }}
               />
             </>
           )}

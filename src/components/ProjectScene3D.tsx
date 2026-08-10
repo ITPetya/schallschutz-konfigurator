@@ -15,7 +15,6 @@ import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
 import { useSectionPlane, SectionAndViewPanel } from "./SectionAndViewPanel";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
-import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
 import type { ContainerSize } from "../constants/containerSizes";
 
 const MM_TO_M = 1 / 1000;
@@ -47,6 +46,10 @@ export interface ProjectScene3DHandlers {
   onPointerDown: (id: string, ground: { x: number; z: number }) => void;
   onPointerMove: (id: string, ground: { x: number; z: number }) => void;
   onPointerUp: (id: string) => void;
+  // Jonas' Vorgabe 2026-08-10: Doppelklick auf einen Container in der
+  // Baugruppen-Ansicht oeffnet ihn in der Detailbearbeitung (wie ein
+  // Doppelklick auf ein Bauteil in einer Inventor-Baugruppe).
+  onOpenDetail: (id: string) => void;
 }
 
 interface ProjectScene3DProps extends ProjectScene3DHandlers {
@@ -90,6 +93,7 @@ export function ProjectScene3D({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onOpenDetail,
   onSetAllViewStyle,
   onUndo,
   onRedo,
@@ -260,6 +264,7 @@ export function ProjectScene3D({
             sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
             onPointerEvent={handlePointerEvent}
             onInstanceReady={handleInstanceReady}
+            onOpenDetail={onOpenDetail}
           />
         ))}
 
@@ -365,6 +370,7 @@ interface InstanceGroupProps {
   // Wird aufgerufen, sobald der Container DIESER Instanz alle 14 Bauteile
   // fertig freigegeben hat - siehe Container.tsx's onReady.
   onInstanceReady: (id: string) => void;
+  onOpenDetail: (id: string) => void;
 }
 
 // Rand, um den das Grundriss-Rechteck ueber die tatsaechliche
@@ -391,6 +397,7 @@ const InstanceGroup = memo(function InstanceGroup({
   sectionPlane,
   onPointerEvent,
   onInstanceReady,
+  onOpenDetail,
 }: InstanceGroupProps) {
   const lengthM = instance.config.size.length * MM_TO_M;
   const widthM = instance.config.size.width * MM_TO_M;
@@ -420,11 +427,10 @@ const InstanceGroup = memo(function InstanceGroup({
         onPointerDown={(e) => onPointerEvent(instance.id, e, "down")}
         onPointerMove={(e) => onPointerEvent(instance.id, e, "move")}
         onPointerUp={(e) => onPointerEvent(instance.id, e, "up")}
-        onPointerOver={(e) => {
+        onDoubleClick={(e) => {
           e.stopPropagation();
-          setPointerCursor();
+          onOpenDetail(instance.id);
         }}
-        onPointerOut={resetPointerCursor}
       >
         <planeGeometry args={[lengthM + FOOTPRINT_MARGIN_M, widthM + FOOTPRINT_MARGIN_M]} />
         <meshBasicMaterial color={footprintColor} transparent opacity={footprintOpacity} depthWrite={false} />

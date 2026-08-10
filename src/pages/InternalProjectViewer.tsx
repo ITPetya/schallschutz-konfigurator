@@ -85,6 +85,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
           onPointerDown={() => {}}
           onPointerMove={() => {}}
           onPointerUp={() => {}}
+          onOpenDetail={onOpenInstance}
         />
       </ViewerSidebarLayout>
     </div>
