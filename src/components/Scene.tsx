@@ -142,7 +142,23 @@ export function Scene({
   }
 
   return (
-    <div className="relative h-full w-full">
+    // Jonas' Fehlerbericht 2026-08-11 ("Viewer als echtes Fenster"): ViewCube/
+    // Fadenkreuz/Werkzeugleiste sassen naeher am unteren Rand als am
+    // seitlichen, seit die Fussleiste (ViewerStatusBar) dazukam - Ursache war,
+    // dass die Fussleiste bisher ALS OVERLAY (absolute inset-x-0 bottom-0)
+    // UEBER dem Canvas lag, waehrend der Canvas selbst weiterhin die VOLLE
+    // Hoehe (inklusive der von der Fussleiste optisch verdeckten 24px)
+    // einnahm - GizmoHelper (ViewCube/Fadenkreuz) misst seine margin-Werte
+    // gegen die ECHTEN Canvas-Pixelmasse, kannte die Fussleiste also gar
+    // nicht. Fix: die Fussleiste bekommt jetzt ECHTEN Platz im Layout (flex-
+    // Spalte, zweite Zeile) statt eines Overlays - der Canvas-Bereich
+    // darueber ist dadurch ein flex-1-Kind mit tatsaechlich kleinerer Hoehe,
+    // GizmoHelper/alle absolut positionierten Werkzeug-Elemente (ViewerToolbar)
+    // liegen INNERHALB dieses kleineren Bereichs und richten sich dadurch
+    // automatisch nach dem echten sichtbaren Viewer-Rahmen aus, nicht mehr
+    // nach dem vollen Elternelement.
+    <div className="flex h-full w-full flex-col">
+      <div className="relative min-h-0 flex-1">
       <Canvas
         shadows={shadowsEnabled}
         gl={{ localClippingEnabled: true }}
@@ -255,7 +271,6 @@ export function Scene({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
-      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} />
 
       <ViewerToolbar
         onReset={() => controlsRef.current?.reset()}
@@ -278,6 +293,12 @@ export function Scene({
         unitPrefs={unitPrefs}
         onChangeUnitPrefs={setUnitPrefs}
       />
+      </div>
+
+      {/* Echter Layout-Platz statt Overlay (siehe Begruendung oben) - dadurch
+          zieht der Canvas-Bereich sich automatisch um diese Hoehe zusammen,
+          statt dass die Fussleiste ihn nur optisch ueberdeckt. */}
+      <ViewerStatusBar buildProgress={{ done: containerReady ? 1 : 0, total: 1 }} />
     </div>
   );
 }

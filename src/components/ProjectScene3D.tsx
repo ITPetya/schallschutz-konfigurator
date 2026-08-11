@@ -234,7 +234,14 @@ export function ProjectScene3D({
   );
 
   return (
-    <div className="relative h-full w-full">
+    // Siehe Scene.tsx fuer die ausfuehrliche Begruendung: die Fussleiste
+    // (ViewerStatusBar) bekommt hier ebenfalls echten Layout-Platz (flex-col,
+    // zweite Zeile) statt eines Overlays, damit ViewCube/Fadenkreuz/
+    // Werkzeugleiste (alle im flex-1-Canvas-Bereich darueber) sich am echten
+    // sichtbaren Viewer-Rahmen ausrichten statt an der vollen Elementhoehe
+    // inklusive der von der Fussleiste verdeckten Flaeche.
+    <div className="flex h-full w-full flex-col">
+      <div className="relative min-h-0 flex-1">
       <Canvas
         shadows={shadowsEnabled}
         gl={{ localClippingEnabled: true }}
@@ -340,7 +347,6 @@ export function ProjectScene3D({
       </Canvas>
 
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
-      <ViewerStatusBar buildProgress={{ done: readyIds.size, total: instances.length }} containerCount={instances.length} />
 
       <ViewerToolbar
         onReset={() => controlsRef.current?.reset()}
@@ -364,6 +370,10 @@ export function ProjectScene3D({
         unitPrefs={unitPrefs}
         onChangeUnitPrefs={setUnitPrefs}
       />
+      </div>
+
+      {/* Echter Layout-Platz statt Overlay - siehe Begruendung oben. */}
+      <ViewerStatusBar buildProgress={{ done: readyIds.size, total: instances.length }} containerCount={instances.length} />
     </div>
   );
 }

@@ -26,6 +26,16 @@ const MANY_CONTAINERS_THRESHOLD = 15;
 // Baugruppe. Bewusst KEIN eigener Ladespinner/-icon - nur Text, das
 // eigentliche Ladesymbol bleibt dem Milchglas-Overlay (ViewerLoadingOverlay)
 // vorbehalten.
+//
+// Jonas' Fehlerbericht 2026-08-11 ("Viewer als echtes Fenster"): urspruenglich
+// als "absolute inset-x-0 bottom-0"-Overlay UEBER dem Canvas gerendert -
+// dadurch kannte der Canvas (und damit ViewCube/Fadenkreuz, die ihre Position
+// gegen die echten Canvas-Pixelmasse berechnen) diese 24px gar nicht und
+// rueckte optisch naeher an den unteren Rand als an die Seiten. Jetzt ein
+// normales Flex-Kind (siehe Scene.tsx/ProjectScene3D.tsx: aeussere flex-col
+// mit dem Canvas-Bereich als flex-1 darueber) - nimmt dadurch ECHTEN Platz im
+// Layout ein, der Canvas-Bereich schrumpft entsprechend, keine Ueberdeckung
+// mehr.
 export function ViewerStatusBar({ buildProgress, containerCount }: ViewerStatusBarProps) {
   const { active: assetsLoading, item, loaded, total } = useProgress();
 
@@ -42,7 +52,7 @@ export function ViewerStatusBar({ buildProgress, containerCount }: ViewerStatusB
   }
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 flex h-6 items-center overflow-hidden bg-white/90 px-3 backdrop-blur-sm dark:bg-slate-800/90">
+    <div className="relative z-10 flex h-6 w-full shrink-0 items-center overflow-hidden bg-white/90 px-3 backdrop-blur-sm dark:bg-slate-800/90">
       <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">{text}</span>
     </div>
   );
