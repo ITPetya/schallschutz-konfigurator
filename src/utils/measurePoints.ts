@@ -149,6 +149,18 @@ function panelThicknessMm(panel: PanelId, wallThicknessMm: number, floorThicknes
   return panel === "bottom" ? floorThicknessMm : wallThicknessMm;
 }
 
+// Jonas' Vorgabe 2026-08-11 ("Innenmaße messen"): Durchbruch-/Tuer-
+// Merkmalspunkte gab es bisher NUR auf der AUSSENFLAECHE der Wand (side=1,
+// bisheriges Verhalten unveraendert) - fuer Innenmasse (z. B. Abstand
+// zwischen zwei Durchbruechen von innen gemessen) braucht es dieselben
+// Punkte zusaetzlich auf der INNENFLAECHE (side=-1, spiegelt einfach das
+// Vorzeichen des outwardSign-Versatzes). Kein separates Occlusion-Konzept
+// noetig: MeasureMarkers.tsx blendet Punkte bereits per normaler WebGL-
+// Tiefenpruefung aus, wenn eine opake Wand davor liegt (Commit 4ec6f37) UND
+// per Schnittebene, wenn sie im weggeschnittenen Bereich liegen (Commit
+// e97b182) - ein Innenpunkt ist dadurch automatisch genau dann sichtbar/
+// anklickbar, wenn er durch einen echten Durchbruch, eine Schnittansicht
+// oder denselben Durchbruch selbst tatsaechlich einsehbar ist.
 function openingPointToWorld(
   panel: PanelId,
   size: ContainerSize,
@@ -156,11 +168,12 @@ function openingPointToWorld(
   floorThicknessMm: number,
   localU: number,
   localVCenterM: number,
+  side: 1 | -1 = 1,
 ): [number, number, number] {
   const t = panelThicknessMm(panel, wallThicknessMm, floorThicknessMm) * MM_TO_M;
   const transform = getPanelTransform(panel, size, wallThicknessMm, floorThicknessMm);
   const localY = localVCenterM - transform.panelHeight / 2;
-  const localZ = transform.outwardSign * (t / 2);
+  const localZ = side * transform.outwardSign * (t / 2);
   return addPoints(transform.position, transform.rotate([localU, localY, localZ]));
 }
 
@@ -186,12 +199,37 @@ export function computeMeasurePoints(
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
+  const t = wallThicknessMm * MM_TO_M;
+  const floorT = floorThicknessMm * MM_TO_M;
+  const wallRecess = CORNER_WALL_RECESS_MM * MM_TO_M;
   const points: MeasurePoint[] = [];
 
   for (const x of [-L / 2, L / 2]) {
     for (const y of [0, H]) {
       for (const z of [-W / 2, W / 2]) {
         points.push({ id: `corner-${x}-${y}-${z}`, label: "Container-Ecke", position: [x, y, z] });
+      }
+    }
+  }
+
+  // Jonas' Vorgabe 2026-08-11 ("Innenmaße messen"): die 8 Innenecken des
+  // Hohlraums - dieselbe Herleitung wie Container.tsx's effectiveL/W/H bzw.
+  // verticalWallPositionY/-Height (front/back/links/rechts kuerzen um die
+  // eigene Wandstaerke t, der Boden um seine eigene floorT statt t, siehe
+  // dortiger Kommentar zur Wandkeil-Mitierung). Zuvor gab es UEBERHAUPT
+  // KEINE Innenpunkte - das war der eigentliche Grund, warum sich bisher
+  // keine Innenmasse messen liessen (nicht fehlende Kollisionsgeometrie: der
+  // Messpunkt-Picker rastet ohnehin nie auf freie Mesh-Flaechen ein, siehe
+  // MeasureMarkers.tsx, sondern ausschliesslich auf diese vorberechneten
+  // Kandidatenpunkte).
+  const interiorXHalf = Math.max(L / 2 - t - wallRecess, 0);
+  const interiorZHalf = Math.max(W / 2 - t - wallRecess, 0);
+  const interiorYBottom = floorT + wallRecess;
+  const interiorYTop = Math.max(H - t - wallRecess, interiorYBottom);
+  for (const x of [-interiorXHalf, interiorXHalf]) {
+    for (const y of [interiorYBottom, interiorYTop]) {
+      for (const z of [-interiorZHalf, interiorZHalf]) {
+        points.push({ id: `inner-corner-${x}-${y}-${z}`, label: "Innenecke", position: [x, y, z] });
       }
     }
   }
@@ -214,43 +252,55 @@ export function computeMeasurePoints(
       vCenterM -= CORNER_WALL_RECESS_MM * MM_TO_M + floorThicknessMm * MM_TO_M;
     }
 
-    points.push({
-      id: `${opening.id}-center`,
-      label: `${typeDef.label} – Mitte`,
-      position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM, vCenterM),
-    });
+    // Jonas' Vorgabe 2026-08-11 ("Innenmaße messen"): jeder Durchbruch-Punkt
+    // existiert jetzt auf BEIDEN Seiten der Wand - side=1 (Aussenflaeche,
+    // bisheriges Verhalten, ID/Label unveraendert, keine Regression fuer
+    // bestehende Aussenmasse) UND zusaetzlich side=-1 (Innenflaeche, neue
+    // ID mit "-inner"-Suffix und Label mit "(innen)", damit beide Varianten
+    // in der Messwerkzeug-Anzeige unterscheidbar bleiben).
+    for (const side of [1, -1] as const) {
+      const idSuffix = side === 1 ? "" : "-inner";
+      const labelSuffix = side === 1 ? "" : " (innen)";
 
-    if (typeDef.shape === "round") {
-      const r = widthM / 2;
-      for (const angle of ROUND_RIM_ANGLES) {
-        points.push({
-          id: `${opening.id}-rim-${angle}`,
-          label: `${typeDef.label} – Rand`,
-          position: openingPointToWorld(
-            opening.panel,
-            size,
-            wallThicknessMm,
-            floorThicknessMm,
-            uM + r * Math.cos(angle),
-            vCenterM + r * Math.sin(angle),
-          ),
-        });
-      }
-    } else {
-      const hw = widthM / 2;
-      const hh = heightM / 2;
-      const corners: [number, number][] = [
-        [-hw, -hh],
-        [hw, -hh],
-        [hw, hh],
-        [-hw, hh],
-      ];
-      for (const [du, dv] of corners) {
-        points.push({
-          id: `${opening.id}-corner-${du}-${dv}`,
-          label: `${typeDef.label} – Ecke`,
-          position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM + du, vCenterM + dv),
-        });
+      points.push({
+        id: `${opening.id}-center${idSuffix}`,
+        label: `${typeDef.label} – Mitte${labelSuffix}`,
+        position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM, vCenterM, side),
+      });
+
+      if (typeDef.shape === "round") {
+        const r = widthM / 2;
+        for (const angle of ROUND_RIM_ANGLES) {
+          points.push({
+            id: `${opening.id}-rim-${angle}${idSuffix}`,
+            label: `${typeDef.label} – Rand${labelSuffix}`,
+            position: openingPointToWorld(
+              opening.panel,
+              size,
+              wallThicknessMm,
+              floorThicknessMm,
+              uM + r * Math.cos(angle),
+              vCenterM + r * Math.sin(angle),
+              side,
+            ),
+          });
+        }
+      } else {
+        const hw = widthM / 2;
+        const hh = heightM / 2;
+        const corners: [number, number][] = [
+          [-hw, -hh],
+          [hw, -hh],
+          [hw, hh],
+          [-hw, hh],
+        ];
+        for (const [du, dv] of corners) {
+          points.push({
+            id: `${opening.id}-corner-${du}-${dv}${idSuffix}`,
+            label: `${typeDef.label} – Ecke${labelSuffix}`,
+            position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM + du, vCenterM + dv, side),
+          });
+        }
       }
     }
   }
