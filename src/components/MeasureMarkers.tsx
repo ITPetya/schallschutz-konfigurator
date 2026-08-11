@@ -1,4 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
+import * as THREE from "three";
 import type { MeasurePoint } from "../utils/measurePoints";
 import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
 import { MeasureDimensions } from "./MeasureDimensions";
@@ -9,6 +10,19 @@ interface MeasureMarkersProps {
   selected: MeasurePoint[]; // 0, 1 oder 2 Punkte
   onPick: (p: MeasurePoint) => void;
   unit: LengthUnit;
+  // Jonas' Fehlerbericht 2026-08-11: Messpunkte im weggeschnittenen Teil
+  // einer aktiven Schnittansicht blieben sichtbar/anklickbar - anders als
+  // die Wand-Geometrie (die three.js' localClipping ueber material.
+  // clippingPlanes automatisch entfernt) haben die Markierungs-Kugeln hier
+  // nie ein clippingPlanes-Material bekommen. WELT-Ebene (dieselbe, die auch
+  // an die Wand-Materialien geht) statt Context, weil Scene.tsx die
+  // Markierungen bisher AUSSERHALB des SectionPlaneProvider rendert (der
+  // Context-Wert waere dort immer null) und ProjectScene3D.tsx' Messpunkte
+  // ueber MEHRERE Instanzen hinweg gehen, von denen hoechstens die
+  // ausgewaehlte ueberhaupt eine Schnittebene hat - direktes Prop ist in
+  // beiden Faellen eindeutiger als sich auf eine bestimmte Context-
+  // Verschachtelung zu verlassen.
+  sectionPlane?: THREE.Plane | null;
 }
 
 // Sichtbarer Radius (Meter) der klickbaren Messpunkt-Markierungen - bewusst
@@ -30,15 +44,28 @@ const MARKER_RADIUS_M = 0.08;
 // dem anfaenglichen depthTest={false}, verdeckte Punkte sind dadurch weder
 // sichtbar noch anklickbar (muss man sich per Kamera-Drehung zugaenglich
 // machen, genau wie bei echten CAD-Messwerkzeugen).
-export function MeasureMarkers({ points, selected, onPick, unit }: MeasureMarkersProps) {
+export function MeasureMarkers({ points, selected, onPick, unit, sectionPlane }: MeasureMarkersProps) {
   function handleClick(e: ThreeEvent<MouseEvent>, p: MeasurePoint) {
     e.stopPropagation();
     onPick(p);
   }
 
+  // Ein Punkt bleibt sichtbar/anklickbar, solange er auf der Seite der
+  // Ebene liegt, die three.js' clippingPlanes ebenfalls behaelt (Normale
+  // zeigt zur behaltenen Haelfte, siehe THREE.Plane.distanceToPoint -
+  // negativ = weggeschnittene Seite) - identische Logik zur tatsaechlichen
+  // Geometrie-Beschneidung, kein separates Vorzeichen-Ratespiel.
+  function isVisible(p: MeasurePoint): boolean {
+    if (!sectionPlane) return true;
+    return sectionPlane.distanceToPoint(new THREE.Vector3(...p.position)) >= 0;
+  }
+
+  const visiblePoints = points.filter(isVisible);
+  const showDimensions = selected.length === 2 && isVisible(selected[0]) && isVisible(selected[1]);
+
   return (
     <group>
-      {points.map((p) => {
+      {visiblePoints.map((p) => {
         const isSelected = selected.some((s) => s.id === p.id);
         return (
           <mesh
@@ -56,7 +83,7 @@ export function MeasureMarkers({ points, selected, onPick, unit }: MeasureMarker
           </mesh>
         );
       })}
-      {selected.length === 2 && <MeasureDimensions a={selected[0].position} b={selected[1].position} unit={unit} />}
+      {showDimensions && <MeasureDimensions a={selected[0].position} b={selected[1].position} unit={unit} />}
     </group>
   );
 }

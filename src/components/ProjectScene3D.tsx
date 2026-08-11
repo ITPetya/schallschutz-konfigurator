@@ -136,6 +136,24 @@ export function ProjectScene3D({
   // braucht trotzdem immer eine gueltige Groesse (Hooks duerfen nicht bedingt
   // aufgerufen werden), FALLBACK_SIZE wird dann aber nie sichtbar genutzt.
   const section = useSectionPlane(selectedInstance?.config.size ?? FALLBACK_SIZE);
+  // Jonas' Fehlerbericht 2026-08-11 (Messwerkzeug/Schnittansicht): dieselbe
+  // Transformation wie InstanceGroup's worldSectionPlane weiter unten (dort
+  // lokal pro Instanz, hier einmal fuer die AUSGEWAEHLTE Instanz auf
+  // Szenen-Ebene, weil MeasureMarkers unten Punkte MEHRERER Instanzen
+  // gleichzeitig zeigt, nicht in eine einzelne InstanceGroup verschachtelt
+  // ist) - noetig, damit die Messpunkt-Sichtbarkeit (siehe
+  // MeasureMarkers.tsx) dieselbe Welt-Ebene wie die tatsaechliche CSG-
+  // Beschneidung der Waende nutzt, statt der lokalen (Instanz-Ursprung)
+  // Ebene aus section.sectionPlane.
+  const measureSectionPlane = useMemo(() => {
+    if (!section.sectionPlane || !selectedInstance) return null;
+    const rotRad = (selectedInstance.rotationY * Math.PI) / 180;
+    const xM = selectedInstance.position.x * MM_TO_M;
+    const zM = selectedInstance.position.z * MM_TO_M;
+    const matrix = new THREE.Matrix4().makeRotationY(rotRad);
+    matrix.setPosition(xM, 0, zM);
+    return section.sectionPlane.clone().applyMatrix4(matrix);
+  }, [section.sectionPlane, selectedInstance]);
   // Der Stil-Toggle im Ansicht-Panel zeigt den Wert der ausgewaehlten Instanz
   // (oder der ersten, falls keine ausgewaehlt) und schreibt beim Klick auf
   // ALLE Instanzen zurueck (siehe onSetAllViewStyle).
@@ -279,7 +297,13 @@ export function ProjectScene3D({
         ))}
 
         {measureActive && (
-          <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} unit={unitPrefs.primary} />
+          <MeasureMarkers
+            points={measurePoints}
+            selected={measureSelected}
+            onPick={handleMeasurePick}
+            unit={unitPrefs.primary}
+            sectionPlane={measureSectionPlane}
+          />
         )}
 
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-

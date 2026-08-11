@@ -191,7 +191,13 @@ export function Scene({
         </DisplaySettingsProvider>
 
         {measureActive && (
-          <MeasureMarkers points={measurePoints} selected={measureSelected} onPick={handleMeasurePick} unit={unitPrefs.primary} />
+          <MeasureMarkers
+            points={measurePoints}
+            selected={measureSelected}
+            onPick={handleMeasurePick}
+            unit={unitPrefs.primary}
+            sectionPlane={section.sectionPlane}
+          />
         )}
 
         {/* HDRI-Umgebungsbilder (public/hdri/) - dem Dateinamen nach vermutlich
