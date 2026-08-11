@@ -1,7 +1,7 @@
 import type { ContainerConfig } from "../config/types";
 import type { Opening } from "../types/openings";
 import { CONTAINER_SIZE_PRESETS } from "../constants/containerSizes";
-import { OPENING_TYPES } from "../constants/openingTypes";
+import { OPENING_TYPES, STANDARD_DOOR_SIZES } from "../constants/openingTypes";
 import { RAL_STANDARD_COLORS } from "../constants/ralColors";
 import { DEFAULT_SOUND_CLASS, LC_DIMENSION_LIMITS, LC_STANDARD_WALL_THICKNESS, SOUND_CLASSES, type SoundClass } from "../constants/lcStandard";
 
@@ -84,11 +84,24 @@ export function getSoundClassWarnings(soundClass: SoundClass | undefined, wallTh
   return [getSoundClassWallConflictWarning(soundClass, wallThickness)].filter((w): w is ContainerWarning => w !== null);
 }
 
-export const SONDER_DOOR_TEXT = "Sondertür (frei nach Maß) – Sondereinbauten sind mit Aufpreis verbunden.";
+export const SONDER_DOOR_TEXT = "Sondertür (weicht von den Standardmaßen ab) – Sondereinbauten sind mit Aufpreis verbunden.";
 
-function isSonderDoor(o: Opening): boolean {
+// Jonas' Vorgabe 2026-08-11 ("Bauteile frei verstellbar"): Tueren sind jetzt
+// IMMER frei in ihren Massen editierbar (siehe OpeningsPanel.tsx), es gibt
+// keinen separaten "Standard vs. frei"-MODUS mehr, an dem sich eine
+// Sonderausstattungs-Warnung festmachen liesse. "Sonder" ist deshalb
+// WERTBASIERT definiert - eine Tür ist Sonder, wenn ihre AKTUELLEN Masse
+// KEINEM bekannten Standardmass entsprechen (STANDARD_DOOR_SIZES in
+// openingTypes.ts), exakt dieselbe Logik wie getDimensionWarning() beim
+// Container (Praeset-Treffer = kein Hinweis, jede Abweichung = Hinweis) -
+// auch eine urspruenglich als "Einzeltür 904×1918" angelegte Tuer wird
+// Sonder, sobald sie z.B. um 5mm vergroessert wird. Exportiert, damit
+// OpeningsPanel.tsx dieselbe Logik fuers Badge direkt am Bauteil nutzt statt
+// sie zu duplizieren.
+export function isSonderDoor(o: Opening): boolean {
   const t = OPENING_TYPES[o.kind];
-  return !!t.isDoor && t.category === "free";
+  if (!t.isDoor) return false;
+  return !STANDARD_DOOR_SIZES.some((s) => s.width === o.width && s.height === o.height);
 }
 
 export function getDoorWarnings(openings: Opening[]): ContainerWarning[] {
@@ -97,7 +110,7 @@ export function getDoorWarnings(openings: Opening[]): ContainerWarning[] {
   return [
     {
       severity: "orange",
-      text: count === 1 ? SONDER_DOOR_TEXT : `${count}× Sondertür (frei nach Maß) – Sondereinbauten sind mit Aufpreis verbunden.`,
+      text: count === 1 ? SONDER_DOOR_TEXT : `${count}× Sondertür (weicht von den Standardmaßen ab) – Sondereinbauten sind mit Aufpreis verbunden.`,
     },
   ];
 }

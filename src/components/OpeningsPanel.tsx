@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DoorHinge, Opening } from "../types/openings";
-import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
+import { OPENING_SIZE_PRESETS, OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { clampVerticalPosition, verticalBounds } from "../utils/openingConstraints";
 import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
@@ -8,7 +8,7 @@ import { NumberInput } from "./NumberInput";
 import { TrashIcon } from "./icons/TrashIcon";
 import { AnimatedButton } from "./AnimatedButton";
 import { SonderBadge } from "./SonderBadge";
-import { SONDER_DOOR_TEXT } from "../utils/containerWarnings";
+import { SONDER_DOOR_TEXT, isSonderDoor } from "../utils/containerWarnings";
 
 interface OpeningsPanelProps {
   size: ContainerSize;
@@ -85,7 +85,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
           <span className="font-medium text-brand-dark">{typeDef.label}</span>
           <span className="text-xs text-slate-500 dark:text-slate-400">{PANEL_LABELS[o.panel]}</span>
         </button>
-        {typeDef.isDoor && typeDef.category === "free" && <SonderBadge text={SONDER_DOOR_TEXT} />}
+        {isSonderDoor(o) && <SonderBadge text={SONDER_DOOR_TEXT} />}
         <AnimatedButton
           type="button"
           onClick={() => onRemove(o.id)}
@@ -98,10 +98,33 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
 
       {expanded && (
         <div className="mt-2 space-y-2">
-          {typeDef.category === "standard" && (
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Feste Maße: {typeDef.fixedWidth} × {typeDef.fixedHeight} mm
-            </p>
+          {/* Jonas' Vorgabe 2026-08-11: reine Schnellauswahl-Vorlage (mirror
+              von ContainerSizeControls.tsx's "Vorlage…"-Dropdown) - fuellt
+              nur Breite/Höhe unten vor, aendert NICHT den OpeningKind/die
+              Bauteil-Logik (Scharnier etc.) und ist kein "Standard vs.
+              frei"-Modusumschalter. Nur sichtbar, wenn es fuer diesen
+              Bauteil-Typ ueberhaupt bekannte Standardmasse gibt (Kabel-/
+              Rohrdurchführungen haben keine). */}
+          {OPENING_SIZE_PRESETS[o.kind] && (
+            <select
+              aria-label="Standardmaße"
+              defaultValue=""
+              onChange={(e) => {
+                const preset = OPENING_SIZE_PRESETS[o.kind]?.[Number(e.target.value)];
+                if (preset) onUpdate(o.id, typeDef.shape === "round" ? { width: preset.width, height: preset.width } : preset);
+                e.target.value = "";
+              }}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Standardmaße…
+              </option>
+              {OPENING_SIZE_PRESETS[o.kind]!.map((p, i) => (
+                <option key={p.label} value={i}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
           )}
 
           {typeDef.hasHinge && (
@@ -151,39 +174,44 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
               />
             </label>
 
-            {typeDef.category === "free" && (
-              <>
-                <label className={labelClass}>
-                  <span className={labelTextClass}>{typeDef.shape === "round" ? "Durchmesser (mm)" : "Breite (mm)"}</span>
-                  <NumberInput
-                    step={10}
-                    min={widthMin}
-                    max={widthMax}
-                    value={Math.round(o.width)}
-                    // Rund hat kein eigenes Hoehenfeld (siehe rect-Zweig
-                    // unten) - height muss deshalb hier synchron mitlaufen,
-                    // sonst bleibt sie auf ihrem Erstellungswert stehen,
-                    // waehrend der tatsaechliche Durchmesser (width) sich
-                    // aendert (Jonas' Fehlerbericht 2026-08-10, siehe
-                    // effectiveHeight oben).
-                    onChange={(v) => onUpdate(o.id, typeDef.shape === "round" ? { width: v, height: v } : { width: v })}
-                    className={inputClass}
-                  />
-                </label>
-                {typeDef.shape === "rect" && (
-                  <label className={labelClass}>
-                    <span className={labelTextClass}>Höhe (mm)</span>
-                    <NumberInput
-                      step={10}
-                      min={heightMin}
-                      max={heightMax}
-                      value={Math.round(o.height)}
-                      onChange={(v) => onUpdate(o.id, { height: v })}
-                      className={inputClass}
-                    />
-                  </label>
-                )}
-              </>
+            {/* Jonas' Vorgabe 2026-08-11 ("Bauteile frei verstellbar"): Breite/
+                Höhe sind jetzt IMMER editierbar, genau wie beim Container -
+                vorher galt das nur fuer "free"-Typen, "standard"-Typen
+                (Standardtueren/-gitter) zeigten nur einen statischen
+                "Feste Maße"-Text ohne Eingabefeld. Frei editierbare Felder
+                SIND jetzt die Quelle der Wahrheit, "Standard" ergibt sich
+                rein daraus, ob der aktuelle Wert einem bekannten Preset
+                entspricht (siehe isSonderDoor in containerWarnings.ts) -
+                keine separate Modusumschaltung mehr noetig. */}
+            <label className={labelClass}>
+              <span className={labelTextClass}>{typeDef.shape === "round" ? "Durchmesser (mm)" : "Breite (mm)"}</span>
+              <NumberInput
+                step={10}
+                min={widthMin}
+                max={widthMax}
+                value={Math.round(o.width)}
+                // Rund hat kein eigenes Hoehenfeld (siehe rect-Zweig
+                // unten) - height muss deshalb hier synchron mitlaufen,
+                // sonst bleibt sie auf ihrem Erstellungswert stehen,
+                // waehrend der tatsaechliche Durchmesser (width) sich
+                // aendert (Jonas' Fehlerbericht 2026-08-10, siehe
+                // effectiveHeight oben).
+                onChange={(v) => onUpdate(o.id, typeDef.shape === "round" ? { width: v, height: v } : { width: v })}
+                className={inputClass}
+              />
+            </label>
+            {typeDef.shape === "rect" && (
+              <label className={labelClass}>
+                <span className={labelTextClass}>Höhe (mm)</span>
+                <NumberInput
+                  step={10}
+                  min={heightMin}
+                  max={heightMax}
+                  value={Math.round(o.height)}
+                  onChange={(v) => onUpdate(o.id, { height: v })}
+                  className={inputClass}
+                />
+              </label>
             )}
           </div>
         </div>
