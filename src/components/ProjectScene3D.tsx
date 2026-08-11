@@ -13,8 +13,10 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
+import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
@@ -126,6 +128,13 @@ export function ProjectScene3D({
 
   // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
   const controlsRef = useRef<OrbitControlsImpl>(null);
+
+  // Siehe Scene.tsx: 3Dconnexion SpaceMouse als zusaetzliche Kamerasteuerung
+  // (Jonas' Vorgabe 2026-08-11) - hier ebenfalls fuer die Baugruppen-Ansicht,
+  // steuert dieselbe geteilte Kamera/OrbitControls, greift nicht in
+  // Container-Auswahl/-Ziehen ein (reine Kamera-Ergaenzung, siehe
+  // SpaceMouseCameraRig.tsx).
+  const spaceMouse = useSpaceMouse();
 
   // "Hintergrund"/"Schatten"/Gelände-Detailstufe gelten fuer die ganze
   // geteilte 3D-Szene (nicht pro Instanz, siehe onSetAllViewStyle-Kommentar
@@ -377,6 +386,13 @@ export function ProjectScene3D({
           // e.button===0-Gate in handlePointerEvent oben, nicht diese Zeile.
           mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
         />
+        {/* Siehe Scene.tsx - rein additive Kamerasteuerung, kein Einfluss auf
+            Container-Auswahl/-Ziehen (das laeuft ueber handlePointerEvent
+            oben, komplett unabhaengig). Waehrend draggingId gesetzt ist,
+            sind OrbitControls bereits deaktiviert (enabled={!draggingId}
+            oben) - die SpaceMouse bleibt dabei bewusst weiter aktiv, sie
+            bewegt nur die Kamera, nie einen Container. */}
+        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewcube
             faces={VIEWCUBE_FACES}
@@ -432,6 +448,11 @@ export function ProjectScene3D({
         measureSelected={measureSelected}
         unitPrefs={unitPrefs}
         onChangeUnitPrefs={setUnitPrefs}
+        spaceMouseSupported={spaceMouse.supported}
+        spaceMouseConnected={spaceMouse.connected}
+        spaceMouseDeviceName={spaceMouse.deviceName}
+        onSpaceMouseConnect={spaceMouse.connect}
+        onSpaceMouseDisconnect={spaceMouse.disconnect}
       />
       </div>
 

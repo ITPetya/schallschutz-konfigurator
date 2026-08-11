@@ -9,8 +9,10 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
+import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
@@ -121,6 +123,13 @@ export function Scene({
   // Container wiederverwenden kann, siehe SectionAndViewPanel.tsx.
   const section = useSectionPlane(size);
   const { theme } = useTheme();
+
+  // Jonas' Vorgabe 2026-08-11: 3Dconnexion SpaceMouse als zusaetzliche,
+  // immer verfuegbare Kamerasteuerung neben der Maus - siehe
+  // hooks/useSpaceMouse.ts (Verbindung/WebHID) und SpaceMouseCameraRig.tsx
+  // (Anwendung der Achsenwerte auf die Kamera, JEDEN Frame innerhalb des
+  // Canvas unten).
+  const spaceMouse = useSpaceMouse();
 
   const isTerrain = background === "terrain";
   // Container.tsx meldet sich per onReady, sobald sein CSG-Aufbau (Waende +
@@ -243,6 +252,11 @@ export function Scene({
           // e.button===0-Gate in ProjectScene3D.tsx's handlePointerEvent.
           mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
         />
+        {/* Rein additive Kamerasteuerung ueber die SpaceMouse, siehe
+            SpaceMouseCameraRig.tsx - greift nur, wenn ein Geraet verbunden
+            ist, faengt der Maus-Steuerung ueber OrbitControls nie ins
+            Handwerk (kein "SpaceMouse-Modus", laeuft parallel). */}
+        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
@@ -322,6 +336,11 @@ export function Scene({
         measureSelected={measureSelected}
         unitPrefs={unitPrefs}
         onChangeUnitPrefs={setUnitPrefs}
+        spaceMouseSupported={spaceMouse.supported}
+        spaceMouseConnected={spaceMouse.connected}
+        spaceMouseDeviceName={spaceMouse.deviceName}
+        onSpaceMouseConnect={spaceMouse.connect}
+        onSpaceMouseDisconnect={spaceMouse.disconnect}
       />
       </div>
 

@@ -6,6 +6,7 @@ import { RedoIcon } from "./icons/RedoIcon";
 import { RulerIcon } from "./icons/RulerIcon";
 import { SectionIcon } from "./icons/SectionIcon";
 import { ViewIcon } from "./icons/ViewIcon";
+import { SpaceMouseIcon } from "./icons/SpaceMouseIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
 import { SectionResultPanel, ViewResultPanel, type SectionPlaneState } from "./SectionAndViewPanel";
 import type { MeasurePoint } from "../utils/measurePoints";
@@ -44,6 +45,18 @@ interface ViewerToolbarProps {
   measureSelected?: MeasurePoint[];
   unitPrefs?: UnitPreferences;
   onChangeUnitPrefs?: (prefs: UnitPreferences) => void;
+  // Jonas' Vorgabe 2026-08-11: 3Dconnexion SpaceMouse als zusaetzliche
+  // Kamerasteuerung (siehe hooks/useSpaceMouse.ts). Der Button blendet sich
+  // komplett aus, wenn spaceMouseSupported false ist (WebHID gibt es nur in
+  // Chromium-basierten Browsern) - "nur in den Browsern die klappen", keine
+  // Fehler-/Hinweis-UI fuer alle anderen. Optional, weil der
+  // schreibgeschuetzte Konstrukteur-Viewer keine eigene Verbindungssteuerung
+  // braucht/anbietet.
+  spaceMouseSupported?: boolean;
+  spaceMouseConnected?: boolean;
+  spaceMouseDeviceName?: string | null;
+  onSpaceMouseConnect?: () => void;
+  onSpaceMouseDisconnect?: () => void;
 }
 
 // Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
@@ -73,6 +86,11 @@ export function ViewerToolbar({
   measureSelected,
   unitPrefs,
   onChangeUnitPrefs,
+  spaceMouseSupported,
+  spaceMouseConnected,
+  spaceMouseDeviceName,
+  onSpaceMouseConnect,
+  onSpaceMouseDisconnect,
 }: ViewerToolbarProps) {
   // "Ansicht" hat (anders als Schnitt/Messen) kein eigenes "aktiv"-Konzept
   // im Modell - der Button ist einfach "aktiv", solange sein Panel offen
@@ -169,6 +187,16 @@ export function ViewerToolbar({
         {onToggleMeasure && (
           <ToolButton dataTour="tool-measure" onClick={onToggleMeasure} label="Messen" active={measureActive}>
             <RulerIcon size={16} />
+          </ToolButton>
+        )}
+
+        {spaceMouseSupported && (onSpaceMouseConnect || onSpaceMouseDisconnect) && (
+          <ToolButton
+            onClick={spaceMouseConnected ? onSpaceMouseDisconnect! : onSpaceMouseConnect!}
+            label={spaceMouseConnected ? `SpaceMouse verbunden (${spaceMouseDeviceName ?? "Gerät"}) – klicken zum Trennen` : "SpaceMouse verbinden"}
+            active={spaceMouseConnected}
+          >
+            <SpaceMouseIcon size={16} />
           </ToolButton>
         )}
       </div>
