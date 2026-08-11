@@ -129,6 +129,34 @@ body, aside, main, header, nav, [data-slot] {
   }
 }
 
+/* Ladesymbole (OrbitIcon.tsx/DiscIcon.tsx) - Jonas' Fehlerbericht
+   2026-08-11: der Spinner soll sich IMMER gleichmaessig weiterdrehen, auch
+   waehrend schwerer CSG-Neuberechnungen, die den Haupt-Thread blockieren
+   koennen. Eine reine CSS-@keyframes-Animation laeuft auf dem Compositor-
+   Thread (transform-only) und wird dadurch NICHT von JS-Hauptthread-Last
+   ausgebremst - im Unterschied zu einer ueber requestAnimationFrame/JS
+   getriebenen Animation, die bei einem blockierten Hauptthread sichtbar
+   stottern oder ganz pausieren kann. */
+@keyframes ssk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ssk-spin {
+  animation: ssk-spin 1s linear infinite;
+}
+/* OrbitIcon.tsx dreht sich bewusst langsamer als DiscIcon.tsx (2s statt 1s,
+   war schon vor dieser Umstellung so unterschiedlich). */
+.ssk-spin-slow {
+  animation: ssk-spin 2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ssk-spin,
+  .ssk-spin-slow {
+    animation-duration: 3s;
+  }
+}
+
 /* Einheitliche Scrollbar im Marken-Look statt des Windows-Standard-Balkens
    (Jonas' Fehlerbericht 2026-07-27) - gilt ueberall, nicht nur in der
    Seitenleiste, damit es konsistent aussieht. */

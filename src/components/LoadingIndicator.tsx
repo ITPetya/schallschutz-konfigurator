@@ -19,6 +19,11 @@ interface LoadingIndicatorProps {
   // Speicher-Kodierung nie wirklich gibt) ein generisches, dauerhaft
   // rotierendes Icon - kein Fortschritt zu berechnen, kein Aufwand.
   kind?: "generic" | "saving";
+  // Gruppiert die gemessenen Ladedauern fuer die ETA-Schaetzung in
+  // useLoadingPhase.ts (z.B. "route" fuer Seiten-Chunks, "viewer" fuer den
+  // 3D-Aufbau) - faellt ohne explizite Angabe auf kind zurueck, da "saving"
+  // schon eine sinnvolle eigene Gruppe ist.
+  loadType?: string;
 }
 
 // Einheitliches Lade-UI fuer JEDE Stelle im Projekt, an der Ladezeit
@@ -27,8 +32,8 @@ interface LoadingIndicatorProps {
 // Zeigt je nach Dauer (siehe useLoadingPhase.ts) nichts, ein einfaches
 // Ladesymbol, oder zusaetzlich eine Entschuldigung mit absteigender
 // Restzeit-Schaetzung.
-export function LoadingIndicator({ active = true, overlay = false, kind = "generic" }: LoadingIndicatorProps) {
-  const { phase, etaSeconds } = useLoadingPhase(active);
+export function LoadingIndicator({ active = true, overlay = false, kind = "generic", loadType }: LoadingIndicatorProps) {
+  const { phase, etaSeconds } = useLoadingPhase(active, loadType ?? kind);
   if (phase === "idle") return null;
 
   const Icon = kind === "saving" ? DiscIcon : OrbitIcon;

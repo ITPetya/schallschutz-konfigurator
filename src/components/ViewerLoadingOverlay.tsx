@@ -18,5 +18,5 @@ interface ViewerLoadingOverlayProps {
 // Viewer selbst zeigt den Ladezustand).
 export function ViewerLoadingOverlay({ contentNotReady }: ViewerLoadingOverlayProps) {
   const { active: assetsLoading } = useProgress();
-  return <LoadingIndicator active={contentNotReady || assetsLoading} overlay />;
+  return <LoadingIndicator active={contentNotReady || assetsLoading} overlay loadType="viewer" />;
 }

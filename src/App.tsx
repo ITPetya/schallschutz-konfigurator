@@ -35,7 +35,7 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <TourProvider>
-          <Suspense fallback={<LoadingIndicator />}>
+          <Suspense fallback={<LoadingIndicator loadType="route" />}>
             <Routes>
               <Route element={<AppShell />}>
                 <Route path="/" element={<StartPage />} />
