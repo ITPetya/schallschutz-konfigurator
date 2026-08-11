@@ -30,7 +30,14 @@ export function MeasureSegmentLabel({ from, to, meters, prefix, unit, onToggle }
   const text = formatLength(meters, unit);
 
   return (
-    <Html position={mid} center>
+    // zIndexRange (Jonas' Fehlerbericht 2026-08-11): drei setzt hier per
+    // Default einen inline z-index bis 16.777.271 (siehe die zentrale
+    // Z-Index-Skala in index.css), der jedes Vollbild-Popup (z-50, z.B.
+    // "Anfrage pruefen") ueberdeckte. [45, 40] haelt die Stufe "viewer-
+    // html-label" der Skala ein: naeher zur Kamera liegende Segmente
+    // bleiben untereinander weiterhin korrekt vorne (relative Ordnung
+    // bleibt erhalten), aber der ganze Bereich liegt sicher unter z-50.
+    <Html position={mid} center zIndexRange={[45, 40]}>
       <div
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}

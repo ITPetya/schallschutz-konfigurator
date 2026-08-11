@@ -157,6 +157,33 @@ body, aside, main, header, nav, [data-slot] {
   }
 }
 
+/* Zentrale Z-Index-Skala (Jonas' Fehlerbericht 2026-08-11: eine Messen-
+   Bemaßung blieb sichtbar UEBER einem Vollbild-Popup wie "Anfrage pruefen").
+   Ursache war drei's <Html> (react-three-fiber), das standardmaessig selbst
+   einen inline `style.zIndex` bis zu 16.777.271 setzt (siehe
+   node_modules/@react-three/drei/web/Html.js, `zIndexRange`-Default
+   [16777271, 0]) - das sprengt JEDE App-eigene Tailwind-z-Klasse, egal wie
+   hoch. MeasureSegmentLabel.tsx (die einzige Stelle im Projekt, die <Html>
+   nutzt) begrenzt seine `zIndexRange` deshalb jetzt explizit auf die Stufe
+   "viewer-html-label" unten. Diese Skala ist die verbindliche Konvention für
+   ALLE neuen fixed/absolute Overlays, nicht nur einen Einzelfall-Patch:
+     10-20  In-Viewer-Werkzeugleisten/-Panels, Sidebar-Trigger, Statusleiste
+            (ViewerToolbar.tsx, ViewerSidebarLayout.tsx, primitives/Sidebar.tsx, ...)
+     30     Ladeanzeigen direkt ueber dem Viewer (LoadingIndicator.tsx)
+     35-45  drei-<Html>-Elemente im 3D-Viewer, z.B. Bemaßungs-Labels
+            (MeasureSegmentLabel.tsx) - MUSS unter --z-modal (50) bleiben
+     40     App-Chrome ausserhalb des Viewers (Embed-Kopfzeile in AppShell.tsx)
+     50     ALLE Vollbild-Popups: Dialog/AlertDialog-basierte Modale
+            (RequestPreviewModal.tsx, GrundeinstellungenOverlay.tsx,
+            AlertDialogShell.tsx -> ConfirmDialog.tsx), Toasts/Banner
+            (StorageConsentBanner.tsx) - muss ueber JEDEM In-Viewer-Overlay
+            liegen, das ist genau der hier reparierte Fehler
+     100-101 Tutorial-Spotlight/Tooltip (TourOverlay.tsx) - bewusst ueber
+            allem inkl. Popups, weil die Tour aktiv auf Bedienelemente zeigt
+   Neue Overlays: die naechsthoehere passende Stufe waehlen, nicht frei
+   erfundene Werte wie 999/9999 - und JEDES <Html> aus drei/r3f bekommt eine
+   explizite (niedrige) `zIndexRange`, sonst gilt wieder der 16,7-Mio-Default. */
+
 /* Einheitliche Scrollbar im Marken-Look statt des Windows-Standard-Balkens
    (Jonas' Fehlerbericht 2026-07-27) - gilt ueberall, nicht nur in der
    Seitenleiste, damit es konsistent aussieht. */
