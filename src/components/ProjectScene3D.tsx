@@ -120,6 +120,12 @@ export function ProjectScene3D({
 
   // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  // Siehe MeasureMarkers.tsx's cameraVersion-Prop-Kommentar und Scene.tsx:
+  // zaehlt nur bei OrbitControls' "end" (oder einem Home-Reset) hoch, nicht
+  // bei jedem laufenden "change" - die Messpunkt-Occlusion-Berechnung soll
+  // sich nach einer abgeschlossenen Kamerabewegung neu einpendeln, nicht bei
+  // jedem Frame waehrend der Bewegung selbst.
+  const [cameraVersion, setCameraVersion] = useState(0);
 
   // "Hintergrund"/"Schatten"/Gelände-Detailstufe gelten fuer die ganze
   // geteilte 3D-Szene (nicht pro Instanz, siehe onSetAllViewStyle-Kommentar
@@ -308,6 +314,7 @@ export function ProjectScene3D({
             onPick={handleMeasurePick}
             unit={unitPrefs.primary}
             sectionPlane={measureSectionPlane}
+            cameraVersion={cameraVersion}
           />
         )}
 
@@ -345,6 +352,7 @@ export function ProjectScene3D({
           // dabei nie ein Container mitverschoben wird, regelt das
           // e.button===0-Gate in handlePointerEvent oben, nicht diese Zeile.
           mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
+          onEnd={() => setCameraVersion((v) => v + 1)}
         />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewcube
@@ -379,7 +387,11 @@ export function ProjectScene3D({
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
 
       <ViewerToolbar
-        onReset={() => controlsRef.current?.reset()}
+        onReset={() => {
+          controlsRef.current?.reset();
+          // Siehe Scene.tsx: reset() loest kein "end"-Ereignis aus.
+          setCameraVersion((v) => v + 1);
+        }}
         onUndo={onUndo}
         onRedo={onRedo}
         canUndo={canUndo}

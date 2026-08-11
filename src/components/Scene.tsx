@@ -140,6 +140,14 @@ export function Scene({
   // Kreise fuer generisches Snapping).
   const [measureActive, setMeasureActive] = useState(false);
   const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+  // Jonas' Fehlerbericht 2026-08-11 (spaeter, Performance): siehe
+  // MeasureMarkers.tsx's cameraVersion-Prop-Kommentar - zaehlt nur bei
+  // OrbitControls' "end"-Ereignis hoch (Kamera hat sich nach einer Dreh-/
+  // Pan-/Zoom-Bewegung "gesetzt"), NICHT bei jedem laufenden "change"
+  // waehrend der Bewegung selbst - so muss die teure Occlusion-Berechnung
+  // fuer Messpunkte nur einmal pro abgeschlossener Kamerabewegung laufen,
+  // nicht pro Frame.
+  const [cameraVersion, setCameraVersion] = useState(0);
   const resolvedFloorThickness = floorThickness ?? DEFAULT_FLOOR_THICKNESS;
   const measurePoints = useMemo(
     () => computeMeasurePoints(size, wallThickness, resolvedFloorThickness, openings),
@@ -207,6 +215,7 @@ export function Scene({
             onPick={handleMeasurePick}
             unit={unitPrefs.primary}
             sectionPlane={section.sectionPlane}
+            cameraVersion={cameraVersion}
           />
         )}
 
@@ -242,6 +251,7 @@ export function Scene({
           // wird, stellt nicht diese Zuordnung sicher, sondern das
           // e.button===0-Gate in ProjectScene3D.tsx's handlePointerEvent.
           mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }}
+          onEnd={() => setCameraVersion((v) => v + 1)}
         />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}
@@ -301,7 +311,14 @@ export function Scene({
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
 
       <ViewerToolbar
-        onReset={() => controlsRef.current?.reset()}
+        onReset={() => {
+          controlsRef.current?.reset();
+          // reset() bewegt die Kamera programmgesteuert, ohne dabei den
+          // "end"-Event auszuloesen (siehe onEnd oben an OrbitControls) -
+          // ohne diesen Zaehler wuerde die Messpunkt-Sichtbarkeit nach einem
+          // Home-Klick auf dem Stand VOR dem Reset einfrieren.
+          setCameraVersion((v) => v + 1);
+        }}
         onUndo={onUndo}
         onRedo={onRedo}
         canUndo={canUndo}

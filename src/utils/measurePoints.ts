@@ -13,6 +13,16 @@ export interface MeasurePoint {
   // unrotiert) - in der Baugruppen-Ansicht noch mit der Instanz-Position/
   // -Rotation zu transformieren, siehe measurePointsToWorld() unten.
   position: [number, number, number];
+  // Jonas' Fehlerbericht 2026-08-11 (spaeter): Innenpunkte (Innenecken +
+  // Durchbruch-/Tuer-Punkte auf der Innenflaeche, side=-1 unten) sollen NUR
+  // sichtbar/anklickbar sein, wenn eine Schnittansicht sie freilegt - NICHT
+  // schon, sobald ein Durchbruch/eine Tuer "zufaellig" den Blick freigibt
+  // (das urspruengliche 9c5cd59-Verhalten). MeasureMarkers.tsx braucht dieses
+  // Flag, um Innenpunkte VOR jeder Occlusion-Pruefung auszusortieren, wenn
+  // gerade kein Schnitt aktiv ist - explizit statt ueber ID-Praefix/-Suffix
+  // zu raten, damit die Unterscheidung nicht an einer String-Konvention
+  // haengt. Undefined/false = Aussenpunkt (Container-Ecke oder side=1).
+  interior?: boolean;
 }
 
 interface PanelTransform {
@@ -154,13 +164,19 @@ function panelThicknessMm(panel: PanelId, wallThicknessMm: number, floorThicknes
 // bisheriges Verhalten unveraendert) - fuer Innenmasse (z. B. Abstand
 // zwischen zwei Durchbruechen von innen gemessen) braucht es dieselben
 // Punkte zusaetzlich auf der INNENFLAECHE (side=-1, spiegelt einfach das
-// Vorzeichen des outwardSign-Versatzes). Kein separates Occlusion-Konzept
-// noetig: MeasureMarkers.tsx blendet Punkte bereits per normaler WebGL-
-// Tiefenpruefung aus, wenn eine opake Wand davor liegt (Commit 4ec6f37) UND
-// per Schnittebene, wenn sie im weggeschnittenen Bereich liegen (Commit
-// e97b182) - ein Innenpunkt ist dadurch automatisch genau dann sichtbar/
-// anklickbar, wenn er durch einen echten Durchbruch, eine Schnittansicht
-// oder denselben Durchbruch selbst tatsaechlich einsehbar ist.
+// Vorzeichen des outwardSign-Versatzes).
+// Jonas' Fehlerbericht 2026-08-11 (spaeter, nach echtem Testen): die
+// urspruengliche Annahme unten in diesem Kommentar ("automatisch sichtbar/
+// anklickbar durch einen Durchbruch") hat sich als der eigentliche Fehler
+// herausgestellt - r3f's Klick-Raycaster ignoriert die WebGL-Tiefenpruefung
+// komplett (er trifft NUR Objekte mit eigenen Pointer-Handlern, nicht die
+// dazwischenliegende Wandgeometrie), wodurch Innenpunkte durch INTAKTE
+// Waende hindurch anklickbar wurden. Die Reparatur (MeasureMarkers.tsx)
+// ersetzt "sichtbar durch einen Durchbruch" komplett durch eine explizite
+// Regel: Innenpunkte (interior=true oben) sind NUR bei aktiver Schnittansicht
+// ueberhaupt Kandidaten, unabhaengig davon, ob gerade ein Durchbruch/eine
+// Tuer zufaellig den Blick freigibt - einfacher und ohne die Abhaengigkeit
+// von WebGL-Tiefenpruefung, die fuer Klicks ohnehin nie galt.
 function openingPointToWorld(
   panel: PanelId,
   size: ContainerSize,
@@ -229,7 +245,7 @@ export function computeMeasurePoints(
   for (const x of [-interiorXHalf, interiorXHalf]) {
     for (const y of [interiorYBottom, interiorYTop]) {
       for (const z of [-interiorZHalf, interiorZHalf]) {
-        points.push({ id: `inner-corner-${x}-${y}-${z}`, label: "Innenecke", position: [x, y, z] });
+        points.push({ id: `inner-corner-${x}-${y}-${z}`, label: "Innenecke", position: [x, y, z], interior: true });
       }
     }
   }
@@ -261,11 +277,19 @@ export function computeMeasurePoints(
     for (const side of [1, -1] as const) {
       const idSuffix = side === 1 ? "" : "-inner";
       const labelSuffix = side === 1 ? "" : " (innen)";
+      // side=-1 (Innenflaeche) ist ein Innenpunkt im selben Sinn wie die
+      // Innenecken oben - siehe interior-Kommentar am MeasurePoint-Interface:
+      // ab jetzt NUR ueber eine aktive Schnittansicht sicht-/anklickbar,
+      // nicht mehr allein dadurch, dass ein Durchbruch zufaellig den Blick
+      // freigibt (Jonas' Vorgabe 2026-08-11, spaeter: Vereinfachung weg vom
+      // urspruenglichen 9c5cd59-Verhalten).
+      const isInterior = side === -1;
 
       points.push({
         id: `${opening.id}-center${idSuffix}`,
         label: `${typeDef.label} – Mitte${labelSuffix}`,
         position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM, vCenterM, side),
+        interior: isInterior,
       });
 
       if (typeDef.shape === "round") {
@@ -283,6 +307,7 @@ export function computeMeasurePoints(
               vCenterM + r * Math.sin(angle),
               side,
             ),
+            interior: isInterior,
           });
         }
       } else {
@@ -299,6 +324,7 @@ export function computeMeasurePoints(
             id: `${opening.id}-corner-${du}-${dv}${idSuffix}`,
             label: `${typeDef.label} – Ecke${labelSuffix}`,
             position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM + du, vCenterM + dv, side),
+            interior: isInterior,
           });
         }
       }
