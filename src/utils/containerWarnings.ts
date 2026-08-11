@@ -117,20 +117,41 @@ export function getColorWarnings(config: ContainerConfig): ContainerWarning[] {
   return out;
 }
 
+// Jonas' Vorgabe 2026-08-11 (Anfrage-Vorschau-Modal, WorkspacePage.tsx): die
+// "Ihr Projekt enthält XX Sonderheiten"-Liste dort muss jede einzelne
+// Sonderheit anklickbar machen, um zum verursachenden Feld zu springen -
+// dafuer braucht es mehr als nur den fertigen Text (getContainerWarnings
+// unten), sondern auch eine grobe Kategorie, die sich auf einen Abschnitt in
+// der Seitenleiste abbilden laesst (Grundeinstellungen/Erweiterte
+// Einstellungen/Einbauten, siehe WorkspacePage.tsx's CATEGORY_TO_TOUR_ID).
+export type WarningCategory = "size" | "wall" | "floor" | "soundClass" | "door" | "color";
+
+export interface CategorizedContainerWarning {
+  category: WarningCategory;
+  warning: ContainerWarning;
+}
+
+// Einzige Stelle, die WIRKLICH alle Warnquellen aufsammelt - getContainerWarnings
+// unten ist nur noch eine abgeleitete, kategorielose Sicht darauf, damit
+// bestehende Aufrufer (Baugruppen-Sammel-Badge) unveraendert weiterlaufen.
+export function getCategorizedContainerWarnings(config: ContainerConfig): CategorizedContainerWarning[] {
+  const out: CategorizedContainerWarning[] = [];
+  (["length", "width", "height"] as const).forEach((field) => {
+    const w = getDimensionWarning(field, config.size[field]);
+    if (w) out.push({ category: "size", warning: w });
+  });
+  const wallW = getWallThicknessWarning(config.wallThickness);
+  if (wallW) out.push({ category: "wall", warning: wallW });
+  const floorW = getFloorInsulationWarning(config.floorInsulated);
+  if (floorW) out.push({ category: "floor", warning: floorW });
+  getSoundClassWarnings(config.soundClass, config.wallThickness).forEach((w) => out.push({ category: "soundClass", warning: w }));
+  getDoorWarnings(config.openings).forEach((w) => out.push({ category: "door", warning: w }));
+  getColorWarnings(config).forEach((w) => out.push({ category: "color", warning: w }));
+  return out;
+}
+
 // Alle Warnungen EINES Containers gesammelt (Jonas' Vorgabe 2026-08-10) -
 // fuer den Sammel-Hinweis in der Baugruppen-Container-Liste.
 export function getContainerWarnings(config: ContainerConfig): ContainerWarning[] {
-  const out: ContainerWarning[] = [];
-  (["length", "width", "height"] as const).forEach((field) => {
-    const w = getDimensionWarning(field, config.size[field]);
-    if (w) out.push(w);
-  });
-  const wallW = getWallThicknessWarning(config.wallThickness);
-  if (wallW) out.push(wallW);
-  const floorW = getFloorInsulationWarning(config.floorInsulated);
-  if (floorW) out.push(floorW);
-  out.push(...getSoundClassWarnings(config.soundClass, config.wallThickness));
-  out.push(...getDoorWarnings(config.openings));
-  out.push(...getColorWarnings(config));
-  return out;
+  return getCategorizedContainerWarnings(config).map((c) => c.warning);
 }

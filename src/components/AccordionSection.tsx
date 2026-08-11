@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
 import { AnimatePresence, motion, type TargetAndTransition } from "motion/react";
 
@@ -10,6 +10,14 @@ interface AccordionSectionProps {
   // data-tour auf dem AEUSSEREN Container, damit die Tour den Abschnitt auch
   // im geschlossenen Zustand anvisieren kann.
   tourId?: string;
+  // Jonas' Vorgabe 2026-08-11 (Anfrage-Vorschau-Modal: eine Sonderheit
+  // anklicken soll zum verursachenden Abschnitt springen): jede Aenderung
+  // dieses Werts (z. B. ein hochgezaehlter Zaehler) klappt den Abschnitt AUF,
+  // unabhaengig vom bisherigen Zustand - bewusst kein volles Controlled-
+  // Component-Pattern (open/onOpenChange), damit der Abschnitt fuer alle
+  // ANDEREN Aufrufer (die dieses Prop nicht setzen) unveraendert intern
+  // gesteuert bleibt.
+  forceOpenSignal?: number;
 }
 
 // Ein- und ausklappbarer Abschnitt fuer die Seitenleiste (Jonas' Vorgabe
@@ -18,8 +26,17 @@ interface AccordionSectionProps {
 // Motion auf (Jonas' Vorgabe: Bausteine von animate-ui.com uebernehmen, siehe
 // https://animate-ui.com/docs/components/radix/accordion) - animiertes
 // Auf-/Zuklappen statt des vorherigen abrupten Ein-/Ausblendens.
-export function AccordionSection({ title, defaultOpen = false, children, tourId }: AccordionSectionProps) {
+export function AccordionSection({ title, defaultOpen = false, children, tourId, forceOpenSignal }: AccordionSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (forceOpenSignal !== undefined) setOpen(true);
+    // Nur auf ECHTE Aenderungen von forceOpenSignal reagieren (nicht auf
+    // jeden Re-Render) - laeuft bewusst NICHT beim ersten Mount mit an, wenn
+    // forceOpenSignal von Anfang an gesetzt waere, weil defaultOpen dafuer
+    // bereits zustaendig ist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceOpenSignal]);
 
   return (
     <AccordionPrimitive.Root type="single" collapsible value={open ? "item" : ""} onValueChange={(v) => setOpen(v === "item")}>

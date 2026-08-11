@@ -9,7 +9,8 @@ import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { SoundClassControls } from "../components/SoundClassControls";
 import { ContainerWarningBadge } from "../components/ContainerWarningBadge";
 import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
-import { getContainerWarnings } from "../utils/containerWarnings";
+import { getContainerWarnings, type WarningCategory } from "../utils/containerWarnings";
+import { RequestPreviewModal } from "../components/RequestPreviewModal";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
@@ -280,6 +281,35 @@ export function WorkspacePage() {
   const [savingInstance, setSavingInstance] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
 
+  // Jonas' Vorgabe 2026-08-11: "Anfragen" oeffnet erst eine Vorschau
+  // (RequestPreviewModal.tsx) statt sofort die E-Mail zu starten - drei
+  // Zaehler statt eines einzelnen Werts, weil es drei unabhaengige
+  // Zielabschnitte gibt (Grundeinstellungen/Erweiterte Einstellungen/
+  // Einbauten), siehe handleJumpToWarning/AccordionSection's
+  // forceOpenSignal-Prop.
+  const [showRequestPreview, setShowRequestPreview] = useState(false);
+  const [grundOpenSignal, setGrundOpenSignal] = useState(0);
+  const [erweitertOpenSignal, setErweitertOpenSignal] = useState(0);
+  const [einbautenOpenSignal, setEinbautenOpenSignal] = useState(0);
+
+  // Springt aus der Sonderheiten-Liste im Anfrage-Vorschau-Modal direkt zum
+  // verursachenden Abschnitt: wechselt in die Detailbearbeitung DIESER
+  // Instanz (falls noch nicht dort) und klappt den passenden Abschnitt auf.
+  // Der kurze Timeout gibt dem DOM Zeit, den (evtl. gerade erst gewechselten)
+  // Editor UND die Aufklapp-Animation des Abschnitts zu rendern, bevor
+  // scrollIntoView darauf zielt - ohne Timeout traefe der Scroll oft noch auf
+  // den alten/leeren Zustand.
+  function handleJumpToWarning(instanceId: string, category: WarningCategory) {
+    setShowRequestPreview(false);
+    setEditingInstanceId(instanceId);
+    const tourId = category === "color" ? "tour-darstellung" : category === "door" ? "tour-einbauten" : "tour-grundeinstellungen";
+    if (tourId === "tour-darstellung") setErweitertOpenSignal((v) => v + 1);
+    else if (tourId === "tour-einbauten") setEinbautenOpenSignal((v) => v + 1);
+    else setGrundOpenSignal((v) => v + 1);
+    window.setTimeout(() => {
+      document.querySelector(`[data-tour="${tourId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 350);
+  }
 
   // Falls die gerade bearbeitete Instanz nicht mehr existiert (z. B. durch
   // Rueckgaengig/Wiederholen entfernt) - zurueck zur Uebersicht statt eines
@@ -665,7 +695,12 @@ export function WorkspacePage() {
           <SidebarContent>
             {editingInstance ? (
               <>
-                <AccordionSection title="Grundeinstellungen" defaultOpen tourId="tour-grundeinstellungen">
+                <AccordionSection
+                  title="Grundeinstellungen"
+                  defaultOpen
+                  tourId="tour-grundeinstellungen"
+                  forceOpenSignal={grundOpenSignal}
+                >
                   <label className="mb-3 block text-xs text-slate-500 dark:text-slate-400">
                     Bezeichnung
                     <input
@@ -700,7 +735,7 @@ export function WorkspacePage() {
                   </div>
                 </AccordionSection>
 
-                <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung">
+                <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung" forceOpenSignal={erweitertOpenSignal}>
                   <DisplaySettingsPanel
                     insideColor={editingInstance.config.insideColor}
                     onInsideColorChange={(insideColor) => updateEditingConfig({ insideColor })}
@@ -715,7 +750,7 @@ export function WorkspacePage() {
                   />
                 </AccordionSection>
 
-                <AccordionSection title="Einbauten" tourId="tour-einbauten">
+                <AccordionSection title="Einbauten" tourId="tour-einbauten" forceOpenSignal={einbautenOpenSignal}>
                   <OpeningsPanel
                     size={editingInstance.config.size}
                     openings={editingInstance.config.openings}
@@ -979,7 +1014,7 @@ export function WorkspacePage() {
                   </div>
                   <AnimatedButton
                     type="button"
-                    onClick={handleRequestProject}
+                    onClick={() => setShowRequestPreview(true)}
                     className="flex w-full items-center justify-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
                   >
                     <SendIcon size={16} />
@@ -1142,6 +1177,21 @@ export function WorkspacePage() {
         confirmLabel="Ja, zurücksetzen"
         onConfirm={applyResetProject}
         onCancel={() => setShowResetProjectConfirm(false)}
+      />
+
+      <RequestPreviewModal
+        open={showRequestPreview}
+        projectName={project.name}
+        standort={project.standort}
+        instances={project.instances}
+        savingProject={savingProject}
+        onClose={() => setShowRequestPreview(false)}
+        onSave={handleDownloadProject}
+        onSend={() => {
+          setShowRequestPreview(false);
+          void handleRequestProject();
+        }}
+        onJumpToWarning={handleJumpToWarning}
       />
     </div>
   );
