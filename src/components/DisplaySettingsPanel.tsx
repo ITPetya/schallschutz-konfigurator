@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RAL_SPECIAL_COLORS, RAL_STANDARD_COLORS, type RalColor } from "../constants/ralColors";
+import { RAL_SPECIAL_COLORS, RAL_STANDARD_COLORS, getRalNameForHex, type RalColor } from "../constants/ralColors";
 import { AnimatedButton } from "./AnimatedButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./primitives/DropdownMenu";
 import { Chevron } from "./icons/Chevron";
@@ -135,7 +135,11 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
               className="flex min-w-0 flex-1 items-center gap-2 rounded border border-slate-300 bg-white px-2 py-1 text-left text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               <span className="h-5 w-5 shrink-0 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: value }} aria-hidden />
-              <span className="flex-1 truncate">{current ? `${current.code} – ${current.name}` : value}</span>
+              {/* Jonas' Vorgabe 2026-08-11: nie HEX als Text, immer der
+                  RAL-Name (bzw. getRalNameForHex()'s "Sonderfarbe (#hex)"-
+                  Fallback, falls value keinem RAL-Ton entspricht) - der
+                  Swatch links bleibt bewusst bei der echten Hintergrundfarbe. */}
+              <span className="flex-1 truncate">{current ? `${current.code} – ${current.name}` : getRalNameForHex(value)}</span>
               <Chevron direction="down" className="shrink-0 text-slate-400" />
             </AnimatedButton>
           </DropdownMenuTrigger>
@@ -155,7 +159,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
         </DropdownMenu>
         {isSonderfarbe && <SonderBadge text={`${current!.code} ${current!.name} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.`} />}
       </div>
-      {!current && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Aktuell: {value}</p>}
+      {!current && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Aktuell: {getRalNameForHex(value)}</p>}
     </div>
   );
 }

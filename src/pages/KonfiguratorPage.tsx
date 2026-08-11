@@ -9,6 +9,7 @@ import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
+import { getRalNameForHex } from "../constants/ralColors";
 
 interface KonfiguratorPageProps {
   // Seit der Nacht-Session 2026-07-25 uebernimmt WorkspacePage.tsx den
@@ -96,10 +97,14 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
             </AccordionSection>
             <AccordionSection title="Erweiterte Einstellungen">
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
+                {/* Jonas' Vorgabe 2026-08-11: nie HEX als Text, immer der
+                    RAL-Name - der Swatch (das runde Farbfeld) bleibt bewusst
+                    bei der echten Hintergrundfarbe (hex), nur der begleitende
+                    Text daneben wechselt auf getRalNameForHex(). */}
                 <dt className="text-slate-400 dark:text-slate-500">Außenfarbe</dt>
                 <dd className="flex items-center gap-1.5">
                   <span className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: outsideColor }} />
-                  {outsideColor}
+                  {getRalNameForHex(outsideColor)}
                 </dd>
                 <dt className="text-slate-400 dark:text-slate-500">Innenfarbe</dt>
                 <dd className="flex items-center gap-1.5">
@@ -108,7 +113,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
                   ) : (
                     <>
                       <span className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600" style={{ backgroundColor: insideColor }} />
-                      {insideColor}
+                      {getRalNameForHex(insideColor)}
                     </>
                   )}
                 </dd>

@@ -234,3 +234,27 @@ export const RAL_SPECIAL_COLORS: RalColor[] = [
   { code: "RAL 9022", name: "Perlhellgrau", hex: "#858583" },
   { code: "RAL 9023", name: "Perldunkelgrau", hex: "#787b7a" },
 ];
+
+// Jonas' Vorgabe 2026-08-11: "Farben sollen immer als RAL-Ton angezeigt
+// werden, nie als HEX" - ueberall, wo eine Farbe dem NUTZER als TEXT gezeigt
+// wird (Warnhinweise, Zusammenfassungen, der schreibgeschuetzte /intern-
+// Viewer, ...), muss dieser Name statt des rohen Hex-Strings stehen. Die
+// tatsaechliche 3D-Darstellung (meshStandardMaterial color=... in
+// Wall.tsx/CornerCasting.tsx/RoofRidge.tsx usw.) bleibt UNVERAENDERT bei
+// hex/rgb - nur begleitender TEXT wird umgestellt, siehe diese Funktion als
+// zentrale, einzige Konvertierungsstelle statt N einzelner Lookups.
+//
+// Case-insensitiver Vergleich, weil gespeicherte .sszkonfig-Dateien oder
+// Alt-Projekte den Hex-Wert theoretisch in anderer Gross-/Kleinschreibung
+// enthalten koennten, auch wenn die Auswahl-UI selbst nur Kleinschreibung
+// erzeugt (siehe die hex-Werte oben).
+export function getRalNameForHex(hex: string): string {
+  const match = [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS].find((c) => c.hex.toLowerCase() === hex.toLowerCase());
+  if (match) return `${match.code} – ${match.name}`;
+  // Kein Treffer (z.B. eine frei eingetragene Sonderfarbe aus einer alten/
+  // fremden .sszkonfig-Datei, die nicht exakt einem RAL-Ton entspricht) -
+  // Ton/Format an die bestehende Sonderfarbe-Formulierung angelehnt (siehe
+  // containerWarnings.ts's getColorWarnings), aber mit sichtbarem Hex als
+  // letzter, ehrlicher Ausweg statt einer erfundenen Bezeichnung.
+  return `Sonderfarbe (${hex})`;
+}

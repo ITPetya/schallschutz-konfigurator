@@ -2,7 +2,7 @@ import type { ContainerConfig } from "../config/types";
 import type { Opening } from "../types/openings";
 import { CONTAINER_SIZE_PRESETS } from "../constants/containerSizes";
 import { OPENING_TYPES, STANDARD_DOOR_SIZES } from "../constants/openingTypes";
-import { RAL_STANDARD_COLORS } from "../constants/ralColors";
+import { RAL_STANDARD_COLORS, getRalNameForHex } from "../constants/ralColors";
 import {
   DEFAULT_FLOOR_THICKNESS,
   DEFAULT_SOUND_CLASS,
@@ -140,11 +140,15 @@ function isStandardRal(hex: string): boolean {
 
 export function getColorWarnings(config: ContainerConfig): ContainerWarning[] {
   const out: ContainerWarning[] = [];
+  // getRalNameForHex() statt des rohen Hex-Strings (Jonas' Vorgabe
+  // 2026-08-11: "Farben immer als RAL-Ton anzeigen, nie als HEX") - die
+  // Rendering-Farbe selbst (config.outsideColor/insideColor als hex) bleibt
+  // fuer den 3D-Viewer unveraendert, nur dieser Warntext zeigt den Namen.
   if (!isStandardRal(config.outsideColor)) {
-    out.push({ severity: "orange", text: `Außenfarbe ${config.outsideColor} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.` });
+    out.push({ severity: "orange", text: `Außenfarbe ${getRalNameForHex(config.outsideColor)} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.` });
   }
   if (!config.insideUnpainted && !isStandardRal(config.insideColor)) {
-    out.push({ severity: "orange", text: `Innenfarbe ${config.insideColor} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.` });
+    out.push({ severity: "orange", text: `Innenfarbe ${getRalNameForHex(config.insideColor)} – Sonderfarbe, mit Aufpreis gegenüber den Standardfarben.` });
   }
   return out;
 }
