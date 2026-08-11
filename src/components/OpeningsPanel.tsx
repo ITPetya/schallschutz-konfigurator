@@ -80,6 +80,17 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
+          // Jonas' Vorgabe 2026-08-11: Doppelklick auf einen Bauteil-Eintrag
+          // soll dessen Detail-/Editierpanel "ausklappen" - Einzelklick tut
+          // das (als Auf-/Zuklapp-TOGGLE) bereits, es gibt hier keine andere,
+          // konkurrierende Einzelklick-Aktion (z. B. Auswahl im 3D-Viewport)
+          // zum Kollidieren. Additiv statt eines zweiten, widerspruechlichen
+          // Mechanismus: erzwingt explizit AUFgeklappt statt zu togglen -
+          // ein Doppelklick loest im Browser zuerst zwei einzelne onClick
+          // (auf/zu/auf) UND danach dieses onDoubleClick aus, das den
+          // Endzustand deterministisch auf "offen" fixiert, egal wie die
+          // beiden Zwischen-Toggles gerade standen.
+          onDoubleClick={() => setExpanded(true)}
           className="flex flex-1 cursor-pointer items-center justify-between text-left"
         >
           <span className="font-medium text-brand-dark">{typeDef.label}</span>

@@ -857,6 +857,18 @@ export function WorkspacePage() {
                       <div
                         key={inst.id}
                         onClick={() => setSelectedId(inst.id)}
+                        // Jonas' Vorgabe 2026-08-11 ("Doppelklick auf Container
+                        // öffnet Detailansicht" auch in der Seitenleiste, nicht
+                        // nur im 3D-Viewport - siehe ProjectScene3D.tsx's
+                        // gleichnamiges onDoubleClick auf dem Grundriss):
+                        // additiv zum bestehenden Einzelklick (waehlt nur aus,
+                        // siehe onClick oben) - ein Doppelklick loest ZUERST
+                        // zwei Einzelklicks aus (harmlos, waehlt denselben
+                        // Container zweimal aus) UND danach dieses
+                        // onDoubleClick, das direkt in die Detailbearbeitung
+                        // springt, exakt wie der bestehende "Detail
+                        // bearbeiten"-Knopf unten in derselben Zeile.
+                        onDoubleClick={() => handleEditInstance(inst)}
                         className={`cursor-pointer rounded-lg border p-2.5 text-sm shadow-sm ${
                           selectedId === inst.id
                             ? "border-brand bg-white dark:bg-slate-900"

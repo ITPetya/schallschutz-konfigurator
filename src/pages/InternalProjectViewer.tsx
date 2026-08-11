@@ -47,6 +47,12 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
                     <div
                       key={inst.id}
                       onClick={() => setSelectedId(inst.id)}
+                      // Jonas' Vorgabe 2026-08-11: Doppelklick oeffnet auch
+                      // hier direkt die Detailansicht, additiv zum
+                      // Einzelklick (waehlt nur aus) - gleiches Muster wie in
+                      // WorkspacePage.tsx's Container-Liste und im 3D-Viewport
+                      // (ProjectScene3D.tsx).
+                      onDoubleClick={() => onOpenInstance(inst.id)}
                       className={`cursor-pointer rounded-lg border p-2 text-sm ${
                         selectedId === inst.id
                           ? "border-brand bg-brand/5"
