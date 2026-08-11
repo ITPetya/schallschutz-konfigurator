@@ -319,12 +319,13 @@ export function Container({ size, wallThickness, openings, floorThickness = DEFA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed]);
 
-  // Jonas' Fehlerbericht 2026-08-11 ("unsichtbare Punkte anklickbar"): siehe
-  // ausfuehrlichen Kommentar in MeasureMarkers.tsx (isBlockedByGeometry) fuer
-  // den root cause - hier nur die Markierung, ANHAND derer der Messpunkt-
-  // Occlusion-Raycast ueberhaupt weiss, WELCHE Objekte "echte, undurchsichtige
-  // Container-Huelle" sind (Waende inkl. Tueren/Gitter/Innenverkleidung,
-  // Eckbeschlaege, Dachfirst) - alles, was HIER (rekursiv) drunterhaengt.
+  // Jonas' Fehlerbericht 2026-08-11 ("unsichtbare Punkte anklickbar", spaeter
+  // "sichtbar aber nicht anklickbar"): siehe ausfuehrlichen Kommentar in
+  // MeasureMarkers.tsx (usableIds) fuer den root cause - hier nur die
+  // Markierung, ANHAND derer die Messpunkt-Occlusion-Berechnung ueberhaupt
+  // weiss, WELCHE Objekte "echte, undurchsichtige Container-Huelle" sind
+  // (Waende inkl. Tueren/Gitter/Innenverkleidung, Eckbeschlaege, Dachfirst) -
+  // alles, was HIER (rekursiv) drunterhaengt.
   return (
     <group userData={{ measureOccluder: true }}>{parts.slice(0, revealed)}</group>
   );
