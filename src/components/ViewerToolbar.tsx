@@ -104,51 +104,72 @@ export function ViewerToolbar({
           -translate-y-1/2"), auf die rechte Seite gespiegelt, right-4 statt
           right-2 (Jonas' Fehlerbericht: "mehr Randabstand, eher wie vor und
           zurück oder home"). */}
+      {/* Jonas' Fehlerbericht 2026-08-11 ("kollidierende Seitenmenüs"):
+          vorher hing JEDES Panel absolut an SEINEM EIGENEN Button (relative
+          Slots nebeneinander im selben Stapel) - waren gleichzeitig zwei
+          Panels offen (z.B. Schnitt UND Messen), ueberlappten sie sich
+          optisch, weil jedes Panel unabhaengig auf der Hoehe seines eigenen
+          Buttons zentriert wurde, aber Panels oft deutlich hoeher sind als
+          der Button-Reihenabstand. Fix (mit Jonas abgestimmt): alle
+          GLEICHZEITIG offenen Panels landen jetzt in EINER gemeinsamen
+          flex-col-Saeule (echter Dokumentenfluss statt unabhaengiger
+          Absolut-Positionierung), wodurch sie sich automatisch gegenseitig
+          verdraengen/stapeln statt zu ueberlappen - kein Panel schliesst sich
+          dabei automatisch, wie gewuenscht. Diese Saeule ist ein EIGENSTAENDIGES
+          "top-1/2 -translate-y-1/2"-Element (Geschwister der Button-Saeule,
+          NICHT ihr Kind) und zentriert sich dadurch selbst vertikal an der
+          vollen Viewer-Hoehe, unabhaengig von der (viel kleineren) Button-
+          Saeulenhoehe - waechst der Stapel (mehrere Panels offen), waechst er
+          SYMMETRISCH nach oben UND unten vom Zentrum weg, statt einseitig nur
+          nach unten zu laufen und dabei eher an den unteren Viewer-Rand zu
+          stossen. max-h+overflow-y-auto bleibt zusaetzlich als Sicherheitsnetz
+          fuer sehr niedrige Fensterhoehen mit allen drei Panels gleichzeitig
+          offen - dann scrollt der Stapel intern statt unsichtbar ueber den
+          Rand hinauszulaufen. Die Button-Saeule selbst bleibt davon komplett
+          unberuehrt und dadurch weiterhin fix an ihrem Platz, egal wie
+          viele/welche Panels gerade offen sind (Jonas' frueherer
+          Fehlerbericht: "die Buttons sollen sich nicht wegbewegen, wenn ein
+          Fenster oeffnet"). */}
+      <div className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto">
+        <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
+        {canShowView && (
+          <ViewResultPanel
+            active={viewOpen}
+            viewStyle={viewStyle!}
+            background={background!}
+            shadowsEnabled={shadowsEnabled!}
+            terrainDetail={terrainDetail!}
+            onViewStyleChange={onViewStyleChange!}
+            onBackgroundChange={onBackgroundChange!}
+            onShadowsEnabledChange={onShadowsEnabledChange!}
+            onTerrainDetailChange={onTerrainDetailChange}
+          />
+        )}
+        {onToggleMeasure && (
+          <MeasureResultPanel
+            active={!!measureActive}
+            selected={measureSelected ?? []}
+            unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
+            onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
+          />
+        )}
+      </div>
+
       <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
-        <ToolSlot dataTour="section-view" panel={<SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />}>
-          <ToolButton onClick={() => section.setSectionEnabled((v) => !v)} label="Schnitt" active={section.sectionEnabled}>
-            <SectionIcon size={16} />
-          </ToolButton>
-        </ToolSlot>
+        <ToolButton dataTour="section-view" onClick={() => section.setSectionEnabled((v) => !v)} label="Schnitt" active={section.sectionEnabled}>
+          <SectionIcon size={16} />
+        </ToolButton>
 
         {canShowView && (
-          <ToolSlot
-            dataTour="view-style-panel"
-            panel={
-              <ViewResultPanel
-                active={viewOpen}
-                viewStyle={viewStyle!}
-                background={background!}
-                shadowsEnabled={shadowsEnabled!}
-                terrainDetail={terrainDetail!}
-                onViewStyleChange={onViewStyleChange!}
-                onBackgroundChange={onBackgroundChange!}
-                onShadowsEnabledChange={onShadowsEnabledChange!}
-                onTerrainDetailChange={onTerrainDetailChange}
-              />
-            }
-          >
-            <ToolButton onClick={() => setViewOpen((v) => !v)} label="Ansicht" active={viewOpen}>
-              <ViewIcon size={16} />
-            </ToolButton>
-          </ToolSlot>
+          <ToolButton dataTour="view-style-panel" onClick={() => setViewOpen((v) => !v)} label="Ansicht" active={viewOpen}>
+            <ViewIcon size={16} />
+          </ToolButton>
         )}
 
         {onToggleMeasure && (
-          <ToolSlot
-            panel={
-              <MeasureResultPanel
-                active={!!measureActive}
-                selected={measureSelected ?? []}
-                unitPrefs={unitPrefs ?? DEFAULT_UNIT_PREFS}
-                onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
-              />
-            }
-          >
-            <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
-              <RulerIcon size={16} />
-            </ToolButton>
-          </ToolSlot>
+          <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
+            <RulerIcon size={16} />
+          </ToolButton>
         )}
       </div>
       {/* Jonas' Vorgabe 2026-07-25: "oben rechts vom ViewCube ... fluchtend
@@ -172,31 +193,12 @@ export function ViewerToolbar({
   );
 }
 
-// Jonas' Fehlerbericht 2026-08-10: "die Buttons sollen sich nicht wegbewegen,
-// wenn ein Fenster oeffnet" - vorher lagen Panel+Button als normale
-// Flex-Geschwister in EINER Reihe innerhalb der vertikal gestapelten
-// Werkzeugleiste; sobald ein Panel (unterschiedlich hoch/breit je nach
-// Inhalt) erschien, wuchs diese Reihe und verschob dadurch die GESAMTE
-// Home-Kruecken-Zentrierung (top-1/2 -translate-y-1/2) des ganzen Stapels -
-// alle drei Buttons ruckten mit, nicht nur der geoeffnete. Fix: das Panel
-// haengt jetzt absolut positioniert (rechte Kante an der linken Kante DIESES
-// Slots, "right-full") am Button, statt normal im Fluss mitgezaehlt zu
-// werden - der Slot selbst hat dadurch IMMER exakt die Groesse des Buttons,
-// unabhaengig davon, ob/was gerade daneben aufklappt.
-function ToolSlot({ panel, dataTour, children }: { panel: React.ReactNode; dataTour?: string; children: React.ReactNode }) {
-  return (
-    <div data-tour={dataTour} className="relative">
-      <div className="absolute right-full top-1/2 mr-2 -translate-y-1/2">{panel}</div>
-      {children}
-    </div>
-  );
-}
-
 function ToolButton({
   onClick,
   disabled,
   label,
   active,
+  dataTour,
   children,
 }: {
   onClick: () => void;
@@ -205,11 +207,16 @@ function ToolButton({
   // Gefuellter Zustand fuer Umschalt-Buttons (bisher gab's hier nur
   // Einmal-Aktionen) - Jonas' Vorgabe 2026-08-10, Messwerkzeug-Toggle.
   active?: boolean;
+  // Tutorial-Anker (siehe tour/tourDefinitions.ts) - sitzt direkt auf dem
+  // Button selbst, seit die Panels nicht mehr einzeln pro Button verpackt
+  // sind (siehe "kollidierende Seitenmenüs"-Fix oben).
+  dataTour?: string;
   children: React.ReactNode;
 }) {
   return (
     <AnimatedButton
       type="button"
+      data-tour={dataTour}
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
