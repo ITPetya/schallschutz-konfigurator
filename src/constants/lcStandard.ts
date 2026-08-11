@@ -20,18 +20,39 @@ export const LC_DIMENSION_LIMITS = {
 // 2026-08-10: "Wandstärken sind 100 Standard, alles andere auch Sonder").
 export const LC_STANDARD_WALL_THICKNESS = 100;
 
-// Jonas' Klarstellung 2026-08-11 (ersetzt die vorherige Annahme einer
-// variablen 100-120mm-Spanne, siehe Git-Historie): die physische Dicke der
-// Bodenplatte ist IMMER 120mm, bei JEDEM Container, unabhaengig von
-// Wandstaerke oder Isolierung - sie ist KEIN Nutzer-Eingabefeld mehr. Was
-// variiert, ist ausschliesslich, OB diese 120mm-Platte hohl oder mit
-// Isolierung gefuellt ist (boolean floorInsulated auf ContainerConfig,
-// siehe types.ts) - keine Dicken-Abstufung. Eigenstaendige Konstante statt
-// Ableitung aus LC_STANDARD_WALL_THICKNESS, weil Boden- und Wand-/
-// Dachdicke unabhaengig voneinander sind (siehe Container.tsx: die
-// Bodenplatte nutzt diese Konstante, Wand/Dach weiterhin die vom Nutzer
-// gesetzte Wandstaerke).
-export const FLOOR_THICKNESS_MM = 120;
+// Jonas' Klarstellung 2026-08-11 (Vormittag, siehe 52712bd): Bodendicke
+// zunaechst als IMMER fixe 120mm-Konstante modelliert, keine Nutzereingabe
+// mehr. Jonas' Korrektur SPAETER AM SELBEN TAG, nachdem er die Zusammenfassung
+// gesehen hatte: die Bodenstaerke soll wieder ein frei einstellbares Feld
+// sein, GENAU wie die Wandstaerke (siehe floorThickness auf ContainerConfig,
+// types.ts) - keine feste Konstante mehr. DEFAULT_FLOOR_THICKNESS ist nur
+// noch der Vorgabewert fuer neue Container (ContainerSizeControls.tsx,
+// defaultContainerConfig.ts), keine erzwungene Groesse. Eigenstaendig statt
+// von LC_STANDARD_WALL_THICKNESS abgeleitet, weil Boden- und Wand-/
+// Dachdicke unabhaengig voneinander eingestellt werden (siehe Container.tsx:
+// die Bodenplatte nutzt ihre eigene floorThickness, Wand/Dach weiterhin die
+// separate wallThickness).
+export const DEFAULT_FLOOR_THICKNESS = 120;
+
+// "Standard" ohne Sonder-Hinweis sind laut Jonas fuer die Bodenstaerke genau
+// diese zwei Werte (100mm = identisch zur Standard-Wandstaerke, 120mm = der
+// bisherige Fixwert) - jede andere Dicke ist eine Sonderausstattung, exakt
+// dasselbe Warnmuster wie bei der Wandstaerke (siehe getFloorThicknessWarning
+// in containerWarnings.ts), nur mit zwei zulaessigen Werten statt einem.
+export const LC_STANDARD_FLOOR_THICKNESSES = [100, 120];
+
+// Jonas' Vorgabe 2026-08-11 (Korrektur): sobald die Bodenisolierung
+// eingeschaltet wird - egal ob der Nutzer die Checkbox manuell anklickt oder
+// sie durch einen Wechsel auf Silent/Silent-Plus automatisch aktiviert wird -
+// soll eine zu duenne Bodenplatte automatisch auf 120mm angehoben werden
+// (technisch braucht die Isolierung diese Mindeststaerke). Bewusst NUR
+// EINSEITIG: bereits >=120mm bleibt unangetastet (kein ungefragtes
+// Verkleinern), und das spaetere Abschalten der Isolierung setzt die Dicke
+// NICHT zurueck - der Nutzer kann sie danach frei auf jeden Wert stellen.
+export function bumpedFloorThickness(currentFloorThickness: number, insulated: boolean): number {
+  if (!insulated) return currentFloorThickness;
+  return currentFloorThickness < DEFAULT_FLOOR_THICKNESS ? DEFAULT_FLOOR_THICKNESS : currentFloorThickness;
+}
 
 // Sichtbarer Unterschied im 3D-Modell zwischen isoliertem (gefuelltem) und
 // hohlem Boden (Jonas' Vorgabe 2026-08-11: "muss sich sichtbar im 3D-Modell
@@ -76,6 +97,21 @@ export const SOUND_CLASSES: SoundClassSpec[] = [
   { id: "silent", label: "Silent", rangeLabel: "R'w 45–47 dB", minWallThicknessRequired: 100 },
   { id: "silentPlus", label: "Silent-Plus", rangeLabel: "R'w 49–52 dB", minWallThicknessRequired: 100 },
 ];
+
+// Jonas' Vorgabe 2026-08-11 (Korrektur): ein WECHSEL der Schallschutzklasse
+// soll eine zu duenne Wandstaerke aktiv korrigieren, nicht nur weiterhin rot
+// anmahnen (siehe getSoundClassWallConflictWarning in containerWarnings.ts,
+// die Warnung bleibt zusaetzlich bestehen - z. B. falls der Nutzer die
+// Wandstaerke danach manuell wieder verkleinert). Bewusst NUR beim
+// Klassenwechsel angewendet (siehe onChange in WorkspacePage.tsx), nicht bei
+// jeder Wandstaerken-Eingabe selbst - manuelles Unterschreiten nach dem
+// Wechsel bleibt moeglich, erzeugt dann eben wieder die rote Warnung.
+export function bumpedWallThickness(currentWallThickness: number, soundClass: SoundClass): number {
+  const spec = SOUND_CLASSES.find((c) => c.id === soundClass);
+  const min = spec?.minWallThicknessRequired;
+  if (min === undefined) return currentWallThickness;
+  return currentWallThickness < min ? min : currentWallThickness;
+}
 
 export const DEFAULT_SOUND_CLASS: SoundClass = "standard";
 

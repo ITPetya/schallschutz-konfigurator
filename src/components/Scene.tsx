@@ -14,6 +14,7 @@ import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
+import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
 import {
@@ -32,10 +33,13 @@ interface SceneProps {
   insideColor: string;
   outsideColor: string;
   insideUnpainted: boolean;
-  // Jonas' Klarstellung 2026-08-11: hohl oder isoliert gefuellt (die
-  // Bodenplatte selbst ist immer 120mm dick, siehe Container.tsx) - optional
-  // mit Default true in Container.tsx, falls ein Aufrufer das Prop (noch)
-  // nicht setzt.
+  // Jonas' Korrektur 2026-08-11 (spaeter am selben Tag): Bodendicke ist
+  // wieder frei einstellbar (siehe Container.tsx/lcStandard.ts) - optional
+  // mit Default DEFAULT_FLOOR_THICKNESS in Container.tsx, falls ein Aufrufer
+  // das Prop (noch) nicht setzt.
+  floorThickness?: number;
+  // Hohl oder isoliert gefuellt - optional mit Default true in
+  // Container.tsx, falls ein Aufrufer das Prop (noch) nicht setzt.
   floorInsulated?: boolean;
   // Jonas' Vorgabe 2026-07-24: Schatten abschaltbar. Steuert direkt
   // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
@@ -81,6 +85,7 @@ export function Scene({
   insideColor,
   outsideColor,
   insideUnpainted,
+  floorThickness,
   floorInsulated,
   shadowsEnabled,
   terrainDetail,
@@ -135,7 +140,11 @@ export function Scene({
   // Kreise fuer generisches Snapping).
   const [measureActive, setMeasureActive] = useState(false);
   const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
-  const measurePoints = useMemo(() => computeMeasurePoints(size, wallThickness, openings), [size, wallThickness, openings]);
+  const resolvedFloorThickness = floorThickness ?? DEFAULT_FLOOR_THICKNESS;
+  const measurePoints = useMemo(
+    () => computeMeasurePoints(size, wallThickness, resolvedFloorThickness, openings),
+    [size, wallThickness, resolvedFloorThickness, openings],
+  );
   const { prefs: unitPrefs, setPrefs: setUnitPrefs } = useUnitPreferences();
 
   function handleMeasurePick(p: MeasurePoint) {
@@ -184,6 +193,7 @@ export function Scene({
               size={size}
               wallThickness={wallThickness}
               openings={openings}
+              floorThickness={resolvedFloorThickness}
               floorInsulated={floorInsulated}
               onReady={() => setContainerReady(true)}
             />

@@ -5,11 +5,14 @@ interface SoundClassControlsProps {
   soundClass: SoundClass;
   wallThickness: number;
   onChange: (c: SoundClass) => void;
-  // Jonas' Vorgabe 2026-08-11: die Bodenisolierung (hohl/gefuellt der immer
-  // 120mm dicken Bodenplatte, siehe FLOOR_THICKNESS_MM in lcStandard.ts)
-  // gehoert inhaltlich zur Schallschutzklasse (ihr Standardwert haengt davon
-  // ab) und sitzt deshalb in DIESER Sektion, nicht bei den Groessen-/
-  // Wandstaerke-Feldern (ContainerSizeControls.tsx).
+  // Jonas' Vorgabe 2026-08-11: die Bodenisolierung (hohl/gefuellt) gehoert
+  // inhaltlich zur Schallschutzklasse (ihr Standardwert haengt davon ab) und
+  // sitzt deshalb in DIESER Sektion, nicht bei den Groessen-/
+  // Wandstaerke-Feldern (ContainerSizeControls.tsx). Die Bodenstaerke selbst
+  // (floorThickness) ist seit Jonas' Korrektur spaeter am selben Tag wieder
+  // frei einstellbar und lebt bei ContainerSizeControls - hier nur zur
+  // Anzeige im Checkbox-Label, damit die Zahl nicht hartcodiert veraltet.
+  floorThickness: number;
   floorInsulated: boolean;
   onFloorInsulatedChange: (v: boolean) => void;
 }
@@ -25,7 +28,7 @@ interface SoundClassControlsProps {
 // möchten wir ja verkaufen") - nur noch die ROTE Pflichtwarnung, wenn die
 // Wandstaerke fuer Silent/Silent-Plus technisch nicht ausreicht (siehe
 // containerWarnings.ts).
-export function SoundClassControls({ soundClass, wallThickness, onChange, floorInsulated, onFloorInsulatedChange }: SoundClassControlsProps) {
+export function SoundClassControls({ soundClass, wallThickness, onChange, floorThickness, floorInsulated, onFloorInsulatedChange }: SoundClassControlsProps) {
   const wallConflict = getSoundClassWallConflictWarning(soundClass, wallThickness);
 
   return (
@@ -46,7 +49,7 @@ export function SoundClassControls({ soundClass, wallThickness, onChange, floorI
 
       <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
         <input type="checkbox" checked={floorInsulated} onChange={(e) => onFloorInsulatedChange(e.target.checked)} />
-        Bodenisolierung (120 mm Bodenplatte gefüllt statt hohl)
+        Bodenisolierung ({floorThickness} mm Bodenplatte gefüllt statt hohl)
       </label>
     </div>
   );

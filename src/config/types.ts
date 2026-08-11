@@ -33,14 +33,18 @@ export interface ContainerConfig {
   // Schallschutzklasse (Standard/Schallschutz/Silent/Silent-Plus), faellt
   // auf "standard" zurueck, wenn eine alte Datei das Feld nicht hat.
   soundClass?: SoundClass;
-  // Jonas' Klarstellung 2026-08-11: die Bodenplatte ist IMMER 120mm dick
-  // (siehe FLOOR_THICKNESS_MM in lcStandard.ts) - das vorherige
-  // floorThickness-Feld (0/100-120mm, frei eingebbar) ist damit hinfaellig
-  // und wurde ENTFERNT, es gibt keine Nutzer-editierbare Bodendicke mehr.
-  // Stattdessen nur noch dieser Boolean: ist die feste 120mm-Platte hohl
-  // oder mit Isolierung gefuellt? Optional aus dem ueblichen
-  // Altdatei-Kompatibilitaetsgrund - alte Dateien (auch solche mit dem
-  // inzwischen entfernten floorThickness-Feld) haben ihn nicht, faellt dann
-  // auf defaultFloorInsulated(soundClass) zurueck (siehe lcStandard.ts).
+  // Jonas' Klarstellung 2026-08-11 (Vormittag, 52712bd): kurzzeitig durch
+  // eine fixe 120mm-Konstante ersetzt. Jonas' Korrektur SPAETER AM SELBEN
+  // TAG: die Bodenstaerke ist wieder ein frei einstellbares Feld, GENAU wie
+  // wallThickness - kein fester Wert mehr. Optional aus dem ueblichen
+  // Altdatei-Kompatibilitaetsgrund - Dateien von vor dieser Korrektur (egal
+  // ob mit dem alten freien Feld oder aus der kurzen 120mm-Fix-Phase) haben
+  // das Feld nicht oder einen veralteten Wert, faellt dann auf
+  // DEFAULT_FLOOR_THICKNESS (120mm, lcStandard.ts) zurueck.
+  floorThickness?: number;
+  // Nach wie vor: ist die Bodenplatte (jetzt variabler Dicke) hohl oder mit
+  // Isolierung gefuellt? Optional aus dem ueblichen
+  // Altdatei-Kompatibilitaetsgrund - alte Dateien haben ihn nicht, faellt
+  // dann auf defaultFloorInsulated(soundClass) zurueck (siehe lcStandard.ts).
   floorInsulated?: boolean;
 }

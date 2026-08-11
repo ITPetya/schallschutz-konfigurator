@@ -13,7 +13,7 @@ import {
   CORNER_WALL_RECESS_MM,
 } from "./CornerCasting";
 import { useChunkedReveal } from "../hooks/useChunkedReveal";
-import { FLOOR_HOLLOW_COLOR, FLOOR_INSULATED_COLOR, FLOOR_THICKNESS_MM } from "../constants/lcStandard";
+import { DEFAULT_FLOOR_THICKNESS, FLOOR_HOLLOW_COLOR, FLOOR_INSULATED_COLOR } from "../constants/lcStandard";
 
 const SIGNS = [1, -1] as const;
 
@@ -21,12 +21,16 @@ interface ContainerProps {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
-  // Jonas' Klarstellung 2026-08-11: die Bodenplatte ist IMMER 120mm dick
-  // (FLOOR_THICKNESS_MM, unabhaengig von wallThickness) - dieser Boolean
-  // steuert nur noch, ob sie hohl oder isoliert gefuellt ist, sichtbar an
-  // der Innenflaechenfarbe (siehe FLOOR_INSULATED_COLOR/FLOOR_HOLLOW_COLOR
-  // unten). Optional mit Default true, falls eine Stelle den Container ohne
-  // dieses Prop rendert (z. B. alte Testaufrufe) - true ist die "bessere"
+  // Jonas' Korrektur 2026-08-11 (spaeter am selben Tag): die Bodendicke ist
+  // wieder frei einstellbar, GENAU wie wallThickness (siehe lcStandard.ts) -
+  // kein fixer Wert mehr. Optional mit Default DEFAULT_FLOOR_THICKNESS,
+  // falls eine Stelle den Container ohne dieses Prop rendert (z. B. alte
+  // Testaufrufe/Altdateien ohne das Feld).
+  floorThickness?: number;
+  // Steuert, ob die (variabel dicke) Bodenplatte hohl oder isoliert gefuellt
+  // ist, sichtbar an der Innenflaechenfarbe (siehe FLOOR_INSULATED_COLOR/
+  // FLOOR_HOLLOW_COLOR unten). Optional mit Default true, falls eine Stelle
+  // den Container ohne dieses Prop rendert - true ist die "bessere"
   // Blindannahme (isoliert wirkt hochwertiger als sichtbar hohl).
   floorInsulated?: boolean;
   // Wird EINMAL aufgerufen, sobald alle 14 Bauteile (6 Waende + 8
@@ -66,14 +70,14 @@ const MM_TO_M = 1 / 1000;
 // types/openings.ts) in die fuer Wall/DoorLeaf erwartete Mitte umgerechnet -
 // beide Konzepte (Einheit + Bezugspunkt) an derselben Stelle aufgeloest,
 // damit Wall.tsx/DoorLeaf.tsx von beidem nichts wissen muessen.
-export function Container({ size, wallThickness, openings, floorInsulated = true, onReady }: ContainerProps) {
+export function Container({ size, wallThickness, openings, floorThickness = DEFAULT_FLOOR_THICKNESS, floorInsulated = true, onReady }: ContainerProps) {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
   const t = wallThickness * MM_TO_M;
-  // Bodenplatte IMMER 120mm, unabhaengig von der (frei einstellbaren)
-  // Wandstaerke t - siehe FLOOR_THICKNESS_MM-Kommentar in lcStandard.ts.
-  const floorT = FLOOR_THICKNESS_MM * MM_TO_M;
+  // Bodenplatte hat ihre EIGENE, frei einstellbare Dicke floorThickness,
+  // unabhaengig von der Wandstaerke t - siehe lcStandard.ts.
+  const floorT = floorThickness * MM_TO_M;
   const cornerLength = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
   const cornerWidth = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
   const cornerHeight = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;

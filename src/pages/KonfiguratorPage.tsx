@@ -8,7 +8,7 @@ import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
-import { DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
+import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
 
 interface KonfiguratorPageProps {
   // Seit der Nacht-Session 2026-07-25 uebernimmt WorkspacePage.tsx den
@@ -48,6 +48,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
   const [outsideNotes] = useState(config.outsideNotes ?? "");
   const [insideNotes] = useState(config.insideNotes ?? "");
   const [soundClass] = useState(config.soundClass ?? DEFAULT_SOUND_CLASS);
+  const [floorThickness] = useState(config.floorThickness ?? DEFAULT_FLOOR_THICKNESS);
   const [floorInsulated] = useState(config.floorInsulated ?? defaultFloorInsulated(soundClass));
   const soundClassSpec = SOUND_CLASSES.find((c) => c.id === soundClass) ?? SOUND_CLASSES[0];
 
@@ -83,8 +84,10 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
                 <dd>{size.height} mm</dd>
                 <dt className="text-slate-400 dark:text-slate-500">Wandstärke</dt>
                 <dd>{wallThickness} mm</dd>
+                <dt className="text-slate-400 dark:text-slate-500">Bodenstärke</dt>
+                <dd>{floorThickness} mm</dd>
                 <dt className="text-slate-400 dark:text-slate-500">Bodenisolierung</dt>
-                <dd>{floorInsulated ? "Ja (120 mm gefüllt)" : "Nein (120 mm hohl)"}</dd>
+                <dd>{floorInsulated ? `Ja (${floorThickness} mm gefüllt)` : `Nein (${floorThickness} mm hohl)`}</dd>
                 <dt className="text-slate-400 dark:text-slate-500">Schallschutz</dt>
                 <dd>
                   {soundClassSpec.label} ({soundClassSpec.rangeLabel})
@@ -136,6 +139,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
           insideColor={insideColor}
           outsideColor={outsideColor}
           insideUnpainted={insideUnpainted}
+          floorThickness={floorThickness}
           floorInsulated={floorInsulated}
           shadowsEnabled={shadowsEnabled}
           terrainDetail={terrainDetail}

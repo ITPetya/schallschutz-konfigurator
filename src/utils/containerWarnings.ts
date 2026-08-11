@@ -3,7 +3,15 @@ import type { Opening } from "../types/openings";
 import { CONTAINER_SIZE_PRESETS } from "../constants/containerSizes";
 import { OPENING_TYPES, STANDARD_DOOR_SIZES } from "../constants/openingTypes";
 import { RAL_STANDARD_COLORS } from "../constants/ralColors";
-import { DEFAULT_SOUND_CLASS, LC_DIMENSION_LIMITS, LC_STANDARD_WALL_THICKNESS, SOUND_CLASSES, type SoundClass } from "../constants/lcStandard";
+import {
+  DEFAULT_FLOOR_THICKNESS,
+  DEFAULT_SOUND_CLASS,
+  LC_DIMENSION_LIMITS,
+  LC_STANDARD_FLOOR_THICKNESSES,
+  LC_STANDARD_WALL_THICKNESS,
+  SOUND_CLASSES,
+  type SoundClass,
+} from "../constants/lcStandard";
 
 export type WarningSeverity = "orange" | "red";
 
@@ -48,15 +56,26 @@ export function getWallThicknessWarning(wallThickness: number): ContainerWarning
   };
 }
 
-// Jonas' Vorgabe 2026-08-11: "Bodenisolierung" ist jetzt ein Boolean (siehe
-// FLOOR_THICKNESS_MM/floorInsulated in lcStandard.ts/types.ts, ersetzt die
-// vorherige 0/100-120mm-Eingabe) - ist sie manuell eingeschaltet, bleibt der
-// bisherige Sonderausstattungs-Hinweis inhaltlich bestehen (echte
-// Zusatzkosten fuer die Fuellung), nur an den Boolean angepasst statt an
-// einen mm-Wert.
+// Jonas' Vorgabe 2026-08-11: "Bodenisolierung" ist ein eigener Boolean
+// (floorInsulated in types.ts, unabhaengig von der Bodendicke selbst) - ist
+// sie eingeschaltet, ist das eine Sonderausstattung mit echten
+// Zusatzkosten fuer die Fuellung, unabhaengig davon, wie dick die Platte ist.
 export function getFloorInsulationWarning(floorInsulated: boolean | undefined): ContainerWarning | null {
   if (!floorInsulated) return null;
   return { severity: "orange", text: "Bodenisolierung aktiv – optionale Sonderausstattung mit Aufpreis." };
+}
+
+// Jonas' Korrektur 2026-08-11 (spaeter am selben Tag, macht floorThickness
+// wieder zu einem frei einstellbaren Feld statt der kurzzeitigen 120mm-
+// Konstante, siehe lcStandard.ts): identisches Warnmuster wie
+// getWallThicknessWarning oben, nur mit ZWEI zulaessigen Standardwerten
+// (100mm/120mm, LC_STANDARD_FLOOR_THICKNESSES) statt einem einzelnen.
+export function getFloorThicknessWarning(floorThickness: number): ContainerWarning | null {
+  if (LC_STANDARD_FLOOR_THICKNESSES.includes(floorThickness)) return null;
+  return {
+    severity: "orange",
+    text: `Bodenstärke ${floorThickness} mm (Standard: ${LC_STANDARD_FLOOR_THICKNESSES.join(" oder ")} mm) – Sonderausstattung mit Aufpreis.`,
+  };
 }
 
 // Jonas' Vorgabe 2026-08-11: "Alle Schallschutzklassen sollen ohne
@@ -155,6 +174,8 @@ export function getCategorizedContainerWarnings(config: ContainerConfig): Catego
   });
   const wallW = getWallThicknessWarning(config.wallThickness);
   if (wallW) out.push({ category: "wall", warning: wallW });
+  const floorThicknessW = getFloorThicknessWarning(config.floorThickness ?? DEFAULT_FLOOR_THICKNESS);
+  if (floorThicknessW) out.push({ category: "floor", warning: floorThicknessW });
   const floorW = getFloorInsulationWarning(config.floorInsulated);
   if (floorW) out.push({ category: "floor", warning: floorW });
   getSoundClassWarnings(config.soundClass, config.wallThickness).forEach((w) => out.push({ category: "soundClass", warning: w }));

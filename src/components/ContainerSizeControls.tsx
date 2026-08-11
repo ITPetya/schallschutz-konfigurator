@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CONTAINER_SIZE_PRESETS, type ContainerSize } from "../constants/containerSizes";
 import { LC_DIMENSION_LIMITS } from "../constants/lcStandard";
-import { getDimensionWarning, getWallThicknessWarning } from "../utils/containerWarnings";
+import { getDimensionWarning, getFloorThicknessWarning, getWallThicknessWarning } from "../utils/containerWarnings";
 import { NumberInput } from "./NumberInput";
 import { SonderBadge } from "./SonderBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -11,6 +11,15 @@ interface ContainerSizeControlsProps {
   wallThickness: number;
   onSizeChange: (size: ContainerSize) => void;
   onWallThicknessChange: (t: number) => void;
+  // Jonas' Korrektur 2026-08-11 (spaeter am selben Tag): die Bodenstaerke ist
+  // wieder ein frei editierbares Feld, GENAU wie die Wandstaerke (siehe
+  // lcStandard.ts fuer die Begruendung des Hin-und-Her) - lebt deshalb hier,
+  // direkt neben Wandstaerke, statt bei der Schallschutzklasse (die
+  // Bodenisolierungs-CHECKBOX bleibt weiterhin dort, siehe
+  // SoundClassControls.tsx - nur die Dicke selbst ist eine reine Groessen-/
+  // Materialangabe wie die Wandstaerke).
+  floorThickness: number;
+  onFloorThicknessChange: (t: number) => void;
 }
 
 // Container-Aussenmasse und Wandstaerke sind jetzt frei editierbar (Jonas'
@@ -30,16 +39,25 @@ interface ContainerSizeControlsProps {
 // Ausrufezeichen wie es bei der Wandstärke ist finde ich gut, mache das so
 // bei allen wo das hinpasst") statt als eigener Absatztext.
 //
-// Jonas' Klarstellung 2026-08-11: das fruehere, frei eingebbare
-// Bodenisolierungs-Feld (0/100-120mm) ist entfallen - die Bodenplatte ist
-// IMMER 120mm dick (siehe FLOOR_THICKNESS_MM in lcStandard.ts), das ist kein
-// Nutzer-Eingabefeld mehr. Was bleibt, ist nur noch die Frage "hohl oder
-// isoliert?" - dieser Boolean lebt jetzt bei der Schallschutzklasse (siehe
-// SoundClassControls.tsx), weil er inhaltlich davon abhaengt, nicht von der
-// Groesse/Wandstaerke.
-export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWallThicknessChange }: ContainerSizeControlsProps) {
+// Jonas' Korrektur 2026-08-11 (spaeter am selben Tag, siehe lcStandard.ts):
+// die Bodenstaerke (floorThickness) ist wieder ein frei editierbares Feld,
+// mit demselben Sonder-Badge-Muster wie die Wandstaerke, nur mit zwei
+// zulaessigen Standardwerten (100/120mm) statt einem. Die Frage "hohl oder
+// isoliert?" (floorInsulated) bleibt weiterhin bei der Schallschutzklasse
+// (siehe SoundClassControls.tsx), weil ihr DEFAULT davon abhaengt - nur die
+// Dicke selbst ist hier, als reine Groessen-/Materialangabe wie
+// wallThickness.
+export function ContainerSizeControls({
+  size,
+  wallThickness,
+  onSizeChange,
+  onWallThicknessChange,
+  floorThickness,
+  onFloorThicknessChange,
+}: ContainerSizeControlsProps) {
   const presets = CONTAINER_SIZE_PRESETS;
   const wallWarning = getWallThicknessWarning(wallThickness);
+  const floorWarning = getFloorThicknessWarning(floorThickness);
 
   return (
     <div className="space-y-2 text-sm">
@@ -76,6 +94,21 @@ export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWal
               min={0}
               value={wallThickness}
               onChange={onWallThicknessChange}
+              className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </label>
+        </div>
+        <div>
+          <label className="flex flex-col gap-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1">
+              Bodenstärke (mm)
+              {floorWarning && <SonderBadge text={floorWarning.text} />}
+            </span>
+            <NumberInput
+              step={10}
+              min={0}
+              value={floorThickness}
+              onChange={onFloorThicknessChange}
               className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>

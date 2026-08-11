@@ -8,7 +8,13 @@ import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { SoundClassControls } from "../components/SoundClassControls";
 import { ContainerWarningBadge } from "../components/ContainerWarningBadge";
-import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
+import {
+  DEFAULT_FLOOR_THICKNESS,
+  DEFAULT_SOUND_CLASS,
+  bumpedFloorThickness,
+  bumpedWallThickness,
+  defaultFloorInsulated,
+} from "../constants/lcStandard";
 import { getContainerWarnings, type WarningCategory } from "../utils/containerWarnings";
 import { RequestPreviewModal } from "../components/RequestPreviewModal";
 import { AccordionSection } from "../components/AccordionSection";
@@ -732,6 +738,8 @@ export function WorkspacePage() {
                       notifyEvent("size-changed");
                     }}
                     onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
+                    floorThickness={editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
+                    onFloorThicknessChange={(floorThickness) => updateEditingConfig({ floorThickness })}
                   />
                   <div className="mt-3">
                     <SoundClassControls
@@ -739,12 +747,38 @@ export function WorkspacePage() {
                       wallThickness={editingInstance.config.wallThickness}
                       // Klassenwechsel setzt den Bodenisolierungs-Default neu
                       // (an fuer Silent/Silent-Plus, sonst aus - Jonas'
-                      // Vorgabe 2026-08-11) - die Checkbox selbst bleibt
-                      // danach unabhaengig manuell umschaltbar, siehe
-                      // onFloorInsulatedChange unten.
-                      onChange={(soundClass) => updateEditingConfig({ soundClass, floorInsulated: defaultFloorInsulated(soundClass) })}
+                      // Vorgabe 2026-08-11) UND korrigiert jetzt aktiv zu
+                      // duenne Wand-/Bodenstaerken (Jonas' Korrektur
+                      // 2026-08-11, spaeter am selben Tag: "nicht nur die
+                      // rote Warnung stehen lassen, den Wert selbst
+                      // anheben") - beide Bump-Funktionen sind einseitig
+                      // (heben nur an, senken nie), siehe lcStandard.ts. Die
+                      // Checkbox/Felder bleiben danach unabhaengig manuell
+                      // umschaltbar, siehe onFloorInsulatedChange unten bzw.
+                      // onFloorThicknessChange/onWallThicknessChange oben.
+                      onChange={(soundClass) => {
+                        const floorInsulated = defaultFloorInsulated(soundClass);
+                        updateEditingConfig({
+                          soundClass,
+                          floorInsulated,
+                          wallThickness: bumpedWallThickness(editingInstance.config.wallThickness, soundClass),
+                          floorThickness: bumpedFloorThickness(
+                            editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS,
+                            floorInsulated,
+                          ),
+                        });
+                      }}
+                      floorThickness={editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
                       floorInsulated={editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
-                      onFloorInsulatedChange={(floorInsulated) => updateEditingConfig({ floorInsulated })}
+                      onFloorInsulatedChange={(floorInsulated) =>
+                        updateEditingConfig({
+                          floorInsulated,
+                          floorThickness: bumpedFloorThickness(
+                            editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS,
+                            floorInsulated,
+                          ),
+                        })
+                      }
                     />
                   </div>
                 </AccordionSection>
@@ -1080,6 +1114,7 @@ export function WorkspacePage() {
                 insideColor={editingInstance.config.insideColor}
                 outsideColor={editingInstance.config.outsideColor}
                 insideUnpainted={editingInstance.config.insideUnpainted ?? false}
+                floorThickness={editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
                 floorInsulated={
                   editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)
                 }

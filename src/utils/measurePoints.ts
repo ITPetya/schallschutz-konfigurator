@@ -48,22 +48,38 @@ function rotateXPos90([x, y, z]: [number, number, number]): [number, number, num
 // Quelle fuer "wo im Raum sitzt Panel X", damit Durchbruch-Koordinaten (nur
 // lokal zu ihrem Panel bekannt) korrekt in echte 3D-Punkte umgerechnet
 // werden koennen.
-function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm: number): PanelTransform {
+//
+// Jonas' Korrektur 2026-08-11 (floorThickness wieder frei einstellbar, siehe
+// lcStandard.ts): floorThicknessMm zusaetzlich zu wallThicknessMm noetig,
+// weil Container.tsx die Bodenplatte seit 52712bd mit einer EIGENEN Dicke
+// (floorT) rechnet, nicht mehr mit t wie Wand/Dach - dadurch ist die Wand
+// jetzt asymmetrisch um H/2 versetzt (verticalWallPositionY), sobald
+// floorT !== t. Diese Funktion war zwischenzeitlich (52712bd) NICHT
+// mitgezogen worden und lieferte seither bei jedem Standard-Container
+// (floorT=120mm fix, wallThickness default 100mm) leicht falsche
+// Messpunkte fuer Durchbrueche/Tueren an den vier Seitenwaenden - jetzt mit
+// exakt denselben Formeln wie Container.tsx behoben.
+function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm: number, floorThicknessMm: number): PanelTransform {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
   const t = wallThicknessMm * MM_TO_M;
+  const floorT = floorThicknessMm * MM_TO_M;
   const wallRecess = CORNER_WALL_RECESS_MM * MM_TO_M;
   const effectiveL = L - 2 * wallRecess;
   const effectiveW = W - 2 * wallRecess;
   const effectiveH = H - 2 * wallRecess;
-  const verticalWallHeight = Math.max(effectiveH - 2 * t, 0);
+  // Siehe Container.tsx: die Seitenwaende werden oben um t (Dach) UND unten
+  // um floorT (Boden) gekuerzt statt symmetrisch um 2t - bei floorT===t
+  // ergibt sich wieder exakt der fruehere symmetrische Fall.
+  const verticalWallHeight = Math.max(effectiveH - t - floorT, 0);
+  const verticalWallPositionY = H / 2 + (floorT - t) / 2;
   const endWallWidth = Math.max(effectiveW - 2 * t, 0);
 
   switch (panel) {
     case "left":
       return {
-        position: [0, H / 2, W / 2 - t / 2 - wallRecess],
+        position: [0, verticalWallPositionY, W / 2 - t / 2 - wallRecess],
         panelWidth: effectiveL,
         panelHeight: verticalWallHeight,
         outwardSign: 1,
@@ -71,7 +87,7 @@ function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm:
       };
     case "right":
       return {
-        position: [0, H / 2, -W / 2 + t / 2 + wallRecess],
+        position: [0, verticalWallPositionY, -W / 2 + t / 2 + wallRecess],
         panelWidth: effectiveL,
         panelHeight: verticalWallHeight,
         outwardSign: -1,
@@ -79,7 +95,7 @@ function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm:
       };
     case "back":
       return {
-        position: [-L / 2 + t / 2 + wallRecess, H / 2, 0],
+        position: [-L / 2 + t / 2 + wallRecess, verticalWallPositionY, 0],
         panelWidth: endWallWidth,
         panelHeight: verticalWallHeight,
         outwardSign: -1,
@@ -87,7 +103,7 @@ function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm:
       };
     case "front":
       return {
-        position: [L / 2 - t / 2 - wallRecess, H / 2, 0],
+        position: [L / 2 - t / 2 - wallRecess, verticalWallPositionY, 0],
         panelWidth: endWallWidth,
         panelHeight: verticalWallHeight,
         outwardSign: 1,
@@ -104,7 +120,7 @@ function getPanelTransform(panel: PanelId, size: ContainerSize, wallThicknessMm:
     case "bottom":
     default:
       return {
-        position: [0, t / 2 + wallRecess, 0],
+        position: [0, floorT / 2 + wallRecess, 0],
         panelWidth: effectiveL,
         panelHeight: effectiveW,
         outwardSign: 1,
@@ -123,15 +139,26 @@ function addPoints(a: [number, number, number], b: [number, number, number]): [n
 // tatsaechlich als Kante auf dem Modell zu sehen ist (siehe
 // buildOpeningRimEdges in Wall.tsx, das dieselben beiden Wandflaechen
 // nutzt).
+// Jonas' Korrektur 2026-08-11: der Boden hat seit 52712bd eine EIGENE Dicke
+// (floorThickness), abweichend von Wand/Dach (wallThickness) - fuer die
+// Aussenflaeche eines Bodendurchbruchs (panel "bottom") ist deshalb floorT/2
+// der richtige Versatz, nicht t/2 wie bei allen anderen fuenf Panels (siehe
+// Container.tsx: wall-bottom bekommt thickness={floorT}, alle anderen
+// thickness={t}).
+function panelThicknessMm(panel: PanelId, wallThicknessMm: number, floorThicknessMm: number): number {
+  return panel === "bottom" ? floorThicknessMm : wallThicknessMm;
+}
+
 function openingPointToWorld(
   panel: PanelId,
   size: ContainerSize,
   wallThicknessMm: number,
+  floorThicknessMm: number,
   localU: number,
   localVCenterM: number,
 ): [number, number, number] {
-  const t = wallThicknessMm * MM_TO_M;
-  const transform = getPanelTransform(panel, size, wallThicknessMm);
+  const t = panelThicknessMm(panel, wallThicknessMm, floorThicknessMm) * MM_TO_M;
+  const transform = getPanelTransform(panel, size, wallThicknessMm, floorThicknessMm);
   const localY = localVCenterM - transform.panelHeight / 2;
   const localZ = transform.outwardSign * (t / 2);
   return addPoints(transform.position, transform.rotate([localU, localY, localZ]));
@@ -150,7 +177,12 @@ const ROUND_RIM_ANGLES = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
 // Vorgabe 2026-08-10: Container-Aussenmasse/-Abstaende (Ecken reichen dafuer)
 // sowie Durchbruch-/Tuer-Position und -Groesse (Mitte + Eckpunkte/Randpunkte)
 // messbar machen.
-export function computeMeasurePoints(size: ContainerSize, wallThicknessMm: number, openings: Opening[]): MeasurePoint[] {
+export function computeMeasurePoints(
+  size: ContainerSize,
+  wallThicknessMm: number,
+  floorThicknessMm: number,
+  openings: Opening[],
+): MeasurePoint[] {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
@@ -171,16 +203,21 @@ export function computeMeasurePoints(size: ContainerSize, wallThicknessMm: numbe
     const heightM = opening.height * MM_TO_M;
     // Siehe Container.tsx's openingsM/openingsFor - exakt dieselbe
     // Umrechnung (Tuer-Unterkante -> Mitte, dann bei Seitenwaenden um
-    // wallRecess+t nach unten korrigiert).
+    // wallRecess+floorT nach unten korrigiert - Jonas' Korrektur
+    // 2026-08-11: der Korrekturbetrag ist wallRecess+floorT, NICHT
+    // wallRecess+t (siehe Container.tsx's verticalWallVOffset-Herleitung,
+    // der Betrag haengt ausschliesslich von der Bodendicke ab, nicht von
+    // der Wandstaerke - bei floorT===t ist das Ergebnis identisch zur
+    // vorherigen Formel, keine Regression fuer den Altfall).
     let vCenterM = (typeDef.isDoor ? opening.v + opening.height / 2 : opening.v) * MM_TO_M;
     if (isVerticalWall(opening.panel)) {
-      vCenterM -= CORNER_WALL_RECESS_MM * MM_TO_M + wallThicknessMm * MM_TO_M;
+      vCenterM -= CORNER_WALL_RECESS_MM * MM_TO_M + floorThicknessMm * MM_TO_M;
     }
 
     points.push({
       id: `${opening.id}-center`,
       label: `${typeDef.label} – Mitte`,
-      position: openingPointToWorld(opening.panel, size, wallThicknessMm, uM, vCenterM),
+      position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM, vCenterM),
     });
 
     if (typeDef.shape === "round") {
@@ -189,7 +226,14 @@ export function computeMeasurePoints(size: ContainerSize, wallThicknessMm: numbe
         points.push({
           id: `${opening.id}-rim-${angle}`,
           label: `${typeDef.label} – Rand`,
-          position: openingPointToWorld(opening.panel, size, wallThicknessMm, uM + r * Math.cos(angle), vCenterM + r * Math.sin(angle)),
+          position: openingPointToWorld(
+            opening.panel,
+            size,
+            wallThicknessMm,
+            floorThicknessMm,
+            uM + r * Math.cos(angle),
+            vCenterM + r * Math.sin(angle),
+          ),
         });
       }
     } else {
@@ -205,7 +249,7 @@ export function computeMeasurePoints(size: ContainerSize, wallThicknessMm: numbe
         points.push({
           id: `${opening.id}-corner-${du}-${dv}`,
           label: `${typeDef.label} – Ecke`,
-          position: openingPointToWorld(opening.panel, size, wallThicknessMm, uM + du, vCenterM + dv),
+          position: openingPointToWorld(opening.panel, size, wallThicknessMm, floorThicknessMm, uM + du, vCenterM + dv),
         });
       }
     }

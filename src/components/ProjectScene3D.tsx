@@ -17,7 +17,7 @@ import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
-import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
+import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 
 const MM_TO_M = 1 / 1000;
 
@@ -194,7 +194,12 @@ export function ProjectScene3D({
     () =>
       instances.flatMap((inst) =>
         measurePointsToWorld(
-          computeMeasurePoints(inst.config.size, inst.config.wallThickness, inst.config.openings).map((p) => ({
+          computeMeasurePoints(
+            inst.config.size,
+            inst.config.wallThickness,
+            inst.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS,
+            inst.config.openings,
+          ).map((p) => ({
             ...p,
             id: `${inst.id}:${p.id}`,
           })),
@@ -505,6 +510,7 @@ const InstanceGroup = memo(function InstanceGroup({
             size={instance.config.size}
             wallThickness={instance.config.wallThickness}
             openings={instance.config.openings}
+            floorThickness={instance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
             floorInsulated={instance.config.floorInsulated ?? defaultFloorInsulated(instance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
             onReady={() => onInstanceReady(instance.id)}
           />
