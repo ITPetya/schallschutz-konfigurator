@@ -695,7 +695,21 @@ export function WorkspacePage() {
           <SidebarContent>
             {editingInstance ? (
               <>
+                {/* Jonas' Fehlerbericht 2026-08-11 (per Playwright gefunden,
+                    beim Verifizieren des Sonderheiten-Sprungs): OHNE
+                    explizites key blieb der useState/useRef-Zustand EINES
+                    AccordionSection ueber einen kompletten Zweigwechsel
+                    hinweg erhalten, wenn beide Zweige an derselben
+                    Baumposition ein AccordionSection rendern (React
+                    reconciled nach Typ+Position, nicht nach Titel) - z.B.
+                    "Container" (Baugruppen-Liste, manuell aufgeklappt)
+                    wurde so faelschlich zu "Erweiterte Einstellungen"
+                    (Detailbearbeitung), die dadurch schon beim ersten
+                    Anzeigen unerwartet offen war. key={title} zwingt React,
+                    bei jedem Titelwechsel eine frische Komponenteninstanz
+                    (frischer State) anzulegen. */}
                 <AccordionSection
+                  key="Grundeinstellungen"
                   title="Grundeinstellungen"
                   defaultOpen
                   tourId="tour-grundeinstellungen"
@@ -735,7 +749,7 @@ export function WorkspacePage() {
                   </div>
                 </AccordionSection>
 
-                <AccordionSection title="Erweiterte Einstellungen" tourId="tour-darstellung" forceOpenSignal={erweitertOpenSignal}>
+                <AccordionSection key="Erweiterte Einstellungen" title="Erweiterte Einstellungen" tourId="tour-darstellung" forceOpenSignal={erweitertOpenSignal}>
                   <DisplaySettingsPanel
                     insideColor={editingInstance.config.insideColor}
                     onInsideColorChange={(insideColor) => updateEditingConfig({ insideColor })}
@@ -750,7 +764,7 @@ export function WorkspacePage() {
                   />
                 </AccordionSection>
 
-                <AccordionSection title="Einbauten" tourId="tour-einbauten" forceOpenSignal={einbautenOpenSignal}>
+                <AccordionSection key="Einbauten" title="Einbauten" tourId="tour-einbauten" forceOpenSignal={einbautenOpenSignal}>
                   <OpeningsPanel
                     size={editingInstance.config.size}
                     openings={editingInstance.config.openings}
@@ -778,7 +792,7 @@ export function WorkspacePage() {
               </>
             ) : (
               <>
-                <AccordionSection title="Grundeinstellungen" defaultOpen>
+                <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
                   <label className="block text-xs text-slate-500 dark:text-slate-400">
                     Projektname
                     <input
@@ -800,7 +814,7 @@ export function WorkspacePage() {
                   </label>
                 </AccordionSection>
 
-                <AccordionSection title="Container">
+                <AccordionSection key="Container" title="Container">
                   {project.instances.length === 0 && (
                     <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Container im Projekt.</p>
                   )}
@@ -878,7 +892,7 @@ export function WorkspacePage() {
                 </AccordionSection>
 
                 {project.instances.length >= 2 && (
-                  <AccordionSection title="Ausrichten">
+                  <AccordionSection key="Ausrichten" title="Ausrichten">
                     <label className="block text-xs text-slate-500 dark:text-slate-400">
                       Container
                       <select
