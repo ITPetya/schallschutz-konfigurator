@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
 import { AnimatePresence, motion, type TargetAndTransition } from "motion/react";
 
@@ -28,13 +28,20 @@ interface AccordionSectionProps {
 // Auf-/Zuklappen statt des vorherigen abrupten Ein-/Ausblendens.
 export function AccordionSection({ title, defaultOpen = false, children, tourId, forceOpenSignal }: AccordionSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
-
+  // Ueberspringt den ALLERERSTEN Effekt-Durchlauf (der bei JEDEM useEffect
+  // sowieso einmal direkt nach dem Mount laeuft, selbst wenn sich der Wert
+  // "seit dem letzten Mal" gar nicht geaendert hat) - ohne diese Sperre
+  // waere der Abschnitt bei JEDEM Mount zwangsweise offen, sobald der
+  // Aufrufer ueberhaupt eine Zahl (auch den Startwert 0) fuer
+  // forceOpenSignal uebergibt, unabhaengig von defaultOpen. Erst eine ECHTE
+  // spaetere Aenderung des Werts (ein hochgezaehlter Zaehler) soll oeffnen.
+  const isFirstRun = useRef(true);
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     if (forceOpenSignal !== undefined) setOpen(true);
-    // Nur auf ECHTE Aenderungen von forceOpenSignal reagieren (nicht auf
-    // jeden Re-Render) - laeuft bewusst NICHT beim ersten Mount mit an, wenn
-    // forceOpenSignal von Anfang an gesetzt waere, weil defaultOpen dafuer
-    // bereits zustaendig ist.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forceOpenSignal]);
 
