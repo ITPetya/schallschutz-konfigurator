@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { decodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
 import { getActiveHistoryId, hasMeaningfulProjectDraft, loadProjectDraft } from "../config/projectHistoryStore";
@@ -9,6 +9,7 @@ import { Shine } from "../components/primitives/Shine";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { useTour } from "../tour/TourContext";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
+import { schedulePreload } from "../utils/idlePreload";
 
 const LOAD_BUTTON_CLASSNAME =
   "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
@@ -32,6 +33,40 @@ export function StartPage() {
   // /ansehen statt im editierbaren /projekt (Jonas' Vorgabe 2026-07-28: "das
   // Ding soll auf dem Handy nur ein Viewer sein") - siehe ProjectViewerPage.tsx.
   const loadedProjectRoute = isPhone ? "/ansehen" : "/projekt";
+
+  // Intelligentes Vorladen (Jonas' Vorgabe 2026-08-11, per Playwright-
+  // Untersuchung bestaetigt): App.tsx laedt WorkspacePage/ProjectViewerPage
+  // per React.lazy() erst bei der tatsaechlichen Navigation - dabei zieht
+  // WorkspacePage transitiv den gesamten three.js/r3f/drei/three-bvh-csg-
+  // Stack nach (siehe App.tsx-Kommentar dort, "ProjectScene3D"-Chunk allein
+  // >1,2MB minifiziert). Gemessen per Playwright mit gedrosseltem Netzwerk
+  // (~1,6 Mbit/s): der klassische, im Netzwerk-Tab sichtbare Kaltstart-Chunk-
+  // Ladevorgang beim ERSTEN Klick auf "Konfiguration starten"/"Projekt
+  // laden" - genau der Import()-Chunk-Fall, den die Recherche als
+  // Hauptkandidaten fuer "first use"-Ladehakler nennt (siehe App.tsx). Von
+  // StartPage aus fuehrt praktisch JEDER Pfad (Konfiguration starten, Aus
+  // Cache/Datei laden, Demo-Projekt) zu genau EINER dieser beiden Zielrouten
+  // (loadedProjectRoute je nach isPhone) - kein Ratespiel wie bei anderen
+  // Stellen im Projekt, StartPage IST die Weiche dorthin. Deshalb hier
+  // gezielt (nicht pauschal wie bei einer generischen App-Start-Vorladung)
+  // per requestIdleCallback genau den einen wahrscheinlich noetigen Chunk
+  // vorladen, sobald der Haupt-Thread nach dem eigenen (leichten) Rendern
+  // dieser Seite frei ist - das eigentliche StartPage-Rendern selbst braucht
+  // den 3D-Stack nicht und wird dadurch nicht ausgebremst. dynamic import()
+  // mit demselben Modulpfad wie in App.tsx's lazy(() => import(...)) fuellt
+  // den Browser-eigenen Modul-Cache; der spaetere echte lazy()-Aufruf bei
+  // Navigate() trifft dadurch auf ein bereits aufgeloestes Promise statt neu
+  // zu laden/parsen.
+  useEffect(() => {
+    const cancel = schedulePreload(() => {
+      if (isPhone) {
+        void import("./ProjectViewerPage");
+      } else {
+        void import("./WorkspacePage");
+      }
+    });
+    return cancel;
+  }, [isPhone]);
 
   async function loadProjectFile(file: File) {
     try {
