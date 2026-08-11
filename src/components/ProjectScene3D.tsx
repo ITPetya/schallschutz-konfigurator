@@ -31,6 +31,12 @@ const FALLBACK_SIZE: ContainerSize = { length: 7000, width: 2990, height: 2990 }
 // dort fuer die Herleitung der Bezeichnungen/Reihenfolge.
 const VIEWCUBE_FACES = ["Vorne", "Hinten", "Oben", "Unten", "Links", "Rechts"];
 
+// Stabile leere Referenz fuer measurePoints, solange das Messwerkzeug
+// inaktiv ist (siehe dortiger Kommentar) - eine neue leere Array-Instanz bei
+// jedem Render wuerde MeasureMarkers unnoetig neu rendern lassen, obwohl
+// sich inhaltlich nichts geaendert hat.
+const EMPTY_MEASURE_POINTS: MeasurePoint[] = [];
+
 // Wandelt einen Kamera-Strahl (aus einem r3f-Pointer-Event) in die
 // Schnittkoordinate mit der Bodenebene (Welt-Y=0) um - GENAUER als
 // event.point (das nur die Position auf dem tatsaechlich getroffenen Mesh
@@ -187,6 +193,22 @@ export function ProjectScene3D({
   }, [instances]);
   const contentNotReady = instances.length > 0 && readyIds.size < instances.length;
 
+  const [measureActive, setMeasureActive] = useState(false);
+  const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+  // Jonas' Fehlerbericht 2026-08-10 ("Verschieben von Containern lagt sehr"),
+  // wieder aufgegriffen 2026-08-11: dieser Cache haelt die pro Instanz
+  // berechneten LOKALEN Messpunkte (computeMeasurePoints - der teure Teil:
+  // schleift ueber alle Durchbrueche/Rundungen) fest, solange sich
+  // instance.config (Groesse/Wandstaerke/Durchbrueche) NICHT geaendert hat.
+  // Beim Ziehen eines Containers (handleInstancePointerMove in
+  // WorkspacePage.tsx) aendert sich JEDEN Frame NUR instance.position (neues
+  // Objekt per Spread, config bleibt exakt dieselbe Referenz) - ohne diesen
+  // Cache wuerde measurePoints unten (Dependency [instances]) bei JEDER
+  // Drag-Bewegung ALLE Instanzen komplett neu durchrechnen, obwohl sich fuer
+  // keine einzige Instanz die eigentliche Geometrie (nur ihre Well-Position)
+  // geaendert hat - genau die Art unnoetiger Pro-Frame-Arbeit, die Jonas'
+  // Fehlerbericht zur Drag-Traegheit in der Baugruppen-Ansicht beschreibt.
+  const localMeasurePointsCache = useRef(new Map<string, { config: ContainerInstance["config"]; points: MeasurePoint[] }>());
   // Jonas' Vorgabe 2026-08-10 ("wie in Inventor Bauteile messen, in der
   // Baugruppe Abstaende von Containern oder die Container-Aussenmasse") -
   // Messpunkte JEDER Instanz (Container-Ecken + Durchbruch-/Tuer-Merkmale,
@@ -196,27 +218,36 @@ export function ProjectScene3D({
   // AUF VERSCHIEDENEN Containern gegeneinander messen (z. B. der Abstand
   // zwischen zwei Containern). Punkt-IDs mit der Instanz-ID prefixed, damit
   // sie zwischen Instanzen eindeutig bleiben.
-  const measurePoints = useMemo(
-    () =>
-      instances.flatMap((inst) =>
-        measurePointsToWorld(
-          computeMeasurePoints(
-            inst.config.size,
-            inst.config.wallThickness,
-            inst.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS,
-            inst.config.openings,
-          ).map((p) => ({
-            ...p,
-            id: `${inst.id}:${p.id}`,
-          })),
-          inst.position,
-          inst.rotationY,
-        ),
-      ),
-    [instances],
-  );
-  const [measureActive, setMeasureActive] = useState(false);
-  const [measureSelected, setMeasureSelected] = useState<MeasurePoint[]>([]);
+  //
+  // Jonas' Fehlerbericht 2026-08-11 (Performance): ausserdem komplett
+  // uebersprungen, solange das Messwerkzeug gar nicht aktiv ist (!measureActive
+  // -> stabile leere Liste) - vorher lief diese Berechnung fuer ALLE
+  // Instanzen bei JEDER Aenderung von `instances`, also auch waehrend eines
+  // Drags mit ausgeschaltetem Messwerkzeug, komplett umsonst.
+  const measurePoints = useMemo(() => {
+    if (!measureActive) return EMPTY_MEASURE_POINTS;
+    const cache = localMeasurePointsCache.current;
+    const liveIds = new Set(instances.map((i) => i.id));
+    for (const id of cache.keys()) {
+      if (!liveIds.has(id)) cache.delete(id);
+    }
+    return instances.flatMap((inst) => {
+      const cached = cache.get(inst.id);
+      let localPoints: MeasurePoint[];
+      if (cached && cached.config === inst.config) {
+        localPoints = cached.points;
+      } else {
+        localPoints = computeMeasurePoints(
+          inst.config.size,
+          inst.config.wallThickness,
+          inst.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS,
+          inst.config.openings,
+        ).map((p) => ({ ...p, id: `${inst.id}:${p.id}` }));
+        cache.set(inst.id, { config: inst.config, points: localPoints });
+      }
+      return measurePointsToWorld(localPoints, inst.position, inst.rotationY);
+    });
+  }, [instances, measureActive]);
   const { prefs: unitPrefs, setPrefs: setUnitPrefs } = useUnitPreferences();
 
   function handleMeasurePick(p: MeasurePoint) {
