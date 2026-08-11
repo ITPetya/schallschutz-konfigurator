@@ -3,14 +3,7 @@ import type { Opening } from "../types/openings";
 import { CONTAINER_SIZE_PRESETS } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { RAL_STANDARD_COLORS } from "../constants/ralColors";
-import {
-  DEFAULT_SOUND_CLASS,
-  LC_DIMENSION_LIMITS,
-  LC_SOUND_WALL_THICKNESS_HINT,
-  LC_STANDARD_WALL_THICKNESS,
-  SOUND_CLASSES,
-  type SoundClass,
-} from "../constants/lcStandard";
+import { DEFAULT_SOUND_CLASS, LC_DIMENSION_LIMITS, LC_STANDARD_WALL_THICKNESS, SOUND_CLASSES, type SoundClass } from "../constants/lcStandard";
 
 export type WarningSeverity = "orange" | "red";
 
@@ -55,44 +48,40 @@ export function getWallThicknessWarning(wallThickness: number): ContainerWarning
   };
 }
 
-export function getFloorThicknessWarning(floorThickness: number): ContainerWarning | null {
-  if (!floorThickness || floorThickness <= 0) return null;
-  return { severity: "orange", text: `Bodenisolierung ${floorThickness} mm – optionale Sonderausstattung mit Aufpreis.` };
+// Jonas' Vorgabe 2026-08-11: "Bodenisolierung" ist jetzt ein Boolean (siehe
+// FLOOR_THICKNESS_MM/floorInsulated in lcStandard.ts/types.ts, ersetzt die
+// vorherige 0/100-120mm-Eingabe) - ist sie manuell eingeschaltet, bleibt der
+// bisherige Sonderausstattungs-Hinweis inhaltlich bestehen (echte
+// Zusatzkosten fuer die Fuellung), nur an den Boolean angepasst statt an
+// einen mm-Wert.
+export function getFloorInsulationWarning(floorInsulated: boolean | undefined): ContainerWarning | null {
+  if (!floorInsulated) return null;
+  return { severity: "orange", text: "Bodenisolierung aktiv – optionale Sonderausstattung mit Aufpreis." };
 }
 
-export function getSoundClassSelectionWarning(soundClass: SoundClass | undefined): ContainerWarning | null {
-  const spec = SOUND_CLASSES.find((c) => c.id === (soundClass ?? DEFAULT_SOUND_CLASS)) ?? SOUND_CLASSES[0];
-  if (spec.id === "standard") return null;
-  return {
-    severity: "orange",
-    text: `Schallschutzklasse ${spec.label} (${spec.rangeLabel}) – Sonderausstattung mit Aufpreis gegenüber der Standardklasse.`,
-  };
-}
-
+// Jonas' Vorgabe 2026-08-11: "Alle Schallschutzklassen sollen ohne
+// orangenes Ausrufezeichen sein, das möchten wir ja verkaufen" - der
+// bisherige Sonder-Hinweis PRO AUSWAHL (jede Klasse ausser Standard war
+// orange markiert) ist komplett entfernt, ebenso die orange "waere
+// empfohlen"-Andeutung fuer Standard/Schallschutz unten in
+// getSoundClassWallConflictWarning - beides wirkte wie eine Verkaufsbremse
+// fuer Produkte, die aktiv verkauft werden sollen. Die ROTE Pflichtwarnung
+// bleibt: ab Silent/Silent-Plus ist eine Mindest-Wandstaerke technisch
+// zwingend, das ist keine Verkaufs-Reibung, sondern eine harte technische
+// Anforderung.
 export function getSoundClassWallConflictWarning(soundClass: SoundClass | undefined, wallThickness: number): ContainerWarning | null {
   const spec = SOUND_CLASSES.find((c) => c.id === (soundClass ?? DEFAULT_SOUND_CLASS)) ?? SOUND_CLASSES[0];
-  if (spec.minWallThicknessRequired !== undefined) {
-    if (wallThickness < spec.minWallThicknessRequired) {
-      return {
-        severity: "red",
-        text: `Für Schallschutzklasse ${spec.label} ist eine Wandstärke von mindestens ${spec.minWallThicknessRequired} mm zwingend erforderlich (aktuell ${wallThickness} mm).`,
-      };
-    }
-    return null;
-  }
-  if (wallThickness < LC_SOUND_WALL_THICKNESS_HINT) {
+  if (spec.minWallThicknessRequired !== undefined && wallThickness < spec.minWallThicknessRequired) {
     return {
-      severity: "orange",
-      text: `Für alle Schallschutzklassen wird eine Wandstärke von mindestens ${LC_SOUND_WALL_THICKNESS_HINT} mm empfohlen, sonst wird die Klasse ggf. nicht erreicht.`,
+      severity: "red",
+      text: `Für Schallschutzklasse ${spec.label} ist eine Wandstärke von mindestens ${spec.minWallThicknessRequired} mm zwingend erforderlich (aktuell ${wallThickness} mm).`,
     };
   }
   return null;
 }
 
 export function getSoundClassWarnings(soundClass: SoundClass | undefined, wallThickness: number): ContainerWarning[] {
-  return [getSoundClassSelectionWarning(soundClass), getSoundClassWallConflictWarning(soundClass, wallThickness)].filter(
-    (w): w is ContainerWarning => w !== null,
-  );
+  return [getSoundClassWallConflictWarning(soundClass, wallThickness)].filter((w): w is ContainerWarning => w !== null);
 }
 
 export const SONDER_DOOR_TEXT = "Sondertür (frei nach Maß) – Sondereinbauten sind mit Aufpreis verbunden.";
@@ -138,7 +127,7 @@ export function getContainerWarnings(config: ContainerConfig): ContainerWarning[
   });
   const wallW = getWallThicknessWarning(config.wallThickness);
   if (wallW) out.push(wallW);
-  const floorW = getFloorThicknessWarning(config.floorThickness ?? 0);
+  const floorW = getFloorInsulationWarning(config.floorInsulated);
   if (floorW) out.push(floorW);
   out.push(...getSoundClassWarnings(config.soundClass, config.wallThickness));
   out.push(...getDoorWarnings(config.openings));

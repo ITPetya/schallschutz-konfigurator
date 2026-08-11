@@ -1,7 +1,7 @@
 import type { ContainerConfig } from "./types";
 import { DEFAULT_CONTAINER_SIZE, DEFAULT_WALL_THICKNESS } from "../constants/containerSizes";
 import { RAL_STANDARD_COLORS } from "../constants/ralColors";
-import { DEFAULT_SOUND_CLASS } from "../constants/lcStandard";
+import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 
 // Ausgelagert aus KonfiguratorPage.tsx (Baugruppen-Nacht-Session
 // 2026-07-23): ProjectPage.tsx braucht dieselbe Default-Konfiguration fuer
@@ -25,7 +25,7 @@ export function defaultConfig(): ContainerConfig {
     insideUnpainted: false,
     outsideNotes: "",
     insideNotes: "",
-    floorThickness: 0,
     soundClass: DEFAULT_SOUND_CLASS,
+    floorInsulated: defaultFloorInsulated(DEFAULT_SOUND_CLASS),
   };
 }

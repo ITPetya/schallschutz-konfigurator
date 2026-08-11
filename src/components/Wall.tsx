@@ -48,6 +48,14 @@ interface WallProps {
   // Fehlerbericht 2026-08-10). Bei allen anderen Waenden ist panelHeight
   // (verticalWallHeight) bereits korrekt gekuerzt, dort bleibt es bei 0.
   claddingInsetV?: number;
+  // Jonas' Vorgabe 2026-08-11 (Bodenisolierung muss sich sichtbar im
+  // 3D-Modell niederschlagen): ueberschreibt die Innenflaechenfarbe NUR
+  // dieser einen Wand (aktuell nur die Bodenplatte, "wall-bottom" in
+  // Container.tsx), unabhaengig von der global per DisplaySettingsContext
+  // gesetzten Innenfarbe - der Boden ist die einzige Flaeche, deren
+  // Erscheinung von einer Container-EIGENSCHAFT (floorInsulated) statt von
+  // der einheitlichen Innenfarben-Wahl abhaengt.
+  insideColorOverride?: string;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -195,8 +203,10 @@ export function Wall({
   interiorCladding,
   claddingInsetU = 0,
   claddingInsetV = 0,
+  insideColorOverride,
 }: WallProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
+  const resolvedInsideColor = insideColorOverride ?? (insideUnpainted ? UNPAINTED_INSIDE_COLOR : insideColor);
   const claddingWidth = panelWidth - 2 * claddingInsetU;
 
   // Einmal berechnet, von der CSG-Ausschnitt-Geometrie UND den Kantenlinien
@@ -391,10 +401,10 @@ export function Wall({
         />
         <meshStandardMaterial
           attach="material-1"
-          color={insideUnpainted ? UNPAINTED_INSIDE_COLOR : insideColor}
+          color={resolvedInsideColor}
           side={THREE.DoubleSide}
           clippingPlanes={clippingPlanes}
-          {...(insideUnpainted ? UNPAINTED_MATERIAL_PROPS : materialProps)}
+          {...(insideUnpainted && !insideColorOverride ? UNPAINTED_MATERIAL_PROPS : materialProps)}
         />
       </mesh>
       {shaded && (

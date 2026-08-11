@@ -20,14 +20,41 @@ export const LC_DIMENSION_LIMITS = {
 // 2026-08-10: "Wandstärken sind 100 Standard, alles andere auch Sonder").
 export const LC_STANDARD_WALL_THICKNESS = 100;
 
-// "Boden: ... Optional mit Bodenisolierung t=100-120mm" - anders als bei
-// Wand/Dach ist beim Boden KEINE Isolierung im Grundprodukt enthalten
-// (Jonas' Vorgabe 2026-08-10: eigenes, von der Wandstärke getrenntes Feld).
-// 0 = keine Bodenisolierung (Standard/im Grundpreis), 100-120 = die
-// angebotene Optional-Spanne.
-export const LC_FLOOR_INSULATION_RANGE = { min: 100, max: 120 };
+// Jonas' Klarstellung 2026-08-11 (ersetzt die vorherige Annahme einer
+// variablen 100-120mm-Spanne, siehe Git-Historie): die physische Dicke der
+// Bodenplatte ist IMMER 120mm, bei JEDEM Container, unabhaengig von
+// Wandstaerke oder Isolierung - sie ist KEIN Nutzer-Eingabefeld mehr. Was
+// variiert, ist ausschliesslich, OB diese 120mm-Platte hohl oder mit
+// Isolierung gefuellt ist (boolean floorInsulated auf ContainerConfig,
+// siehe types.ts) - keine Dicken-Abstufung. Eigenstaendige Konstante statt
+// Ableitung aus LC_STANDARD_WALL_THICKNESS, weil Boden- und Wand-/
+// Dachdicke unabhaengig voneinander sind (siehe Container.tsx: die
+// Bodenplatte nutzt diese Konstante, Wand/Dach weiterhin die vom Nutzer
+// gesetzte Wandstaerke).
+export const FLOOR_THICKNESS_MM = 120;
+
+// Sichtbarer Unterschied im 3D-Modell zwischen isoliertem (gefuelltem) und
+// hohlem Boden (Jonas' Vorgabe 2026-08-11: "muss sich sichtbar im 3D-Modell
+// niederschlagen") - angewendet auf die Innenflaeche (Oberseite) der
+// Bodenplatte in Container.tsx/Wall.tsx. Warmer, wollartiger Farbton fuer
+// gefuellte Isolierung (angelehnt an Steinwolle, siehe auch die
+// C-Schienen-Isolierung an Wand/Dach), kuehleres Grau fuer die hohle
+// Kammer (wirkt wie eine offene Stahl-/Blechkammer ohne Fuellung).
+export const FLOOR_INSULATED_COLOR = "#d8b878";
+export const FLOOR_HOLLOW_COLOR = "#94a3b8";
 
 export type SoundClass = "standard" | "schallschutz" | "silent" | "silentPlus";
+
+// Bodenisolierung ist standardmaessig AN, sobald die Schallschutzklasse
+// Silent oder Silent-Plus ist (fuer diese Klassen ohnehin praktisch
+// erforderlich, um die angegebene Daemmwirkung zu erreichen), sonst AUS -
+// bleibt aber in JEDE Richtung frei manuell umschaltbar (Jonas' Vorgabe
+// 2026-08-11: "kann man auch für alle anderen manuell aktivieren", "kann
+// man beim Silent auch wieder deaktivieren"). Nur der DEFAULT beim Wechsel
+// der Schallschutzklasse haengt hiervon ab, nicht eine dauerhafte Kopplung.
+export function defaultFloorInsulated(soundClass: SoundClass): boolean {
+  return soundClass === "silent" || soundClass === "silentPlus";
+}
 
 export interface SoundClassSpec {
   id: SoundClass;

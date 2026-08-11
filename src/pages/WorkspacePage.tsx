@@ -8,7 +8,7 @@ import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { SoundClassControls } from "../components/SoundClassControls";
 import { ContainerWarningBadge } from "../components/ContainerWarningBadge";
-import { DEFAULT_SOUND_CLASS } from "../constants/lcStandard";
+import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 import { getContainerWarnings } from "../utils/containerWarnings";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
@@ -678,19 +678,24 @@ export function WorkspacePage() {
                   <ContainerSizeControls
                     size={editingInstance.config.size}
                     wallThickness={editingInstance.config.wallThickness}
-                    floorThickness={editingInstance.config.floorThickness ?? 0}
                     onSizeChange={(size) => {
                       updateEditingConfig({ size });
                       notifyEvent("size-changed");
                     }}
                     onWallThicknessChange={(wallThickness) => updateEditingConfig({ wallThickness })}
-                    onFloorThicknessChange={(floorThickness) => updateEditingConfig({ floorThickness })}
                   />
                   <div className="mt-3">
                     <SoundClassControls
                       soundClass={editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS}
                       wallThickness={editingInstance.config.wallThickness}
-                      onChange={(soundClass) => updateEditingConfig({ soundClass })}
+                      // Klassenwechsel setzt den Bodenisolierungs-Default neu
+                      // (an fuer Silent/Silent-Plus, sonst aus - Jonas'
+                      // Vorgabe 2026-08-11) - die Checkbox selbst bleibt
+                      // danach unabhaengig manuell umschaltbar, siehe
+                      // onFloorInsulatedChange unten.
+                      onChange={(soundClass) => updateEditingConfig({ soundClass, floorInsulated: defaultFloorInsulated(soundClass) })}
+                      floorInsulated={editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
+                      onFloorInsulatedChange={(floorInsulated) => updateEditingConfig({ floorInsulated })}
                     />
                   </div>
                 </AccordionSection>
@@ -1026,6 +1031,9 @@ export function WorkspacePage() {
                 insideColor={editingInstance.config.insideColor}
                 outsideColor={editingInstance.config.outsideColor}
                 insideUnpainted={editingInstance.config.insideUnpainted ?? false}
+                floorInsulated={
+                  editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)
+                }
                 shadowsEnabled={editingInstance.config.shadowsEnabled ?? true}
                 terrainDetail={editingInstance.config.terrainDetail ?? "low"}
                 onViewStyleChange={(viewStyle) => updateEditingConfig({ viewStyle })}

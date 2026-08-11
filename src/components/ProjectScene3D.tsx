@@ -17,6 +17,7 @@ import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
+import { DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 
 const MM_TO_M = 1 / 1000;
 
@@ -480,6 +481,7 @@ const InstanceGroup = memo(function InstanceGroup({
             size={instance.config.size}
             wallThickness={instance.config.wallThickness}
             openings={instance.config.openings}
+            floorInsulated={instance.config.floorInsulated ?? defaultFloorInsulated(instance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
             onReady={() => onInstanceReady(instance.id)}
           />
         </SectionPlaneProvider>

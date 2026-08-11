@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CONTAINER_SIZE_PRESETS, type ContainerSize } from "../constants/containerSizes";
-import { LC_DIMENSION_LIMITS, LC_FLOOR_INSULATION_RANGE } from "../constants/lcStandard";
-import { getDimensionWarning, getFloorThicknessWarning, getWallThicknessWarning } from "../utils/containerWarnings";
+import { LC_DIMENSION_LIMITS } from "../constants/lcStandard";
+import { getDimensionWarning, getWallThicknessWarning } from "../utils/containerWarnings";
 import { NumberInput } from "./NumberInput";
 import { SonderBadge } from "./SonderBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -9,10 +9,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 interface ContainerSizeControlsProps {
   size: ContainerSize;
   wallThickness: number;
-  floorThickness: number;
   onSizeChange: (size: ContainerSize) => void;
   onWallThicknessChange: (t: number) => void;
-  onFloorThicknessChange: (t: number) => void;
 }
 
 // Container-Aussenmasse und Wandstaerke sind jetzt frei editierbar (Jonas'
@@ -22,9 +20,8 @@ interface ContainerSizeControlsProps {
 // 320px breiten Seitenleiste statt im breiten Kopfbereich, siehe App.tsx.
 //
 // Jonas' Vorgabe 2026-08-10: Sondermass-/Uebermass-Warnhinweise fuer
-// Laenge/Breite/Hoehe (siehe DimensionField unten), ein Sonder-Hinweis an
-// der Wandstaerke bei Abweichung vom Standard, und ein neues, von der
-// Wandstaerke GETRENNTES Bodenisolierungs-Feld. Alle Texte kommen aus
+// Laenge/Breite/Hoehe (siehe DimensionField unten) und ein Sonder-Hinweis an
+// der Wandstaerke bei Abweichung vom Standard. Alle Texte kommen aus
 // utils/containerWarnings.ts (einzige Quelle, auch fuer den Sammel-Hinweis
 // in der Baugruppen-Liste, siehe ContainerWarningBadge.tsx) - bewusst OHNE
 // Firmennamen (Jonas' Fehlerbericht 2026-08-10: "nirgendwo ein Firmenname
@@ -32,17 +29,17 @@ interface ContainerSizeControlsProps {
 // sich als kleines Ausrufezeichen-Badge neben dem Feldnamen (Jonas: "das
 // Ausrufezeichen wie es bei der Wandstärke ist finde ich gut, mache das so
 // bei allen wo das hinpasst") statt als eigener Absatztext.
-export function ContainerSizeControls({
-  size,
-  wallThickness,
-  floorThickness,
-  onSizeChange,
-  onWallThicknessChange,
-  onFloorThicknessChange,
-}: ContainerSizeControlsProps) {
+//
+// Jonas' Klarstellung 2026-08-11: das fruehere, frei eingebbare
+// Bodenisolierungs-Feld (0/100-120mm) ist entfallen - die Bodenplatte ist
+// IMMER 120mm dick (siehe FLOOR_THICKNESS_MM in lcStandard.ts), das ist kein
+// Nutzer-Eingabefeld mehr. Was bleibt, ist nur noch die Frage "hohl oder
+// isoliert?" - dieser Boolean lebt jetzt bei der Schallschutzklasse (siehe
+// SoundClassControls.tsx), weil er inhaltlich davon abhaengt, nicht von der
+// Groesse/Wandstaerke.
+export function ContainerSizeControls({ size, wallThickness, onSizeChange, onWallThicknessChange }: ContainerSizeControlsProps) {
   const presets = CONTAINER_SIZE_PRESETS;
   const wallWarning = getWallThicknessWarning(wallThickness);
-  const floorWarning = getFloorThicknessWarning(floorThickness);
 
   return (
     <div className="space-y-2 text-sm">
@@ -82,24 +79,6 @@ export function ContainerSizeControls({
               className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
-        </div>
-        <div>
-          <label className="flex flex-col gap-0.5 text-xs text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1">
-              Bodenisolierung (mm)
-              {floorWarning && <SonderBadge text={floorWarning.text} />}
-            </span>
-            <NumberInput
-              step={10}
-              min={0}
-              value={floorThickness}
-              onChange={onFloorThicknessChange}
-              className="w-full rounded border border-slate-300 px-1.5 py-1 text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            />
-          </label>
-          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
-            0 = keine (Standard) · optional {LC_FLOOR_INSULATION_RANGE.min}–{LC_FLOOR_INSULATION_RANGE.max} mm
-          </p>
         </div>
       </div>
     </div>

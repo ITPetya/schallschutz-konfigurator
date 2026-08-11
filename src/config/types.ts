@@ -29,11 +29,18 @@ export interface ContainerConfig {
   insideUnpainted?: boolean;
   outsideNotes?: string;
   insideNotes?: string;
-  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-08-10): Bodenisolierung ist
-  // beim LC-Standard KEIN Teil der Wandstaerke, sondern eine eigene,
-  // optionale Schicht (0 = keine, Standard) - alte Dateien haben das Feld
-  // nicht, faellt dann auf 0 zurueck. Und die Schallschutzklasse
-  // (Standard/Schallschutz/Silent/Silent-Plus), faellt auf "standard" zurueck.
-  floorThickness?: number;
+  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-08-10): die
+  // Schallschutzklasse (Standard/Schallschutz/Silent/Silent-Plus), faellt
+  // auf "standard" zurueck, wenn eine alte Datei das Feld nicht hat.
   soundClass?: SoundClass;
+  // Jonas' Klarstellung 2026-08-11: die Bodenplatte ist IMMER 120mm dick
+  // (siehe FLOOR_THICKNESS_MM in lcStandard.ts) - das vorherige
+  // floorThickness-Feld (0/100-120mm, frei eingebbar) ist damit hinfaellig
+  // und wurde ENTFERNT, es gibt keine Nutzer-editierbare Bodendicke mehr.
+  // Stattdessen nur noch dieser Boolean: ist die feste 120mm-Platte hohl
+  // oder mit Isolierung gefuellt? Optional aus dem ueblichen
+  // Altdatei-Kompatibilitaetsgrund - alte Dateien (auch solche mit dem
+  // inzwischen entfernten floorThickness-Feld) haben ihn nicht, faellt dann
+  // auf defaultFloorInsulated(soundClass) zurueck (siehe lcStandard.ts).
+  floorInsulated?: boolean;
 }

@@ -13,6 +13,7 @@ import {
   CORNER_WALL_RECESS_MM,
 } from "./CornerCasting";
 import { useChunkedReveal } from "../hooks/useChunkedReveal";
+import { FLOOR_HOLLOW_COLOR, FLOOR_INSULATED_COLOR, FLOOR_THICKNESS_MM } from "../constants/lcStandard";
 
 const SIGNS = [1, -1] as const;
 
@@ -20,6 +21,14 @@ interface ContainerProps {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
+  // Jonas' Klarstellung 2026-08-11: die Bodenplatte ist IMMER 120mm dick
+  // (FLOOR_THICKNESS_MM, unabhaengig von wallThickness) - dieser Boolean
+  // steuert nur noch, ob sie hohl oder isoliert gefuellt ist, sichtbar an
+  // der Innenflaechenfarbe (siehe FLOOR_INSULATED_COLOR/FLOOR_HOLLOW_COLOR
+  // unten). Optional mit Default true, falls eine Stelle den Container ohne
+  // dieses Prop rendert (z. B. alte Testaufrufe) - true ist die "bessere"
+  // Blindannahme (isoliert wirkt hochwertiger als sichtbar hohl).
+  floorInsulated?: boolean;
   // Wird EINMAL aufgerufen, sobald alle 14 Bauteile (6 Waende + 8
   // Eckbeschlaege) tatsaechlich gemountet/berechnet sind - Scene.tsx/
   // ProjectScene3D.tsx nutzen das, um ihr Lade-Overlay so lange sichtbar zu
@@ -57,11 +66,14 @@ const MM_TO_M = 1 / 1000;
 // types/openings.ts) in die fuer Wall/DoorLeaf erwartete Mitte umgerechnet -
 // beide Konzepte (Einheit + Bezugspunkt) an derselben Stelle aufgeloest,
 // damit Wall.tsx/DoorLeaf.tsx von beidem nichts wissen muessen.
-export function Container({ size, wallThickness, openings, onReady }: ContainerProps) {
+export function Container({ size, wallThickness, openings, floorInsulated = true, onReady }: ContainerProps) {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
   const t = wallThickness * MM_TO_M;
+  // Bodenplatte IMMER 120mm, unabhaengig von der (frei einstellbaren)
+  // Wandstaerke t - siehe FLOOR_THICKNESS_MM-Kommentar in lcStandard.ts.
+  const floorT = FLOOR_THICKNESS_MM * MM_TO_M;
   const cornerLength = CORNER_BLOCK_LENGTH_MM * MM_TO_M;
   const cornerWidth = CORNER_BLOCK_WIDTH_MM * MM_TO_M;
   const cornerHeight = CORNER_BLOCK_HEIGHT_MM * MM_TO_M;
@@ -113,7 +125,17 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   // Spannweite jeder Wand schrumpft symmetrisch um ihre eigenen Enden - dadurch
   // stossen alle Waende exakt an den echten Innenkanten aneinander, ohne Spalt
   // UND ohne Ueberlappung.
-  const verticalWallHeight = Math.max(effectiveH - 2 * t, 0);
+  // Jonas' Klarstellung 2026-08-11: die Bodenplatte ist jetzt eigenstaendig
+  // floorT (120mm fix) statt t (Wandstaerke) dick - die vier Seitenwaende
+  // muessen deshalb oben um t (Dach) UND unten um floorT (Boden) gekuerzt
+  // werden, statt (wie vorher, als beide Seiten dieselbe Dicke t hatten)
+  // symmetrisch um 2*t. Da floorT nur in Ausnahmefaellen exakt t entspricht,
+  // ist die Wand jetzt auch nicht mehr symmetrisch um H/2 zentriert -
+  // verticalWallPositionY unten traegt dem Rechnung (bei floorT===t ergibt
+  // sich wieder exakt H/2, also keine Verhaltensaenderung fuer den
+  // frueheren impliziten "Boden=Wandstaerke"-Fall).
+  const verticalWallHeight = Math.max(effectiveH - t - floorT, 0);
+  const verticalWallPositionY = H / 2 + (floorT - t) / 2;
   const endWallWidth = Math.max(effectiveW - 2 * t, 0);
 
   const openingsM = openings.map((o) => {
@@ -131,22 +153,16 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
   // Wall.tsx berechnet die lokale Y-Position eines Durchbruchs als
   // "opening.v - panelHeight/2" - das ergibt nur dann die richtige absolute
   // Weltposition (v = Hoehe ueber dem ECHTEN Boden), wenn position.y - panelHeight/2
-  // exakt 0 ist. Das stimmte bisher immer (position.y=H/2, panelHeight=H),
-  // ist aber jetzt fuer die vier Seitenwaende nicht mehr der Fall
-  // (position.y bleibt H/2, panelHeight ist jedoch verticalWallHeight < H) -
-  // ohne Korrektur wuerden alle Durchbrueche/Tueren dort zu hoch sitzen. Fix:
-  // v fuer genau diese vier Panels nach unten korrigieren, BEVOR Wall.tsx
-  // damit rechnet - fuer Oben/Unten unnoetig, da deren Position in der
-  // (effectiveW-)Richtung bei 0 bleibt und daher gar keine Kopplung entsteht.
-  // Korrekturbetrag = wallRecess + t (statt nur wallRecess wie zuvor), weil
-  // verticalWallHeight jetzt zusaetzlich um t GEKUERZT ist (Wandkeil-Fix
-  // oben, siehe Kommentar bei verticalWallHeight) - dieselbe Herleitung wie
-  // vorher (v_korrigiert = v - H/2 + panelHeight/2), nur mit dem kleineren
-  // panelHeight.
+  // exakt 0 ist. Das stimmte bisher nur zufaellig, weil Boden und Wand/Dach
+  // beide dieselbe Dicke t hatten - Korrekturbetrag ist allgemein
+  // "position.y - panelHeight/2" (siehe verticalWallVOffset unten), fuer
+  // Oben/Unten unnoetig, da deren Position in der (effectiveW-)Richtung bei
+  // 0 bleibt und daher gar keine Kopplung entsteht.
+  const verticalWallVOffset = verticalWallPositionY - verticalWallHeight / 2;
   const openingsFor = (panel: PanelId) => {
     const filtered = openingsM.filter((o) => o.panel === panel);
     if (!isVerticalWall(panel)) return filtered;
-    return filtered.map((o) => ({ ...o, v: o.v - wallRecess - t }));
+    return filtered.map((o) => ({ ...o, v: o.v - verticalWallVOffset }));
   };
 
   // Alle 14 Bauteile (6 Waende + 8 Eckbeschlaege) als flache Liste statt
@@ -167,7 +183,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     // ist bereits die korrekte lichte Innenbreite.
     <Wall
       key="wall-left"
-      position={[0, H / 2, W / 2 - t / 2 - wallRecess]}
+      position={[0, verticalWallPositionY, W / 2 - t / 2 - wallRecess]}
       rotation={[0, 0, 0]}
       panelWidth={effectiveL}
       panelHeight={verticalWallHeight}
@@ -179,7 +195,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     />,
     <Wall
       key="wall-right"
-      position={[0, H / 2, -W / 2 + t / 2 + wallRecess]}
+      position={[0, verticalWallPositionY, -W / 2 + t / 2 + wallRecess]}
       rotation={[0, 0, 0]}
       panelWidth={effectiveL}
       panelHeight={verticalWallHeight}
@@ -193,7 +209,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     // BREITE (Z) auf, liegen an den Enden der LAENGE (X).
     <Wall
       key="wall-back"
-      position={[-L / 2 + t / 2 + wallRecess, H / 2, 0]}
+      position={[-L / 2 + t / 2 + wallRecess, verticalWallPositionY, 0]}
       rotation={[0, Math.PI / 2, 0]}
       panelWidth={endWallWidth}
       panelHeight={verticalWallHeight}
@@ -204,7 +220,7 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     />,
     <Wall
       key="wall-front"
-      position={[L / 2 - t / 2 - wallRecess, H / 2, 0]}
+      position={[L / 2 - t / 2 - wallRecess, verticalWallPositionY, 0]}
       rotation={[0, Math.PI / 2, 0]}
       panelWidth={endWallWidth}
       panelHeight={verticalWallHeight}
@@ -244,13 +260,17 @@ export function Container({ size, wallThickness, openings, onReady }: ContainerP
     />,
     <Wall
       key="wall-bottom"
-      position={[0, t / 2 + wallRecess, 0]}
+      position={[0, floorT / 2 + wallRecess, 0]}
       rotation={[Math.PI / 2, 0, 0]}
       panelWidth={effectiveL}
       panelHeight={effectiveW}
-      thickness={t}
+      thickness={floorT}
       openings={openingsFor("bottom")}
       outwardSign={1}
+      // Jonas' Vorgabe 2026-08-11: sichtbarer Unterschied hohl/isoliert an
+      // der Innenflaeche (Oberseite) der Bodenplatte - siehe
+      // insideColorOverride-Kommentar in Wall.tsx.
+      insideColorOverride={floorInsulated ? FLOOR_INSULATED_COLOR : FLOOR_HOLLOW_COLOR}
     />,
     // Eckbeschlaege (Jonas' Vorgabe 2026-07-28, Referenzfoto + echte
     // ISO-1161-Masse 178x162x118mm): an allen 8 Container-Ecken je ein Block

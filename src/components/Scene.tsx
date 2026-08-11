@@ -32,6 +32,11 @@ interface SceneProps {
   insideColor: string;
   outsideColor: string;
   insideUnpainted: boolean;
+  // Jonas' Klarstellung 2026-08-11: hohl oder isoliert gefuellt (die
+  // Bodenplatte selbst ist immer 120mm dick, siehe Container.tsx) - optional
+  // mit Default true in Container.tsx, falls ein Aufrufer das Prop (noch)
+  // nicht setzt.
+  floorInsulated?: boolean;
   // Jonas' Vorgabe 2026-07-24: Schatten abschaltbar. Steuert direkt
   // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
   // Renderers global, kein Umweg ueber einzelne Mesh-Props noetig.
@@ -76,6 +81,7 @@ export function Scene({
   insideColor,
   outsideColor,
   insideUnpainted,
+  floorInsulated,
   shadowsEnabled,
   terrainDetail,
   onViewStyleChange,
@@ -174,7 +180,13 @@ export function Scene({
         />
         <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor, insideUnpainted }}>
           <SectionPlaneProvider value={section.sectionPlane}>
-            <Container size={size} wallThickness={wallThickness} openings={openings} onReady={() => setContainerReady(true)} />
+            <Container
+              size={size}
+              wallThickness={wallThickness}
+              openings={openings}
+              floorInsulated={floorInsulated}
+              onReady={() => setContainerReady(true)}
+            />
           </SectionPlaneProvider>
         </DisplaySettingsProvider>
 
