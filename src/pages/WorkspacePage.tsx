@@ -297,6 +297,19 @@ export function WorkspacePage() {
   const [grundOpenSignal, setGrundOpenSignal] = useState(0);
   const [erweitertOpenSignal, setErweitertOpenSignal] = useState(0);
   const [einbautenOpenSignal, setEinbautenOpenSignal] = useState(0);
+  // Tutorial-Ueberarbeitung 2026-08-11 (per Playwright gefunden): die
+  // "Container"-Liste in der Baugruppen-Uebersicht ist wie jeder andere
+  // Abschnitt standardmaessig zugeklappt - der Tour-Schritt "Container
+  // bearbeiten" (data-tour="edit-instance", der "Detail bearbeiten"-Knopf
+  // EINES Eintrags) fand sein Ziel dadurch nie, weil es erst nach manuellem
+  // Aufklappen ueberhaupt im DOM existiert (TourOverlay.tsx sucht 3s lang,
+  // dann wird der Schritt stillschweigend uebersprungen). Gleiches
+  // forceOpenSignal-Muster wie grundOpenSignal/erweitertOpenSignal/
+  // einbautenOpenSignal oben, ausgeloest direkt beim Hinzufuegen eines
+  // Containers (siehe handleAddInstance) - eine sinnvolle allgemeine
+  // Verbesserung unabhaengig von der Tour: nach dem Hinzufuegen will man den
+  // gerade angelegten Container ohnehin sofort in der Liste sehen.
+  const [containerListOpenSignal, setContainerListOpenSignal] = useState(0);
 
   // Springt aus der Sonderheiten-Liste im Anfrage-Vorschau-Modal direkt zum
   // verursachenden Abschnitt: wechselt in die Detailbearbeitung DIESER
@@ -469,6 +482,14 @@ export function WorkspacePage() {
 
   function handleBackToBaugruppe() {
     setEditingInstanceId(null);
+    // Tutorial-Ueberarbeitung 2026-08-11: die Baugruppen-Uebersicht (Container-
+    // Liste/Ausrichten/Speichern-Laden-Anfragen auf Projekt-Ebene) wird erst
+    // ab HIER wieder sichtbar - ohne dieses Ereignis muesste die Tour beim
+    // "Zurueck zur Baugruppe"-Schritt auf den reinen "Weiter"-Klick vertrauen
+    // und wuerde bei den folgenden Schritten (deren Anker nur in der
+    // Uebersicht existieren) sonst jedes Mal 3s lang erfolglos suchen, bevor
+    // TourOverlay.tsx automatisch ueberspringt, siehe tour/tourDefinitions.ts.
+    notifyEvent("back-to-baugruppe");
   }
 
   // ---------- Detailbearbeitung einer Instanz ----------
@@ -528,6 +549,7 @@ export function WorkspacePage() {
     };
     setProject((p) => ({ ...p, instances: [...p.instances, instance] }));
     setSelectedId(instance.id);
+    setContainerListOpenSignal((v) => v + 1);
     notifyEvent("container-added");
   }
 
@@ -741,7 +763,7 @@ export function WorkspacePage() {
                     floorThickness={editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
                     onFloorThicknessChange={(floorThickness) => updateEditingConfig({ floorThickness })}
                   />
-                  <div className="mt-3">
+                  <div className="mt-3" data-tour="tour-soundclass">
                     <SoundClassControls
                       soundClass={editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS}
                       wallThickness={editingInstance.config.wallThickness}
@@ -756,6 +778,10 @@ export function WorkspacePage() {
                       // Checkbox/Felder bleiben danach unabhaengig manuell
                       // umschaltbar, siehe onFloorInsulatedChange unten bzw.
                       // onFloorThicknessChange/onWallThicknessChange oben.
+                      // notifyEvent (Tutorial-Ueberarbeitung 2026-08-11):
+                      // derselbe "echte Aktion loest den naechsten Tour-
+                      // Schritt aus"-Mechanismus wie bei size-changed/
+                      // opening-added weiter unten, siehe tour/tourDefinitions.ts.
                       onChange={(soundClass) => {
                         const floorInsulated = defaultFloorInsulated(soundClass);
                         updateEditingConfig({
@@ -767,6 +793,7 @@ export function WorkspacePage() {
                             floorInsulated,
                           ),
                         });
+                        notifyEvent("soundclass-changed");
                       }}
                       floorThickness={editingInstance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
                       floorInsulated={editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
@@ -848,7 +875,12 @@ export function WorkspacePage() {
                   </label>
                 </AccordionSection>
 
-                <AccordionSection key="Container" title="Container">
+                <AccordionSection
+                  key="Container"
+                  title="Container"
+                  tourId="tour-baugruppe-list"
+                  forceOpenSignal={containerListOpenSignal}
+                >
                   {project.instances.length === 0 && (
                     <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Container im Projekt.</p>
                   )}
@@ -938,7 +970,7 @@ export function WorkspacePage() {
                 </AccordionSection>
 
                 {project.instances.length >= 2 && (
-                  <AccordionSection key="Ausrichten" title="Ausrichten">
+                  <AccordionSection key="Ausrichten" title="Ausrichten" tourId="tour-ausrichten">
                     <label className="block text-xs text-slate-500 dark:text-slate-400">
                       Container
                       <select
@@ -1044,7 +1076,7 @@ export function WorkspacePage() {
                   </AccordionSection>
                 )}
 
-                <div className="mt-6 space-y-2">
+                <div className="mt-6 space-y-2" data-tour="tour-project-request">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern, Laden &amp; Anfragen</p>
                   <div className="flex gap-2">
                     <AnimatedButton

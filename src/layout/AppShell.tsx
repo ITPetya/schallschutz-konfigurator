@@ -125,6 +125,7 @@ function HelpMenu({ onTutorial, onHilfe, onVerlauf, onDeleteData }: HelpMenuProp
         <AnimatedButton
           type="button"
           aria-label="Hilfe"
+          data-tour="help-menu"
           className="flex items-center justify-center text-slate-400 hover:text-brand"
         >
           <CircleHelpIcon size={30} />

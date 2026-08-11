@@ -167,7 +167,7 @@ export function ViewerToolbar({
         )}
 
         {onToggleMeasure && (
-          <ToolButton onClick={onToggleMeasure} label="Messen" active={measureActive}>
+          <ToolButton dataTour="tool-measure" onClick={onToggleMeasure} label="Messen" active={measureActive}>
             <RulerIcon size={16} />
           </ToolButton>
         )}

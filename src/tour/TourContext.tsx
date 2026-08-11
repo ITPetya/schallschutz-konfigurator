@@ -43,7 +43,25 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   const tour = activeTourId ? TOURS[activeTourId] : null;
-  const currentStep = tour && !suppressed ? tour.steps[stepIndex] ?? null : null;
+  // Jonas' Fehlerbericht 2026-08-11 (Tutorial-Ueberarbeitung, per Playwright
+  // gefunden): der LOGISCHE aktuelle Schritt (activeStep, fuer notifyEvent())
+  // muss UNABHAENGIG von suppressed weiterhin bekannt sein - suppressed
+  // steuert NUR, ob TourOverlay gerade etwas ANZEIGT (siehe currentStep
+  // unten), nicht, ob die Tour "weiss", bei welchem Schritt sie steht. Vorher
+  // wurde waehrend der Unterdrueckung (z. B. solange das
+  // Grundeinstellungen-Overlay offen ist) auch activeStep/currentStep
+  // komplett auf null gesetzt - ausgerechnet der Klick, der DIESES Overlay
+  // schliesst (Grundeinstellungen "Weiter", data-tour="grundeinstellungen-
+  // submit"), loeste notifyEvent("project-created") GENAU WAEHREND die Tour
+  // noch unterdrueckt war aus (die Suppression wird erst einen Render
+  // SPAETER aufgehoben) - notifyEvent verglich also gegen "kein aktueller
+  // Schritt" und verwarf das Ereignis stillschweigend, der Tour-Schritt
+  // "Projekt benennen" blieb dadurch fuer immer haengen (nur der manuelle
+  // "Weiter"-Knopf DER TOUR SELBST kam noch weiter). Betrifft grundsaetzlich
+  // jeden Schritt mit einem Ziel INNERHALB eines Elements, das beim Klick
+  // gleichzeitig auch die Suppression aufheben soll.
+  const activeStep = tour ? tour.steps[stepIndex] ?? null : null;
+  const currentStep = suppressed ? null : activeStep;
 
   // Navigiert automatisch zur Seite des aktuellen Schritts, falls dieser
   // eine "route" vorgibt und wir gerade woanders sind.
@@ -81,7 +99,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }
 
   function notifyEvent(name: string) {
-    if (currentStep?.waitForEvent === name) next();
+    if (activeStep?.waitForEvent === name) next();
   }
 
   return (
