@@ -6,17 +6,21 @@ interface SpaceMouseIconProps {
   className?: string;
 }
 
-// Jonas' Skizze 2026-08-12 (ersetzt die vorherige gekippte-Kuppel-Version,
-// die selbst schon ein Fix fuer das noch frueher "wie eine Sonne" aussehende
-// Icon war): "Garnrollen"-Silhouette von der Seite - Kappe (oben) und Sockel
-// (unten) treffen sich an einer schmalen Taille in der Mitte. Beim Hover
-// gehen beide Haelften auseinander (Kappe nach oben, Sockel nach unten) -
-// zeigt, dass die Kappe ein eigenstaendiges, bewegliches Teil ist, statt nur
-// zu kippen. Gleiche "zwei Haelften trennen sich"-Konvention wie
-// SectionIcon.tsx, hier entlang der Y- statt der Diagonalachse. Beide
-// Haelften teilen sich in Ruhestellung exakt dieselbe Taillen-Kante (9,12)-
-// (15,12), verschmelzen also optisch zu einer durchgezogenen Kontur, bis der
-// Hover sie auseinanderzieht.
+// Jonas' Skizze 2026-08-12 (drei Bilder: Kappe allein, Sockel allein mit den
+// offenen Eck-"Haeckchen" oben, dann zusammengesetzt) - ersetzt die
+// vorherige, zu rund geratene Version. Kappe: flacher Deckel mit
+// eingezogener Taille (Bezier-Kurven an den Seiten, Ober-/Unterkante
+// gerade). Sockel: KEIN geschlossenes Rechteck - die obere Kante fehlt
+// bewusst, nur zwei kleine, nicht verbundene Haken an den oberen Ecken
+// (dort, wo die Kappe eingesteckt sitzt), Seiten gerade, unten
+// geschlossen. Alle rechtwinkligen Ecken werden allein durch
+// strokeLinejoin="round" abgerundet, keine eigenen Eckenkurven noetig.
+//
+// Beim Hover gehen beide Teile auseinander (Kappe nach oben, Sockel nach
+// unten) - dieselbe "zwei Haelften trennen sich"-Konvention wie
+// SectionIcon.tsx. Im getrennten Zustand ist der Sockel exakt Jonas'
+// zweite Skizze (die leeren Haken werden sichtbar, weil die Kappe nicht
+// mehr darauf sitzt) - im Ruhezustand ergibt sich exakt die dritte Skizze.
 const capPart: Variants = {
   initial: { y: 0 },
   animate: { y: -2, transition: { duration: 0.3, ease: "easeInOut" } },
@@ -41,19 +45,10 @@ export function SpaceMouseIcon({ size = 15, className }: SpaceMouseIconProps) {
       strokeLinejoin="round"
       className={className}
     >
-      {/* Kappe (oberer Teil). */}
-      <motion.path
-        d="M5 5C5 9 7 11 9 12L15 12C17 11 19 9 19 5C19 2 15 2 12 2C9 2 5 2 5 5Z"
-        variants={capPart}
-        initial="initial"
-        animate={target}
-      />
-      {/* Sockel (unterer Teil) samt Zierlinie fuer den Gehaeuse-Rand, wie in
-          Jonas' Skizze. */}
-      <motion.g variants={basePart} initial="initial" animate={target}>
-        <path d="M5 19C5 15 7 13 9 12L15 12C17 13 19 15 19 19C19 22 15 22 12 22C9 22 5 22 5 19Z" />
-        <path d="M7 19h10" />
-      </motion.g>
+      {/* Kappe (oberer Teil) - gerade Ober-/Unterkante, eingezogene Taille. */}
+      <motion.path d="M7 3 L17 3 C13 5 13 11 17 13 L7 13 C11 11 11 5 7 3 Z" variants={capPart} initial="initial" animate={target} />
+      {/* Sockel (unterer Teil) - oben bewusst offen, nur zwei Eck-Haken. */}
+      <motion.path d="M7 10 Q6 10 5 12 L5 20 L19 20 L19 12 Q18 10 17 10" variants={basePart} initial="initial" animate={target} />
     </motion.svg>
   );
 }
