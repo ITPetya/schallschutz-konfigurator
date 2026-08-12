@@ -7,8 +7,10 @@ import { RulerIcon } from "./icons/RulerIcon";
 import { SectionIcon } from "./icons/SectionIcon";
 import { ViewIcon } from "./icons/ViewIcon";
 import { SpaceMouseIcon } from "./icons/SpaceMouseIcon";
+import { AlignIcon } from "./icons/AlignIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
 import { SpaceMouseSettingsPanel } from "./SpaceMouseSettingsPanel";
+import { AlignmentResultPanel, type AlignmentResultPanelProps } from "./AlignmentResultPanel";
 import { SectionResultPanel, ViewResultPanel, type SectionPlaneState } from "./SectionAndViewPanel";
 import { useToolbarVerticalOffset } from "../hooks/useToolbarVerticalOffset";
 import type { MeasurePoint } from "../utils/measurePoints";
@@ -72,6 +74,15 @@ interface ViewerToolbarProps {
   // Panel gar nicht erst an).
   spaceMouseSensitivity?: number;
   onSpaceMouseSensitivityChange?: (v: number) => void;
+  // Jonas' Vorgabe 2026-08-12: "Ausrichten" als eigenes Werkzeug (ersetzt die
+  // alte Dropdown-Sektion in der Seitenleiste) - Flaechen im Viewer anklicken
+  // (siehe AlignmentFaceMarkers.tsx/AlignmentResultPanel.tsx). Optional wie
+  // Messen/SpaceMouse, weil nur die Baugruppen-Ansicht (ProjectScene3D.tsx)
+  // ueberhaupt mehrere Container hat, zwischen denen ausgerichtet werden
+  // koennte - der Einzelcontainer-Viewer (Scene.tsx) bietet es gar nicht an.
+  alignmentActive?: boolean;
+  onToggleAlignment?: () => void;
+  alignmentPanelProps?: Omit<AlignmentResultPanelProps, "active">;
 }
 
 // Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
@@ -109,6 +120,9 @@ export function ViewerToolbar({
   onSpaceMouseDisconnect,
   spaceMouseSensitivity,
   onSpaceMouseSensitivityChange,
+  alignmentActive,
+  onToggleAlignment,
+  alignmentPanelProps,
 }: ViewerToolbarProps) {
   // "Ansicht" hat (anders als Schnitt/Messen) kein eigenes "aktiv"-Konzept
   // im Modell - der Button ist einfach "aktiv", solange sein Panel offen
@@ -244,6 +258,7 @@ export function ViewerToolbar({
             onDisconnect={onSpaceMouseDisconnect}
           />
         )}
+        {onToggleAlignment && alignmentPanelProps && <AlignmentResultPanel active={!!alignmentActive} {...alignmentPanelProps} />}
       </div>
 
       <div ref={columnRef} className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2" style={verticalStyle}>
@@ -260,6 +275,12 @@ export function ViewerToolbar({
         {onToggleMeasure && (
           <ToolButton dataTour="tool-measure" onClick={onToggleMeasure} label="Messen" active={measureActive}>
             <RulerIcon size={16} />
+          </ToolButton>
+        )}
+
+        {onToggleAlignment && (
+          <ToolButton dataTour="tour-ausrichten" onClick={onToggleAlignment} label="Ausrichten" active={alignmentActive}>
+            <AlignIcon size={16} />
           </ToolButton>
         )}
 

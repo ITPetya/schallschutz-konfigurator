@@ -182,10 +182,17 @@ export const TOURS: Record<string, Tour> = {
         placement: "bottom",
       },
       {
+        // Jonas' Vorgabe 2026-08-12: "Ausrichten" ist jetzt ein Werkzeug im
+        // Viewer (wie Messen/Schnitt/Ansicht), nicht mehr eine feste
+        // Seitenleisten-Sektion mit Dropdowns - deshalb hierher verschoben
+        // (der Anker sitzt jetzt am Werkzeug-Button in ViewerToolbar.tsx,
+        // nicht mehr an der Seitenleisten-Sektion, die erst nach der ersten
+        // erstellten Abhaengigkeit ueberhaupt erscheint) und placement "top"
+        // wie die anderen Werkzeug-Buttons in derselben Saeule.
         selector: '[data-tour="tour-ausrichten"]',
-        title: "Container ausrichten",
-        body: "Sobald du mindestens zwei Container hast, kannst du hier zwei davon exakt aneinander ausrichten – horizontal oder vertikal, mit einem frei wählbaren Abstand in Millimetern.",
-        placement: "bottom",
+        title: "Ausrichten",
+        body: "Sobald du mindestens zwei Container hast: hier zwei Seitenflächen anklicken (wie beim Messen) – die erste bleibt stehen, die zweite wird „Passend“ (mit Abstand daneben) oder „Fluchtend“ (auf einer Linie) danach ausgerichtet. Das bleibt aktiv – bewegst du den ersten Container später, zieht der zweite automatisch mit. Links in der Seitenleiste erscheint dafür ein „Abhängigkeiten“-Tab, in dem du nur noch den Abstand nachjustieren kannst.",
+        placement: "top",
       },
       {
         selector: '[data-tour="tour-project-request"]',

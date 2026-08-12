@@ -13,6 +13,7 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
+import { AlignmentFaceMarkers } from "./AlignmentFaceMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
@@ -20,8 +21,10 @@ import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
+import { computeAlignmentFaces, type AlignmentFacePoint } from "../utils/alignmentDependencies";
 import type { ContainerSize } from "../constants/containerSizes";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
+import type { AlignmentDependency } from "../config/projectTypes";
 
 const MM_TO_M = 1 / 1000;
 
@@ -40,6 +43,8 @@ const VIEWCUBE_FACES = ["Vorne", "Hinten", "Oben", "Unten", "Links", "Rechts"];
 // jedem Render wuerde MeasureMarkers unnoetig neu rendern lassen, obwohl
 // sich inhaltlich nichts geaendert hat.
 const EMPTY_MEASURE_POINTS: MeasurePoint[] = [];
+// Gleiches Prinzip fuer die Ausrichten-Flaechen (Jonas' Vorgabe 2026-08-12).
+const EMPTY_ALIGNMENT_FACES: AlignmentFacePoint[] = [];
 
 // Wandelt einen Kamera-Strahl (aus einem r3f-Pointer-Event) in die
 // Schnittkoordinate mit der Bodenebene (Welt-Y=0) um - GENAUER als
@@ -85,6 +90,13 @@ interface ProjectScene3DProps extends ProjectScene3DHandlers {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // Jonas' Vorgabe 2026-08-12: "Ausrichten" als eigenes Werkzeug (Flaechen im
+  // Viewer anklicken statt Dropdowns) - erstellt eine dauerhafte Abhaengigkeit
+  // in project.dependencies (WorkspacePage.tsx haelt/loest sie, siehe
+  // alignmentDependencies.ts). Optional wie onSetAllViewStyle: fehlt im
+  // schreibgeschuetzten Konstrukteur-Viewer (InternalProjectViewer.tsx),
+  // dort blendet sich der Werkzeug-Button dann komplett aus.
+  onCreateDependency?: (dep: Omit<AlignmentDependency, "id">) => void;
 }
 
 // 3D-Ansicht der Baugruppe (Jonas' Vorgabe 2026-07-25: "soll auch einen 3D
@@ -111,6 +123,7 @@ export function ProjectScene3D({
   onRedo,
   canUndo,
   canRedo,
+  onCreateDependency,
 }: ProjectScene3DProps) {
   // Reichweite (Meter) der ganzen Baugruppe ab dem Ursprung - fuer die
   // Kameradistanz UND fuer TerrainBackground's extentM (Jonas' Vorgabe
@@ -268,6 +281,55 @@ export function ProjectScene3D({
     setMeasureSelected([]);
   }
 
+  // Jonas' Vorgabe 2026-08-12: "Ausrichten" als eigenes Werkzeug - zwei
+  // Flaechen anklicken (aehnlich wie Messen), dann Fluchtend/Passend +
+  // Abstand waehlen. Selektions-/UI-Zustand bleibt LOKAL hier (wie bei
+  // measureActive/measureSelected) - nur das FERTIGE Ergebnis
+  // (onCreateDependency) geht an WorkspacePage.tsx, das project.dependencies
+  // haelt.
+  const [alignmentActive, setAlignmentActive] = useState(false);
+  const [alignmentSelected, setAlignmentSelected] = useState<AlignmentFacePoint[]>([]);
+  const [alignmentMode, setAlignmentMode] = useState<"mate" | "flush">("mate");
+  const [alignmentDistanceMm, setAlignmentDistanceMm] = useState(500);
+  const alignmentFaces = useMemo(() => (alignmentActive ? computeAlignmentFaces(instances) : EMPTY_ALIGNMENT_FACES), [instances, alignmentActive]);
+
+  function handleToggleAlignment() {
+    setAlignmentActive((v) => !v);
+    setAlignmentSelected([]);
+  }
+
+  // Erste Flaeche = "reference" (bleibt stehen), zweite = "target" (wird
+  // ausgerichtet) - ein zweiter Klick wird ignoriert, wenn er auf demselben
+  // Container liegt (kann sich nicht an sich selbst ausrichten) ODER eine
+  // andere Achse hat (Fluchtend/Passend ergeben nur zwischen zwei Flaechen
+  // MIT DERSELBEN Achse einen geometrischen Sinn - eine X-Flaeche gegen eine
+  // Z-Flaeche waere nicht sinnvoll aufloesbar, siehe alignmentDependencies.ts's
+  // resolveAlignmentDependencies). Ein Klick nach bereits zwei Auswahlen
+  // beginnt eine neue Auswahl.
+  function handleAlignmentPick(f: AlignmentFacePoint) {
+    setAlignmentSelected((prev) => {
+      if (prev.length === 0) return [f];
+      if (prev.length === 1) return prev[0].instanceId === f.instanceId || prev[0].axis !== f.axis ? prev : [prev[0], f];
+      return [f];
+    });
+  }
+
+  function handleClearAlignmentSelection() {
+    setAlignmentSelected([]);
+  }
+
+  function handleCreateAlignment() {
+    const [reference, target] = alignmentSelected;
+    if (!reference || !target || !onCreateDependency) return;
+    onCreateDependency({
+      target: { instanceId: target.instanceId, axis: target.axis, sign: target.sign },
+      reference: { instanceId: reference.instanceId, axis: reference.axis, sign: reference.sign },
+      mode: alignmentMode,
+      distanceMm: alignmentDistanceMm,
+    });
+    setAlignmentSelected([]);
+  }
+
   // Siehe Scene.tsx: Mausrad-Taste doppelt klicken = wie der Home-Button,
   // "M" druecken = wie der Messen-Button (Jonas' Vorgabe 2026-08-12, siehe
   // useViewerShortcuts.ts).
@@ -361,6 +423,8 @@ export function ProjectScene3D({
             sectionPlane={measureSectionPlane}
           />
         )}
+
+        {alignmentActive && <AlignmentFaceMarkers faces={alignmentFaces} selected={alignmentSelected} onPick={handleAlignmentPick} />}
 
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
             Herkunft dieser HDRI-Dateien. */}
@@ -467,6 +531,18 @@ export function ProjectScene3D({
         onSpaceMouseDisconnect={spaceMouse.disconnect}
         spaceMouseSensitivity={spaceMouseSensitivity}
         onSpaceMouseSensitivityChange={setSpaceMouseSensitivity}
+        onToggleAlignment={onCreateDependency && handleToggleAlignment}
+        alignmentActive={alignmentActive}
+        alignmentPanelProps={{
+          selected: alignmentSelected,
+          labelFor: (id: string) => instances.find((i) => i.id === id)?.label ?? "?",
+          mode: alignmentMode,
+          onModeChange: setAlignmentMode,
+          distanceMm: alignmentDistanceMm,
+          onDistanceChange: setAlignmentDistanceMm,
+          onCreate: handleCreateAlignment,
+          onClearSelection: handleClearAlignmentSelection,
+        }}
       />
       </div>
 

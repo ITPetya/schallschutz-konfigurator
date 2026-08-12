@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
@@ -27,7 +27,8 @@ import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
 import { defaultConfig } from "../config/defaultContainerConfig";
-import type { ContainerInstance, ProjectConfig } from "../config/projectTypes";
+import type { AlignmentDependency, ContainerInstance, ProjectConfig } from "../config/projectTypes";
+import { lockedAxesFor, resolveAlignmentDependencies } from "../utils/alignmentDependencies";
 import {
   hasMeaningfulProjectDraft,
   loadProjectDraft,
@@ -91,49 +92,6 @@ function findFreePosition(instances: ContainerInstance[], length: number): { x: 
   return { x: rightmostEdge + CLEARANCE_MM + length / 2, z: 0 };
 }
 
-// Fuer "Passend"/"Fluchtend": weil rotationY immer ein Vielfaches von 90 Grad
-// ist (siehe handleRotate), bleibt der Grundriss nach der Rotation IMMER
-// achsparallel zur Welt - bei 90/270 Grad tauschen Laenge und Breite nur ihre
-// Rolle bezueglich der Welt-Achsen.
-function worldHalfExtents(inst: ContainerInstance): { hw: number; hd: number } {
-  const swapped = Math.abs(inst.rotationY % 180) === 90;
-  return swapped
-    ? { hw: inst.config.size.width / 2, hd: inst.config.size.length / 2 }
-    : { hw: inst.config.size.length / 2, hd: inst.config.size.width / 2 };
-}
-
-type MateSide = "left" | "right" | "top" | "bottom";
-
-function computeMatePosition(
-  ref: ContainerInstance,
-  target: ContainerInstance,
-  sideOfTarget: MateSide,
-  gap: number,
-): { x: number; z: number } {
-  const extRef = worldHalfExtents(ref);
-  const extTarget = worldHalfExtents(target);
-  switch (sideOfTarget) {
-    case "left":
-      return { x: ref.position.x + extRef.hw + gap + extTarget.hw, z: target.position.z };
-    case "right":
-      return { x: ref.position.x - extRef.hw - gap - extTarget.hw, z: target.position.z };
-    case "top":
-      return { x: target.position.x, z: ref.position.z + extRef.hd + gap + extTarget.hd };
-    case "bottom":
-      return { x: target.position.x, z: ref.position.z - extRef.hd - gap - extTarget.hd };
-  }
-}
-
-function computeFlushPosition(
-  ref: ContainerInstance,
-  target: ContainerInstance,
-  axis: "x" | "z",
-  offset: number,
-): { x: number; z: number } {
-  if (axis === "x") return { x: ref.position.x + offset, z: target.position.z };
-  return { x: target.position.x, z: ref.position.z + offset };
-}
-
 interface DragState {
   id: string;
   offsetXMm: number;
@@ -191,13 +149,6 @@ export function WorkspacePage() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragValid, setDragValid] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
-  const [alignRefId, setAlignRefId] = useState<string | null>(null);
-  const [alignTargetId, setAlignTargetId] = useState<string | null>(null);
-  const [alignMode, setAlignMode] = useState<"mate" | "flush">("mate");
-  const [alignSide, setAlignSide] = useState<MateSide>("left");
-  const [alignAxis, setAlignAxis] = useState<"x" | "z">("x");
-  const [alignDistance, setAlignDistance] = useState(500);
-  const [alignError, setAlignError] = useState<string | null>(null);
   const [showResetProjectConfirm, setShowResetProjectConfirm] = useState(false);
   const workspaceDragRef = useRef<DragState | null>(null);
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben von Containern lagt sehr,
@@ -217,6 +168,28 @@ export function WorkspacePage() {
   useEffect(() => {
     projectRef.current = project;
   }, [project]);
+
+  // Jonas' Vorgabe 2026-08-12 ("Live-Abhaengigkeit"): allgemeines
+  // Sicherheitsnetz, das nach JEDER Aenderung an Instanzen/Abhaengigkeiten
+  // erneut aufloest - deckt alle Pfade ab, die NICHT schon selbst synchron
+  // aufloesen (handleInstancePointerMove/-Up oben tun das bereits inline,
+  // um beim Ziehen kein Nachruckeln zu haben): Groesse/Wandstaerke aendern,
+  // Drehen, Container hinzufuegen/entfernen, eine Abhaengigkeit erstellen/
+  // aendern/loeschen. useLayoutEffect (nicht useEffect), damit die Korrektur
+  // VOR dem naechsten Bildschirm-Update greift, nie ein unaufgeloester Frame
+  // sichtbar wird. Der Vergleich VOR dem Schreiben verhindert eine
+  // Endlosschleife: resolveAlignmentDependencies ist idempotent (ein schon
+  // aufgeloester Zustand aendert sich beim naechsten Aufruf nicht mehr), das
+  // setProject unten laeuft dadurch nur, wenn sich wirklich etwas aendert.
+  useLayoutEffect(() => {
+    const deps = project.dependencies ?? [];
+    if (deps.length === 0) return;
+    const resolved = resolveAlignmentDependencies(project.instances, deps);
+    const changed = resolved.some(
+      (r, i) => r.position.x !== project.instances[i]?.position.x || r.position.z !== project.instances[i]?.position.z,
+    );
+    if (changed) setProject((p) => ({ ...p, instances: resolved }));
+  }, [project.instances, project.dependencies]);
 
   // Stabile (leere Dependency-Liste) Referenzen - lesen den Container-Stand
   // ausschliesslich ueber projectRef.current statt aus dem `project`-Closure,
@@ -238,9 +211,18 @@ export function WorkspacePage() {
   const handleInstancePointerMove = useCallback((id: string, ground: { x: number; z: number }) => {
     const drag = workspaceDragRef.current;
     if (!drag || drag.id !== id) return;
-    const candidatePos = { x: ground.x * M_TO_MM - drag.offsetXMm, z: ground.z * M_TO_MM - drag.offsetZMm };
     const inst = projectRef.current.instances.find((i) => i.id === id);
     if (!inst) return;
+    const rawCandidate = { x: ground.x * M_TO_MM - drag.offsetXMm, z: ground.z * M_TO_MM - drag.offsetZMm };
+    // Jonas' Vorgabe 2026-08-12 ("Ziehen gesperrt"): eine Achse, die durch
+    // eine aktive Ausrichtungs-Abhaengigkeit gesteuert wird, folgt NICHT der
+    // Maus - der Solver unten (resolveAlignmentDependencies) bestimmt sie
+    // ohnehin gleich wieder neu, ein Zwischenwert wuerde nur kurz aufblitzen.
+    const locked = lockedAxesFor(id, projectRef.current.dependencies ?? []);
+    const candidatePos = {
+      x: locked.has("x") ? inst.position.x : rawCandidate.x,
+      z: locked.has("z") ? inst.position.z : rawCandidate.z,
+    };
     const candidate: OrientedRect = {
       x: candidatePos.x,
       z: candidatePos.z,
@@ -252,20 +234,26 @@ export function WorkspacePage() {
     const valid = !collidesWithAny(candidate, others);
     setDragValid(valid);
     if (valid) drag.lastValidMm = candidatePos;
-    setProject((p) => ({
-      ...p,
-      instances: p.instances.map((i) => (i.id === id ? { ...i, position: candidatePos } : i)),
-    }));
+    // Solver SYNCHRON im selben setProject-Aufruf statt per separatem Effekt
+    // (siehe der allgemeine useLayoutEffect weiter unten fuer alle ANDEREN
+    // Aenderungspfade) - beim Ziehen aendert sich `project` viele Male pro
+    // Sekunde, ein Effekt wuerde abhaengigen Containern hinterherhinken
+    // (kurzes Nachruckeln); hier zieht ein von DIESEM Container abhaengiger
+    // anderer Container live mit, ohne einen Frame Verzoegerung.
+    setProject((p) => {
+      const updated = p.instances.map((i) => (i.id === id ? { ...i, position: candidatePos } : i));
+      return { ...p, instances: resolveAlignmentDependencies(updated, p.dependencies ?? []) };
+    });
   }, []);
 
   const handleInstancePointerUp = useCallback((id: string) => {
     const drag = workspaceDragRef.current;
     if (!drag || drag.id !== id) return;
     const finalPos = drag.lastValidMm;
-    setProject((p) => ({
-      ...p,
-      instances: p.instances.map((i) => (i.id === id ? { ...i, position: finalPos } : i)),
-    }));
+    setProject((p) => {
+      const updated = p.instances.map((i) => (i.id === id ? { ...i, position: finalPos } : i));
+      return { ...p, instances: resolveAlignmentDependencies(updated, p.dependencies ?? []) };
+    });
     workspaceDragRef.current = null;
     setDraggingId(null);
     setDragValid(true);
@@ -554,7 +542,18 @@ export function WorkspacePage() {
   }
 
   function handleRemoveInstance(id: string) {
-    setProject((p) => ({ ...p, instances: p.instances.filter((i) => i.id !== id) }));
+    // Jonas' Vorgabe 2026-08-12: Abhaengigkeiten, die diesen Container als
+    // target ODER reference nennen, werden beim Loeschen automatisch mit
+    // entfernt (der verbleibende Container bleibt einfach an seiner letzten
+    // Position stehen) - sonst bliebe eine Abhaengigkeit auf eine nicht mehr
+    // existierende Instanz zeigen (resolveAlignmentDependencies wuerde sie
+    // zwar stillschweigend ignorieren, aber der neue "Abhängigkeiten"-Tab
+    // wuerde einen verwaisten Eintrag anzeigen).
+    setProject((p) => ({
+      ...p,
+      instances: p.instances.filter((i) => i.id !== id),
+      dependencies: (p.dependencies ?? []).filter((d) => d.target.instanceId !== id && d.reference.instanceId !== id),
+    }));
     if (selectedId === id) setSelectedId(null);
   }
 
@@ -599,37 +598,33 @@ export function WorkspacePage() {
     }
   }
 
-  function handleApplyAlign() {
-    setAlignError(null);
-    const ref = project.instances.find((i) => i.id === alignRefId);
-    const target = project.instances.find((i) => i.id === alignTargetId);
-    if (!ref || !target || ref.id === target.id) {
-      setAlignError("Bitte zwei unterschiedliche Container auswählen.");
-      return;
-    }
+  // Jonas' Vorgabe 2026-08-12: "Ausrichten" jetzt als Werkzeug im Viewer
+  // (zwei Flaechen anklicken, siehe ProjectScene3D.tsx/
+  // AlignmentResultPanel.tsx) statt der alten Dropdown-Sektion hier - dieser
+  // Handler erhaelt nur noch das FERTIGE Ergebnis und haengt es an
+  // project.dependencies an. Keine Kollisionspruefung mehr wie beim alten
+  // Einmal-Klick (der Solver haelt die Position laufend fest, ein Nutzer
+  // koennte eine Ueberschneidung sonst gar nicht mehr AUFLOESEN, ohne die
+  // Abhaengigkeit erst zu loeschen) - eine Ueberschneidung durch eine neue
+  // Abhaengigkeit bleibt visuell erkennbar (Container.tsx's rote Faerbung
+  // bei Kollision greift unabhaengig davon, siehe dragInvalid-Handling).
+  function handleCreateDependency(dep: Omit<AlignmentDependency, "id">) {
+    const id = crypto.randomUUID();
+    setProject((p) => {
+      const dependencies = [...(p.dependencies ?? []), { ...dep, id }];
+      return { ...p, dependencies, instances: resolveAlignmentDependencies(p.instances, dependencies) };
+    });
+  }
 
-    const newPos =
-      alignMode === "mate"
-        ? computeMatePosition(ref, target, alignSide, alignDistance)
-        : computeFlushPosition(ref, target, alignAxis, alignDistance);
+  function handleUpdateDependencyDistance(id: string, distanceMm: number) {
+    setProject((p) => {
+      const dependencies = (p.dependencies ?? []).map((d) => (d.id === id ? { ...d, distanceMm } : d));
+      return { ...p, dependencies, instances: resolveAlignmentDependencies(p.instances, dependencies) };
+    });
+  }
 
-    const candidate: OrientedRect = {
-      x: newPos.x,
-      z: newPos.z,
-      halfWidth: target.config.size.length / 2,
-      halfDepth: target.config.size.width / 2,
-      rotationDeg: target.rotationY,
-    };
-    const others = project.instances.filter((i) => i.id !== target.id && i.id !== ref.id);
-    if (collidesWithAny(candidate, others)) {
-      setAlignError("Diese Ausrichtung würde zu einer Überschneidung mit einem anderen Container führen.");
-      return;
-    }
-
-    setProject((p) => ({
-      ...p,
-      instances: p.instances.map((i) => (i.id === target.id ? { ...i, position: newPos } : i)),
-    }));
+  function handleRemoveDependency(id: string) {
+    setProject((p) => ({ ...p, dependencies: (p.dependencies ?? []).filter((d) => d.id !== id) }));
   }
 
   async function handleDownloadProject() {
@@ -969,110 +964,51 @@ export function WorkspacePage() {
                   </div>
                 </AccordionSection>
 
-                {project.instances.length >= 2 && (
-                  <AccordionSection key="Ausrichten" title="Ausrichten" tourId="tour-ausrichten">
-                    <label className="block text-xs text-slate-500 dark:text-slate-400">
-                      Container
-                      <select
-                        value={alignTargetId ?? ""}
-                        onChange={(e) => setAlignTargetId(e.target.value || null)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      >
-                        <option value="">– auswählen –</option>
-                        {project.instances.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
-                      relativ zu
-                      <select
-                        value={alignRefId ?? ""}
-                        onChange={(e) => setAlignRefId(e.target.value || null)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      >
-                        <option value="">– auswählen –</option>
-                        {project.instances
-                          .filter((i) => i.id !== alignTargetId)
-                          .map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.label}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-
-                    <div className="mt-2 flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setAlignMode("mate")}
-                        className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
-                          alignMode === "mate" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                        }`}
-                      >
-                        Passend
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAlignMode("flush")}
-                        className={`flex-1 rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${
-                          alignMode === "flush" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                        }`}
-                      >
-                        Fluchtend
-                      </button>
+                {/* Jonas' Vorgabe 2026-08-12: "Ausrichten" ist jetzt ein Werkzeug im
+                    Viewer selbst (zwei Flaechen anklicken, siehe
+                    ProjectScene3D.tsx/AlignmentResultPanel.tsx) - dieser Tab
+                    erscheint erst, SOBALD die erste Abhaengigkeit erschaffen
+                    wurde (vorher gibt es nichts anzuzeigen), und erlaubt hier
+                    in der Seitenleiste bewusst NUR noch die Anpassung des
+                    Masses (Abstand) - welche Flaechen/welcher Modus gilt,
+                    liegt fest, das aendert man durch Loeschen + neu Erstellen
+                    im Viewer, nicht hier. */}
+                {(project.dependencies ?? []).length > 0 && (
+                  <AccordionSection key="Abhaengigkeiten" title="Abhängigkeiten" defaultOpen>
+                    <div className="space-y-2">
+                      {(project.dependencies ?? []).map((dep) => {
+                        const targetLabel = project.instances.find((i) => i.id === dep.target.instanceId)?.label ?? "?";
+                        const referenceLabel = project.instances.find((i) => i.id === dep.reference.instanceId)?.label ?? "?";
+                        return (
+                          <div key={dep.id} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs text-slate-600 dark:text-slate-300">
+                                <span className="font-semibold">{targetLabel}</span>{" "}
+                                {dep.mode === "mate" ? "passend zu" : "fluchtend mit"} <span className="font-semibold">{referenceLabel}</span>
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDependency(dep.id)}
+                                className="shrink-0 text-slate-400 hover:text-red-600"
+                                aria-label="Abhängigkeit entfernen"
+                              >
+                                <TrashIcon size={14} />
+                              </button>
+                            </div>
+                            <label className="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">
+                              Abstand (mm)
+                              <input
+                                type="number"
+                                step={10}
+                                value={dep.distanceMm}
+                                onChange={(e) => handleUpdateDependencyDistance(dep.id, Number(e.target.value) || 0)}
+                                className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                              />
+                            </label>
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    {alignMode === "mate" ? (
-                      <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
-                        Position
-                        <select
-                          value={alignSide}
-                          onChange={(e) => setAlignSide(e.target.value as MateSide)}
-                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                        >
-                          <option value="left">rechts daneben</option>
-                          <option value="right">links daneben</option>
-                          <option value="top">darunter</option>
-                          <option value="bottom">darüber</option>
-                        </select>
-                      </label>
-                    ) : (
-                      <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
-                        Achse
-                        <select
-                          value={alignAxis}
-                          onChange={(e) => setAlignAxis(e.target.value as "x" | "z")}
-                          className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                        >
-                          <option value="x">horizontal (X)</option>
-                          <option value="z">vertikal (Z)</option>
-                        </select>
-                      </label>
-                    )}
-
-                    <label className="mt-2 block text-xs text-slate-500 dark:text-slate-400">
-                      Abstand (mm)
-                      <input
-                        type="number"
-                        step={10}
-                        value={alignDistance}
-                        onChange={(e) => setAlignDistance(Number(e.target.value) || 0)}
-                        className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={handleApplyAlign}
-                      className="mt-2 w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-                    >
-                      Anwenden
-                    </button>
-                    {alignError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{alignError}</p>}
                   </AccordionSection>
                 )}
 
@@ -1242,6 +1178,7 @@ export function WorkspacePage() {
                   const inst = project.instances.find((i) => i.id === id);
                   if (inst) handleEditInstance(inst);
                 }}
+                onCreateDependency={handleCreateDependency}
               />
             </>
           )}
