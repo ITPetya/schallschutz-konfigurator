@@ -62,11 +62,37 @@ interface SpaceMouseCameraRigProps {
  * bildwiederholratenunabhaengig glatt, auch wenn HID-Reports haeufiger/
  * unregelmaessiger als Frames eintreffen.
  *
- * Typische Zuordnung (Aufgabenvorgabe): Translation x/y -> Schwenk (Pan),
- * Translation z (druecken/ziehen) -> Zoom (Dolly), Rotation -> Orbit. Die
- * Roll-Achse (rz) hat in OrbitControls' Kugelkoordinaten-Modell keine
- * Entsprechung (keine Kamera-Rollachse um die Blickrichtung) und bleibt
- * deshalb ungenutzt.
+ * Achszuordnung (Jonas' Fehlerbericht 2026-08-12 richtiggestellt - vorher
+ * vertauscht, siehe unten): Translation x (links/rechts kippen) -> Schwenk
+ * horizontal, Translation z (Kappe hoch/runter druecken) -> Schwenk
+ * vertikal, Translation y (Kappe vor/zurueck kippen) -> Zoom (Dolly),
+ * Rotation -> Orbit. Die Roll-Achse (rz) hat in OrbitControls'
+ * Kugelkoordinaten-Modell keine Entsprechung (keine Kamera-Rollachse um die
+ * Blickrichtung) und bleibt deshalb ungenutzt.
+ *
+ * Jonas' Fehlerbericht 2026-08-12: y (vor/zurueck) und z (hoch/runter) waren
+ * vertauscht - Vor/Zurueck-Druck bewegte das Objekt hoch/runter (Pan) statt
+ * zu zoomen, Hoch/Runter-Bewegen zoomte statt zu schwenken. Ursache: die
+ * urspruengliche Byte-Reihenfolge-Doku ging von x/y/z als generischer
+ * links-rechts/hoch-runter/vor-zurueck-Reihenfolge aus, das SpaceMouse-Geraet
+ * meldet Ty aber tatsaechlich als Vor/Zurueck- und Tz als Hoch/Runter-Druck
+ * (3Dconnexion-eigene Achsreihenfolge) - unten entsprechend korrigiert, ohne
+ * den HID-Parser (spaceMouseInput.ts) selbst anzufassen, da dessen
+ * Byte-Offsets/Vorzeichen weiterhin korrekt sind, nur die SEMANTISCHE
+ * Zuordnung y=Zoom/z=Pan-vertikal hier falsch war.
+ *
+ * Ein zusaetzlich beobachtetes, ruckartiges Ein-/Auszoomen beim Kippen der
+ * Kappe vor/zurueck (Jonas' Fehlerbericht 2026-08-12: "als ob man es übers
+ * Scrollrad macht") kommt NICHT aus diesem Code - rx/ry wirken hier
+ * ausschliesslich auf Orbit, nie auf die Distanz. Sehr wahrscheinliche
+ * Ursache: 3Dconnexions eigener 3DxWare-Treiber laeuft im Hintergrund und
+ * emuliert fuer nicht in seiner eigenen Anwendungsliste gefuehrte Programme
+ * (ein Browser-Tab ist dort nie gelistet) zusaetzlich klassische
+ * Mausrad-Scroll-Events beim Kippen - das laeuft komplett parallel/unabhaengig
+ * von dieser WebHID-Anbindung und kann von hier aus nicht unterdrueckt
+ * werden. Falls das Problem bestehen bleibt: 3DxWare-Treiber/Tray-Icon beim
+ * Nutzen dieser Web-Steuerung beenden bzw. dessen Mausrad-Emulation fuer
+ * "generische"/nicht erkannte Anwendungen deaktivieren.
  *
  * Mutiert camera.position/controls.target DIREKT statt drei's interne
  * sphericalDelta/scale-Anhaeufung zu nutzen (die sind privat) - drei's
@@ -136,13 +162,13 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
       camera.position.copy(target).add(scratch.offset);
     }
 
-    // Dolly (Zoom): z (druecken/ziehen) veraendert den Abstand zum target,
-    // geklemmt auf OrbitControls' eigene min/maxDistance.
-    if (z !== 0) {
+    // Dolly (Zoom): y (Kappe vor/zurueck druecken) veraendert den Abstand
+    // zum target, geklemmt auf OrbitControls' eigene min/maxDistance.
+    if (y !== 0) {
       scratch.offset.copy(camera.position).sub(target);
       const distance = scratch.offset.length();
       const nextDistance = THREE.MathUtils.clamp(
-        distance * (1 - z * DOLLY_SPEED_PER_S * sensitivity * delta),
+        distance * (1 - y * DOLLY_SPEED_PER_S * sensitivity * delta),
         controls.minDistance,
         controls.maxDistance,
       );
@@ -150,10 +176,11 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
       camera.position.copy(target).add(scratch.offset);
     }
 
-    // Pan: x/y verschieben Kamera UND target gemeinsam entlang der
-    // kamera-lokalen Rechts-/Auf-Achse (steht senkrecht zur aktuellen
-    // Blickrichtung, dreht sich also mit der Kamera mit).
-    if (x !== 0 || y !== 0) {
+    // Pan: x (links/rechts) und z (hoch/runter) verschieben Kamera UND
+    // target gemeinsam entlang der kamera-lokalen Rechts-/Auf-Achse (steht
+    // senkrecht zur aktuellen Blickrichtung, dreht sich also mit der Kamera
+    // mit).
+    if (x !== 0 || z !== 0) {
       // Jonas' Fehlerbericht 2026-08-12 ("ruckelt an Stellen"): wurde rx/ry
       // oben in DIESEM Frame veraendert, spiegelt camera.matrix noch die
       // Blickrichtung VOR dieser Aenderung wider - drei aktualisiert
@@ -174,7 +201,7 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
       scratch.pan
         .set(0, 0, 0)
         .addScaledVector(scratch.right, -x * PAN_SPEED_M_PER_S * sensitivity * delta)
-        .addScaledVector(scratch.up, y * PAN_SPEED_M_PER_S * sensitivity * delta);
+        .addScaledVector(scratch.up, z * PAN_SPEED_M_PER_S * sensitivity * delta);
       camera.position.add(scratch.pan);
       target.add(scratch.pan);
     }
