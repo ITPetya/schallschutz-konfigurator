@@ -333,7 +333,12 @@ export function ProjectScene3D({
   // Siehe Scene.tsx: Mausrad-Taste doppelt klicken = wie der Home-Button,
   // "M" druecken = wie der Messen-Button (Jonas' Vorgabe 2026-08-12, siehe
   // useViewerShortcuts.ts).
-  useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure });
+  useViewerShortcuts({
+    containerRef: viewerContainerRef,
+    controlsRef,
+    onToggleMeasure: handleToggleMeasure,
+    onToggleAlignment: onCreateDependency ? handleToggleAlignment : undefined,
+  });
 
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
   // lagt sehr"): EINE stabile (useCallback) Funktion statt vormals einer neu

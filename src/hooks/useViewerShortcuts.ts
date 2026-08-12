@@ -14,36 +14,45 @@ interface UseViewerShortcutsOptions {
   containerRef: React.RefObject<HTMLElement | null>;
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   onToggleMeasure: () => void;
+  // Jonas' Vorgabe 2026-08-12: "A" = wie der Ausrichten-Button. Optional -
+  // Scene.tsx (Einzelcontainer-Viewer) hat kein Ausrichten-Werkzeug (macht
+  // erst ab zwei Containern Sinn), ProjectScene3D.tsx reicht es nur durch,
+  // wenn ueberhaupt onCreateDependency vorhanden ist (schreibgeschuetzter
+  // Viewer sonst).
+  onToggleAlignment?: () => void;
 }
 
-// Jonas' Vorgabe 2026-08-12: zwei zusaetzliche, rein additive Bedienwege -
+// Jonas' Vorgabe 2026-08-12: mehrere zusaetzliche, rein additive Bedienwege -
 // Mausrad-Taste doppelt klicken = wie der Home-Button ("Ansicht
-// zuruecksetzen"), "M" druecken = wie der Messen-Button (Messwerkzeug
-// umschalten, "als wuerde man das Menü oeffnen"). Ersetzen nichts
-// Bestehendes (Mausrad-Klick+Ziehen bleibt weiterhin Pan ueber
+// zuruecksetzen"), "M" druecken = wie der Messen-Button, "A" = wie der
+// Ausrichten-Button (jeweils "als wuerde man das Menü oeffnen"). Ersetzen
+// nichts Bestehendes (Mausrad-Klick+Ziehen bleibt weiterhin Pan ueber
 // OrbitControls' mouseButtons-Konfiguration), sind nur zusaetzliche
 // Abkuerzungen. Gemeinsam in Scene.tsx UND ProjectScene3D.tsx verwendet
 // (beide haben ihre eigene controlsRef/handleToggleMeasure), deshalb hier
 // ausgelagert statt doppelt zu implementieren.
-export function useViewerShortcuts({ containerRef, controlsRef, onToggleMeasure }: UseViewerShortcutsOptions) {
-  // "M" -> Messen umschalten. Gleiche Editierbar-Feld-Ausnahme wie
-  // WorkspacePage.tsx's Strg+Z/Strg+Y-Handler (Jonas' Vorgabe 2026-07-xx),
-  // damit z. B. das Tippen von "Musterbezeichnung" nicht versehentlich das
-  // Messwerkzeug umschaltet.
+export function useViewerShortcuts({ containerRef, controlsRef, onToggleMeasure, onToggleAlignment }: UseViewerShortcutsOptions) {
+  // "M"/"A" -> Messen/Ausrichten umschalten. Gleiche Editierbar-Feld-
+  // Ausnahme wie WorkspacePage.tsx's Strg+Z/Strg+Y-Handler (Jonas' Vorgabe
+  // 2026-07-xx), damit z. B. das Tippen von "Musterbezeichnung" nicht
+  // versehentlich ein Werkzeug umschaltet.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() !== "m" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== "m" && key !== "a") return;
       const target = e.target as HTMLElement | null;
       const isEditable = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       if (isEditable) return;
-      onToggleMeasure();
+      if (key === "m") onToggleMeasure();
+      else onToggleAlignment?.();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // Absichtlich [] statt [onToggleMeasure]: onToggleMeasure ist in
-    // Scene.tsx/ProjectScene3D.tsx eine bei jedem Rendern neu erzeugte
-    // Funktion, die aber nur ueber setState-Updater-Formen ("(v) => !v")
-    // wirkt - unabhaengig davon, welche Render-Version des Closures hier
+    // Absichtlich [] statt [onToggleMeasure, onToggleAlignment]: beides sind
+    // in Scene.tsx/ProjectScene3D.tsx bei jedem Rendern neu erzeugte
+    // Funktionen, die aber nur ueber setState-Updater-Formen ("(v) => !v")
+    // wirken - unabhaengig davon, welche Render-Version des Closures hier
     // haengen bleibt, ist das Verhalten identisch, ein Neu-Registrieren bei
     // jedem Rendern waere unnoetig.
     // eslint-disable-next-line react-hooks/exhaustive-deps

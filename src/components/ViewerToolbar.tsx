@@ -273,13 +273,13 @@ export function ViewerToolbar({
         )}
 
         {onToggleMeasure && (
-          <ToolButton dataTour="tool-measure" onClick={onToggleMeasure} label="Messen" active={measureActive}>
+          <ToolButton dataTour="tool-measure" onClick={onToggleMeasure} label="Messen (M)" active={measureActive}>
             <RulerIcon size={16} />
           </ToolButton>
         )}
 
         {onToggleAlignment && (
-          <ToolButton dataTour="tour-ausrichten" onClick={onToggleAlignment} label="Ausrichten" active={alignmentActive}>
+          <ToolButton dataTour="tour-ausrichten" onClick={onToggleAlignment} label="Ausrichten (A)" active={alignmentActive}>
             <AlignIcon size={16} />
           </ToolButton>
         )}
