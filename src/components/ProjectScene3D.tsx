@@ -129,6 +129,9 @@ export function ProjectScene3D({
 
   // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  // Siehe Scene.tsx: fuer useToolbarVerticalOffset.ts (Jonas' Vorgabe
+  // 2026-08-12, Werkzeug-Spalte weicht dem Home-Button aus).
+  const viewerContainerRef = useRef<HTMLDivElement>(null);
 
   // Siehe Scene.tsx: 3Dconnexion SpaceMouse als zusaetzliche Kamerasteuerung
   // (Jonas' Vorgabe 2026-08-11) - hier ebenfalls fuer die Baugruppen-Ansicht,
@@ -307,7 +310,7 @@ export function ProjectScene3D({
     // sichtbaren Viewer-Rahmen ausrichten statt an der vollen Elementhoehe
     // inklusive der von der Fussleiste verdeckten Flaeche.
     <div className="flex h-full w-full flex-col">
-      <div className="relative min-h-0 flex-1">
+      <div ref={viewerContainerRef} className="relative min-h-0 flex-1">
       <Canvas
         shadows={shadowsEnabled}
         gl={{ localClippingEnabled: true }}
@@ -428,6 +431,7 @@ export function ProjectScene3D({
       <ViewerLoadingOverlay contentNotReady={contentNotReady} />
 
       <ViewerToolbar
+        containerRef={viewerContainerRef}
         onReset={() => {
           controlsRef.current?.reset();
         }}

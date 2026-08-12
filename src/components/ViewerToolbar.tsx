@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatedButton } from "./AnimatedButton";
 import { HomeIcon } from "./icons/HomeIcon";
 import { UndoIcon } from "./icons/UndoIcon";
@@ -10,6 +10,7 @@ import { SpaceMouseIcon } from "./icons/SpaceMouseIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
 import { SpaceMouseSettingsPanel } from "./SpaceMouseSettingsPanel";
 import { SectionResultPanel, ViewResultPanel, type SectionPlaneState } from "./SectionAndViewPanel";
+import { useToolbarVerticalOffset } from "../hooks/useToolbarVerticalOffset";
 import type { MeasurePoint } from "../utils/measurePoints";
 import type { UnitPreferences } from "../config/unitPreferencesStore";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
@@ -17,6 +18,13 @@ import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/Displ
 const DEFAULT_UNIT_PREFS: UnitPreferences = { primary: "mm", secondary: null };
 
 interface ViewerToolbarProps {
+  // Jonas' Vorgabe 2026-08-12: die Werkzeug-Spalte soll bei drohender
+  // Kollision mit dem Home-Button nach oben ausweichen (siehe
+  // useToolbarVerticalOffset.ts) - dafuer muss sie die tatsaechliche Hoehe
+  // ihres "position: relative"-Elternelements kennen. Scene.tsx/
+  // ProjectScene3D.tsx reichen den Ref auf ihre umschliessende
+  // "relative min-h-0 flex-1"-Huelle (auch um Canvas herum) durch.
+  containerRef: React.RefObject<HTMLElement | null>;
   onReset: () => void;
   // Optional (Jonas' Vorgabe 2026-07-25: "vor und zurück buttons ... für
   // strg+z usw.") - fehlen im schreibgeschuetzten Viewer (KonfiguratorPage.tsx),
@@ -73,6 +81,7 @@ interface ViewerToolbarProps {
 // sein"), gleicher Button-Stil (halbtransparenter weisser Kreis) an beiden
 // Stellen.
 export function ViewerToolbar({
+  containerRef,
   onReset,
   onUndo,
   onRedo,
@@ -115,6 +124,18 @@ export function ViewerToolbar({
   useEffect(() => {
     if (!spaceMouseConnected) setSpaceMouseOpen(false);
   }, [spaceMouseConnected]);
+
+  // Jonas' Vorgabe 2026-08-12: die Werkzeug-Spalte weicht bei drohender
+  // Kollision mit dem Home-Button nach oben aus, statt (wie zuvor
+  // ausschliesslich per CSS) immer stur vertikal zentriert zu bleiben -
+  // siehe useToolbarVerticalOffset.ts fuer die genaue Regel. columnRef sitzt
+  // NUR an der Button-Spalte (deren Buttonanzahl entscheidet ueber die
+  // Kollision), der berechnete Versatz wird aber auf BEIDE Saeulen
+  // angewendet, damit Panels weiterhin optisch auf Hoehe ihres Buttons
+  // bleiben (siehe Kommentar bei der Panel-Saeule weiter unten).
+  const columnRef = useRef<HTMLDivElement>(null);
+  const verticalTop = useToolbarVerticalOffset({ containerRef, columnRef, hasUndoRedo: !!(onUndo && onRedo) });
+  const verticalStyle: React.CSSProperties | undefined = verticalTop !== undefined ? { top: verticalTop, transform: "none" } : undefined;
 
   return (
     <>
@@ -166,7 +187,13 @@ export function ViewerToolbar({
           viele/welche Panels gerade offen sind (Jonas' frueherer
           Fehlerbericht: "die Buttons sollen sich nicht wegbewegen, wenn ein
           Fenster oeffnet"). */}
-      <div className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto">
+      {/* Uebernimmt denselben Vertikal-Versatz wie die Button-Saeule (siehe
+          verticalStyle oben) - sonst wuerde bei ausweichender Button-Saeule
+          ein Panel optisch nicht mehr auf Hoehe seines Buttons erscheinen. */}
+      <div
+        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto"
+        style={verticalStyle}
+      >
         <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
         {canShowView && (
           <ViewResultPanel
@@ -200,7 +227,7 @@ export function ViewerToolbar({
         )}
       </div>
 
-      <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
+      <div ref={columnRef} className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2" style={verticalStyle}>
         <ToolButton dataTour="section-view" onClick={() => section.setSectionEnabled((v) => !v)} label="Schnitt" active={section.sectionEnabled}>
           <SectionIcon size={16} />
         </ToolButton>

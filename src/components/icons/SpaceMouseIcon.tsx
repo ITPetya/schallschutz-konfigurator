@@ -6,20 +6,23 @@ interface SpaceMouseIconProps {
   className?: string;
 }
 
-// Mittlere Kappe wird beim Hover leicht groesser - deutet die 6
-// Freiheitsgrade (druecken/ziehen/kippen) der echten SpaceMouse-Kappe an,
-// gleiche Hover-Konvention wie die anderen Werkzeug-Icons hier.
+// Jonas' Fehlerbericht 2026-08-12: das vorherige Icon (Kreis + acht Strahlen
+// ringsum) sah "wie eine Sonne" aus statt wie eine SpaceMouse - jetzt eine
+// stilisierte SpaceMouse Compact von der Seite: flacher, trapezfoermiger
+// Sockel (housing) mit den zwei Fronttasten unten, darauf die Kappe (Cap)
+// als Kuppel. Beim Hover kippt die Kappe hin und her (originX/originY statt
+// CSS transformOrigin, weil motion/react bei SVG-Elementen den Pivot darueber
+// relativ zur eigenen BBox erwartet) - deutet die tatsaechliche Kipp-
+// Bewegung der echten Kappe an, gleiche Hover-Konvention wie die anderen
+// Werkzeug-Icons hier (SectionIcon.tsx/RulerIcon.tsx).
 const cap: Variants = {
-  initial: { scale: 1 },
-  animate: { scale: 1.2, transition: { duration: 0.3, ease: "easeInOut" } },
+  initial: { rotate: 0 },
+  animate: { rotate: [0, -9, 9, 0], transition: { duration: 0.6, ease: "easeInOut" } },
 };
 
-// Stilisierte SpaceMouse-Kappe (Kreis in der Mitte) mit acht Schubrichtungen
-// ringsum, fuer den "SpaceMouse verbinden"-Umschalt-Button in
-// ViewerToolbar.tsx (Jonas' Vorgabe 2026-08-11: 3Dconnexion-Eingabegeraet
-// als zusaetzliche Kamerasteuerung).
 export function SpaceMouseIcon({ size = 15, className }: SpaceMouseIconProps) {
   const hovered = useIconHover();
+  const target = hovered ? "animate" : "initial";
   return (
     <motion.svg
       width={size}
@@ -32,15 +35,19 @@ export function SpaceMouseIcon({ size = 15, className }: SpaceMouseIconProps) {
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M12 2v3" />
-      <path d="M12 19v3" />
-      <path d="M2 12h3" />
-      <path d="M19 12h3" />
-      <path d="m4.9 4.9 2.1 2.1" />
-      <path d="m17 17 2.1 2.1" />
-      <path d="m19.1 4.9-2.1 2.1" />
-      <path d="m7 17-2.1 2.1" />
-      <motion.circle cx="12" cy="12" r="4" variants={cap} initial="initial" animate={hovered ? "animate" : "initial"} />
+      {/* Sockel (housing), von der Seite - trapezfoermig, unten breiter. */}
+      <path d="M4 20h16l-2-5H6Z" />
+      {/* Kappe (Cap) - kippt beim Hover um ihren Kontaktpunkt mit dem Sockel. */}
+      <motion.path
+        d="M6 15c0-4 2.5-6 6-6s6 2 6 6Z"
+        variants={cap}
+        initial="initial"
+        animate={target}
+        style={{ originX: 0.5, originY: 1 }}
+      />
+      {/* Zwei Fronttasten am Sockel. */}
+      <path d="M9.5 20v-2" strokeWidth={1.5} />
+      <path d="M14.5 20v-2" strokeWidth={1.5} />
     </motion.svg>
   );
 }

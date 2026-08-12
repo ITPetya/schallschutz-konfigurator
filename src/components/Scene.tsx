@@ -118,6 +118,11 @@ export function Scene({
   // hier automatisch, weil Kamera/target unten unveraendert aus den Props
   // kommen und sich nur bei einer echten Groessenaenderung neu aufbauen.
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  // Jonas' Vorgabe 2026-08-12: die Werkzeug-Spalte (ViewerToolbar.tsx) muss
+  // die tatsaechliche Hoehe dieses umschliessenden "relative"-Elements
+  // kennen, um bei drohender Kollision mit dem Home-Button nach oben
+  // auszuweichen (siehe hooks/useToolbarVerticalOffset.ts).
+  const viewerContainerRef = useRef<HTMLDivElement>(null);
 
   // Schnitt-Logik (Zustand + Ebenenberechnung) ausgelagert, damit
   // ProjectScene3D.tsx dieselbe Logik fuer den ausgewaehlten Baugruppen-
@@ -184,7 +189,7 @@ export function Scene({
     // automatisch nach dem echten sichtbaren Viewer-Rahmen aus, nicht mehr
     // nach dem vollen Elternelement.
     <div className="flex h-full w-full flex-col">
-      <div className="relative min-h-0 flex-1">
+      <div ref={viewerContainerRef} className="relative min-h-0 flex-1">
       <Canvas
         shadows={shadowsEnabled}
         gl={{ localClippingEnabled: true }}
@@ -317,6 +322,7 @@ export function Scene({
       <ViewerLoadingOverlay contentNotReady={!containerReady} />
 
       <ViewerToolbar
+        containerRef={viewerContainerRef}
         onReset={() => {
           controlsRef.current?.reset();
         }}
