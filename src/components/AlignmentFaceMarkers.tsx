@@ -9,55 +9,66 @@ interface AlignmentFaceMarkersProps {
   onPick: (f: AlignmentFacePoint) => void;
 }
 
-// Sichtbarer Radius (Meter) der klickbaren Flaechen-Markierungen - gleiche
-// Groessenordnung wie MeasureMarkers.tsx's MARKER_RADIUS_M, hier als flache
-// Scheibe statt Kugel (deutet eher eine FLAECHE an als einen Punkt).
-const MARKER_RADIUS_M = 0.1;
+// Jonas' Fehlerbericht 2026-08-12: "die ganze Flaeche soll klickbar sein,
+// nur soll der Punkt... ein ganzes Stueck kleiner rundherum sein, damit man
+// sieht, dass es ein auswaehlbares Feld ist" - zwei getrennte Ebenen pro
+// Flaeche statt einer einzigen: eine UNSICHTBARE Ebene in tatsaechlicher
+// Flaechengroesse uebernimmt Klick/Hover (ueberall auf der Wand treffbar),
+// eine kleinere, deutlich eingerueckte SICHTBARE Ebene daruebergelegt zeigt
+// nur die Markierung an - dadurch bleibt erkennbar, dass es sich um ein
+// Auswahlfeld AUF der Wand handelt, statt dass die Markierung mit der Wand
+// selbst optisch verschmilzt.
+const VISIBLE_INSET_RATIO = 0.7;
+// Kleiner Versatz nach aussen entlang der Flaechen-Normalen, damit die
+// Ebenen nicht exakt in der Wandoberflaeche liegen (Z-Fighting) - gleiche
+// Groessenordnung, die sich in diesem Renderer bei aehnlichen Faellen schon
+// bewaehrt hat (siehe CornerCasting.tsx).
+const OUTWARD_OFFSET_M = 0.01;
 
-// Jonas' Vorgabe 2026-08-12: "zwei Flaechen auswaehlen, aehnlich wie beim
-// Messen, nur die, die man sieht" - klickbare Markierungen an den vier
-// Seitenflaechen jedes Containers (siehe alignmentDependencies.ts's
-// computeAlignmentFaces), eigene Farbe (violett statt Messen-Orange) fuer
-// klare Unterscheidung, falls beide Werkzeuge zufaellig denselben Bereich
-// markieren. Keine Sichtbarkeits-/Verdeckungs-Sonderregeln wie bei
-// Messpunkten (MeasureMarkers.tsx) - eine Aussenflaeche ist immer von
-// irgendeiner Kameraposition aus erreichbar, es gibt hier kein Innen-/
-// Aussen-Konzept.
 export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceMarkersProps) {
   return (
     <group>
       {faces.map((f) => {
         const key = `${f.instanceId}:${f.axis}:${f.sign}`;
         const isSelected = selected.some((s) => s.instanceId === f.instanceId && s.axis === f.axis && s.sign === f.sign);
-        // Scheibe senkrecht zur Flaechen-Normalen ausrichten: eine
-        // CircleGeometry liegt standardmaessig in der XY-Ebene (Normale =
-        // Welt-Z) - fuer eine X-Flaeche um 90° um Y drehen, fuer eine
-        // Z-Flaeche liegt sie schon richtig (ggf. mit sign an der Aussenseite
-        // spiegeln, optisch bei einer flachen Scheibe aber irrelevant).
+        // Ebene senkrecht zur Flaechen-Normalen ausrichten: eine PlaneGeometry
+        // liegt standardmaessig in der XY-Ebene (Normale = Welt-Z) - fuer eine
+        // X-Flaeche um 90° um Y drehen, fuer eine Z-Flaeche liegt sie schon
+        // richtig.
         const rotationY = f.axis === "x" ? Math.PI / 2 : 0;
+        const offset: [number, number, number] = f.axis === "x" ? [f.sign * OUTWARD_OFFSET_M, 0, 0] : [0, 0, f.sign * OUTWARD_OFFSET_M];
+        const position: [number, number, number] = [f.position[0] + offset[0], f.position[1] + offset[1], f.position[2] + offset[2]];
         return (
-          <mesh
-            key={key}
-            position={f.position}
-            rotation={[0, rotationY, 0]}
-            onClick={(e: ThreeEvent<MouseEvent>) => {
-              e.stopPropagation();
-              onPick(f);
-            }}
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              setPointerCursor();
-            }}
-            onPointerOut={resetPointerCursor}
-          >
-            <circleGeometry args={[MARKER_RADIUS_M, 20]} />
-            <meshBasicMaterial
-              color={isSelected ? "#0284c7" : "#7c3aed"}
-              transparent
-              opacity={isSelected ? 1 : 0.75}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
+          <group key={key} position={position} rotation={[0, rotationY, 0]}>
+            {/* Klick-/Hover-Bereich - deckt die GESAMTE Flaeche ab, unsichtbar. */}
+            <mesh
+              onClick={(e: ThreeEvent<MouseEvent>) => {
+                e.stopPropagation();
+                onPick(f);
+              }}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                setPointerCursor();
+              }}
+              onPointerOut={resetPointerCursor}
+            >
+              <planeGeometry args={[f.width, f.height]} />
+              <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+            </mesh>
+            {/* Sichtbare Markierung - deutlich kleiner als die Flaeche, rein
+                dekorativ (kein eigener Klick-Handler noetig, liegt innerhalb
+                des Klick-Bereichs oben). */}
+            <mesh>
+              <planeGeometry args={[f.width * VISIBLE_INSET_RATIO, f.height * VISIBLE_INSET_RATIO]} />
+              <meshBasicMaterial
+                color={isSelected ? "#0284c7" : "#7c3aed"}
+                transparent
+                opacity={isSelected ? 0.85 : 0.5}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
+          </group>
         );
       })}
     </group>

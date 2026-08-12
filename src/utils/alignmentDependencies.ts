@@ -33,6 +33,12 @@ export interface AlignmentFacePoint {
   // Welt-Meter, fuer die klickbare 3D-Markierung (AlignmentFaceMarkers.tsx) -
   // Mittelpunkt der Flaeche in halber Container-Hoehe.
   position: [number, number, number];
+  // Tatsaechliche Breite/Hoehe der Flaeche in Welt-Metern (Jonas' Vorgabe
+  // 2026-08-12: "die ganze Flaeche soll klickbar sein") - AlignmentFaceMarkers.tsx
+  // nutzt das fuer einen Klick-Bereich in Flaechengroesse statt eines kleinen
+  // Punktes in der Mitte.
+  width: number;
+  height: number;
 }
 
 // Klickbare Punkte fuer die vier Seitenflaechen JEDES Containers (Jonas'
@@ -47,10 +53,13 @@ export function computeAlignmentFaces(instances: ContainerInstance[]): Alignment
     const xM = inst.position.x * MM_TO_M;
     const zM = inst.position.z * MM_TO_M;
     const yM = (inst.config.size.height / 2) * MM_TO_M;
-    faces.push({ instanceId: inst.id, axis: "x", sign: 1, position: [xM + hw * MM_TO_M, yM, zM] });
-    faces.push({ instanceId: inst.id, axis: "x", sign: -1, position: [xM - hw * MM_TO_M, yM, zM] });
-    faces.push({ instanceId: inst.id, axis: "z", sign: 1, position: [xM, yM, zM + hd * MM_TO_M] });
-    faces.push({ instanceId: inst.id, axis: "z", sign: -1, position: [xM, yM, zM - hd * MM_TO_M] });
+    const heightM = inst.config.size.height * MM_TO_M;
+    const xFaceWidthM = hd * 2 * MM_TO_M; // Seitenflaeche (X-Normale) erstreckt sich ueber die Tiefe.
+    const zFaceWidthM = hw * 2 * MM_TO_M; // Stirnflaeche (Z-Normale) erstreckt sich ueber die Laenge.
+    faces.push({ instanceId: inst.id, axis: "x", sign: 1, position: [xM + hw * MM_TO_M, yM, zM], width: xFaceWidthM, height: heightM });
+    faces.push({ instanceId: inst.id, axis: "x", sign: -1, position: [xM - hw * MM_TO_M, yM, zM], width: xFaceWidthM, height: heightM });
+    faces.push({ instanceId: inst.id, axis: "z", sign: 1, position: [xM, yM, zM + hd * MM_TO_M], width: zFaceWidthM, height: heightM });
+    faces.push({ instanceId: inst.id, axis: "z", sign: -1, position: [xM, yM, zM - hd * MM_TO_M], width: zFaceWidthM, height: heightM });
   }
   return faces;
 }
