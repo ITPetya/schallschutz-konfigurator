@@ -28,10 +28,16 @@ const DEADZONE_RAW = 15;
 const SMOOTHING_TAU_S = 0.06;
 
 // Geschwindigkeiten bei voller Auslenkung (nach Deadzone/Normierung auf
-// +-1) - grobe Startwerte, mit Jonas nach echtem Test abzustimmen:
-const PAN_SPEED_M_PER_S = 1.5; // Meter/Sekunde
-const DOLLY_SPEED_PER_S = 1.2; // relative Annaeherung/Entfernung pro Sekunde
-const ORBIT_SPEED_RAD_PER_S = 1.2; // Radiant/Sekunde
+// +-1), bei sensitivity=1 (Standard-Empfindlichkeit). Jonas' Rueckmeldung
+// 2026-08-12 nach echtem Hardware-Test: die urspruenglichen Werte fuehlten
+// sich bei 1.0x "viel zu zaeh" an, er musste im Empfindlichkeits-Panel auf
+// 3.0x hochstellen, um brauchbares Tempo zu bekommen - deshalb hier direkt
+// x3 verrechnet, damit der Standard-Regler-Wert 1.0x wieder das ist, was
+// vorher 3.0x war (die alten Rohwerte 1.5/1.2/1.2 stehen als Kommentar
+// daneben, falls nochmal nachjustiert werden muss).
+const PAN_SPEED_M_PER_S = 4.5; // Meter/Sekunde (vorher 1.5)
+const DOLLY_SPEED_PER_S = 3.6; // relative Annaeherung/Entfernung pro Sekunde (vorher 1.2)
+const ORBIT_SPEED_RAD_PER_S = 3.6; // Radiant/Sekunde (vorher 1.2)
 
 function normalizeAxis(raw: number): number {
   if (Math.abs(raw) < DEADZONE_RAW) return 0;
