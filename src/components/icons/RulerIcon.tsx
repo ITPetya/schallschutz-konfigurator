@@ -6,18 +6,19 @@ interface RulerIconProps {
   className?: string;
 }
 
-// Ticks gleiten beim Hover ein Stueck die Lineal-Diagonale entlang (statt
-// nur leicht heller zu werden) - deutlicher als vorher erkennbare
-// "Mess"-Bewegung, Jonas' Fehlerbericht 2026-08-10 ("soll auch animiert
-// sein").
-const ticks: Variants = {
-  initial: { x: 0, y: 0 },
-  animate: { x: 1.5, y: -1.5, transition: { duration: 0.3, ease: "easeInOut" } },
+// Jonas' Vorgabe 2026-08-12 (ersetzt die vorherige diagonale Lucide-"ruler"-
+// Version): Doppelpfeil ueber einem geraden Lineal mit Skalenstrichen - der
+// Pfeil-Abstand pulsiert beim Hover (kleiner, dann wieder groesser), statt
+// nur die Skalenstriche entlangzugleiten. scaleX statt einer Pfad-
+// Interpolation, weil Motion "d"-Morphing nicht zuverlaessig/performant
+// unterstuetzt - eine um die eigene Mitte skalierende Gruppe (originX: 0.5)
+// erzeugt optisch denselben "der Messabstand veraendert sich"-Effekt, ohne
+// den Pfad selbst neu berechnen zu muessen.
+const arrowSpan: Variants = {
+  initial: { scaleX: 1 },
+  animate: { scaleX: [1, 0.7, 1], transition: { duration: 0.6, ease: "easeInOut" } },
 };
 
-// Lucide "ruler", animiert mit Motion (gleiche Konvention wie die anderen
-// Icons hier) - fuer den "Messen"-Umschalt-Button (Jonas' Vorgabe
-// 2026-08-10, ViewerToolbar.tsx).
 export function RulerIcon({ size = 15, className }: RulerIconProps) {
   const hovered = useIconHover();
   return (
@@ -32,13 +33,15 @@ export function RulerIcon({ size = 15, className }: RulerIconProps) {
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M21.3 8.7 8.7 21.3c-1 1-2.6 1-3.5 0l-2.5-2.5c-1-1-1-2.6 0-3.5L15.3 2.7c1-1 2.6-1 3.5 0l2.5 2.5c1 1 1 2.6 0 3.5Z" />
-      <motion.g variants={ticks} initial="initial" animate={hovered ? "animate" : "initial"}>
-        <path d="m14.5 12.5 2-2" />
-        <path d="m11.5 9.5 2-2" />
-        <path d="m8.5 6.5 2-2" />
-        <path d="m17.5 15.5 2-2" />
+      {/* Doppelpfeil - Spannweite pulsiert beim Hover. */}
+      <motion.g variants={arrowSpan} initial="initial" animate={hovered ? "animate" : "initial"} style={{ originX: 0.5, originY: 0.5 }}>
+        <path d="M4 6h16" />
+        <path d="M7 3 4 6l3 3" />
+        <path d="m17 3 3 3-3 3" />
       </motion.g>
+      {/* Lineal mit Skalenstrichen - bleibt in Ruhe/Groesse fix. */}
+      <path d="M4 13h16v7H4Z" />
+      <path d="M7 13v3M10 13v3M13 13v3M16 13v3" />
     </motion.svg>
   );
 }

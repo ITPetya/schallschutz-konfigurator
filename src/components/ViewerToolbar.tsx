@@ -190,8 +190,21 @@ export function ViewerToolbar({
       {/* Uebernimmt denselben Vertikal-Versatz wie die Button-Saeule (siehe
           verticalStyle oben) - sonst wuerde bei ausweichender Button-Saeule
           ein Panel optisch nicht mehr auf Hoehe seines Buttons erscheinen. */}
+      {/* Jonas' Fehlerbericht 2026-08-12: "beim Oeffnen/Schliessen kommt kurz
+          eine Bildlaufleiste" - Chromium berechnet die scrollbare
+          Ueberlaufflaeche waehrend der Panel-Oeffnen/Schliessen-Animation
+          (scale/x-Transform in ToolResultPanel.tsx) kurzzeitig anders als im
+          Ruhezustand, wodurch overflow-y-auto (Sicherheitsnetz fuer sehr
+          niedrige Fensterhoehen, siehe Kommentar oben) fuer ein paar Frames
+          eine Bildlaufleiste einblendet, obwohl im Ruhezustand keine noetig
+          ist. Bildlaufleiste hier gezielt NUR optisch ausgeblendet (nicht
+          global wie die restliche App - die Marken-Scrollbar aus index.css
+          bleibt ueberall sonst bestehen) - das Sicherheitsnetz selbst
+          (Scrollen bleibt per Mausrad/Touch weiter moeglich, falls bei
+          extrem niedrigem Fenster mit allen vier Panels offen tatsaechlich
+          noetig) bleibt dabei unangetastet. */}
       <div
-        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto"
+        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={verticalStyle}
       >
         <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
