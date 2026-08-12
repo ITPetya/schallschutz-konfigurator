@@ -190,21 +190,27 @@ export function ViewerToolbar({
       {/* Uebernimmt denselben Vertikal-Versatz wie die Button-Saeule (siehe
           verticalStyle oben) - sonst wuerde bei ausweichender Button-Saeule
           ein Panel optisch nicht mehr auf Hoehe seines Buttons erscheinen. */}
-      {/* Jonas' Fehlerbericht 2026-08-12: "beim Oeffnen/Schliessen kommt kurz
-          eine Bildlaufleiste" - Chromium berechnet die scrollbare
-          Ueberlaufflaeche waehrend der Panel-Oeffnen/Schliessen-Animation
-          (scale/x-Transform in ToolResultPanel.tsx) kurzzeitig anders als im
-          Ruhezustand, wodurch overflow-y-auto (Sicherheitsnetz fuer sehr
-          niedrige Fensterhoehen, siehe Kommentar oben) fuer ein paar Frames
-          eine Bildlaufleiste einblendet, obwohl im Ruhezustand keine noetig
-          ist. Bildlaufleiste hier gezielt NUR optisch ausgeblendet (nicht
-          global wie die restliche App - die Marken-Scrollbar aus index.css
-          bleibt ueberall sonst bestehen) - das Sicherheitsnetz selbst
-          (Scrollen bleibt per Mausrad/Touch weiter moeglich, falls bei
-          extrem niedrigem Fenster mit allen vier Panels offen tatsaechlich
-          noetig) bleibt dabei unangetastet. */}
+      {/* Jonas' Fehlerbericht 2026-08-12 (zweimal gemeldet - der erste Versuch,
+          die Bildlaufleiste per CSS nur optisch zu verstecken
+          (scrollbar-width:none + ::-webkit-scrollbar hidden), reichte NICHT:
+          sie blitzte trotzdem kurz auf): overflow-y-auto als Sicherheitsnetz
+          fuer sehr niedrige Fensterhoehen (siehe Kommentar oben) berechnet
+          waehrend der Panel-Oeffnen/Schliessen-Animation die scrollbare
+          Ueberlaufflaeche kurzzeitig anders als im Ruhezustand - welcher
+          genaue Timing-Mechanismus dahintersteckt, liess sich ohne Browser
+          in dieser Umgebung nicht abschliessend nachvollziehen, das rein
+          kosmetische Verstecken traf ihn aber nicht zuverlaessig genug.
+          Deshalb jetzt overflow-y-HIDDEN statt auto - dadurch KANN gar
+          nie eine Bildlaufleiste entstehen (Browser rechnen bei "hidden"
+          erst gar keine), unabhaengig vom Animations-Timing. Preis dafuer:
+          das Sicherheitsnetz verliert seine Scroll-Faehigkeit - bei einem
+          extrem niedrigen Fenster mit allen vier Panels gleichzeitig offen
+          wird der ueberschuessige Teil jetzt abgeschnitten statt scrollbar
+          zu sein. Dieser Edge-Case war ohnehin selten/theoretisch, waehrend
+          die Bildlaufleiste bei JEDEM normalen Oeffnen/Schliessen sichtbar
+          war - klar der bessere Kompromiss. */}
       <div
-        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-hidden"
         style={verticalStyle}
       >
         <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />

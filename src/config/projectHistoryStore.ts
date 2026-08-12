@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "./projectTypes";
 import { isStorageAllowed } from "./storageConsent";
 import { THEME_KEY } from "../context/ThemeContext";
-import { SEEN_KEY } from "../tour/tourStore";
+import { SEEN_KEY, TOUR_PROGRESS_KEY } from "../tour/tourStore";
 import { UNIT_PREFS_KEY } from "./unitPreferencesStore";
 import { SPACEMOUSE_SENSITIVITY_KEY } from "./spaceMouseSettingsStore";
 
@@ -131,6 +131,7 @@ export function clearProjectDraft() {
     localStorage.removeItem(ACTIVE_ID_KEY);
     localStorage.removeItem(THEME_KEY);
     localStorage.removeItem(SEEN_KEY);
+    localStorage.removeItem(TOUR_PROGRESS_KEY);
     localStorage.removeItem(UNIT_PREFS_KEY);
     localStorage.removeItem(SPACEMOUSE_SENSITIVITY_KEY);
   } catch {

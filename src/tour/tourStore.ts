@@ -32,3 +32,53 @@ export function markTourSeen(id: string) {
     localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
   }
 }
+
+// Jonas' Vorgabe 2026-08-12: "das Tutorial soll jederzeit wieder aufrufbar
+// sein, und dann an der Stelle weitermachen, wo man gerade ist" - bisher
+// setzte ein erneuter Aufruf ueber das "?"-Menue (AppShell.tsx: start()) IMMER
+// auf Schritt 0 zurueck, auch wenn vorher schon Schritt 7 erreicht war.
+// Haelt NUR den zuletzt erreichten Schritt fest (nicht IST die Tour gerade
+// sichtbar) - TourContext.tsx entscheidet weiterhin selbst, WANN sie
+// angezeigt wird, dieser Store speichert nur WO wieder eingestiegen wird.
+// Wird bei echtem Abschluss (letzter Schritt, "Fertig") explizit geleert
+// (siehe TourContext.tsx's next()) - ein bereits fertig durchlaufenes
+// Tutorial soll beim naechsten manuellen Aufruf wieder von vorne beginnen,
+// es gibt dann ja nichts mehr "fortzusetzen".
+export const TOUR_PROGRESS_KEY = "ssk_tour_progress";
+
+export interface TourProgress {
+  tourId: string;
+  stepIndex: number;
+}
+
+export function loadTourProgress(): TourProgress | null {
+  const raw = localStorage.getItem(TOUR_PROGRESS_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TourProgress>;
+    if (typeof parsed.tourId === "string" && typeof parsed.stepIndex === "number") {
+      return { tourId: parsed.tourId, stepIndex: parsed.stepIndex };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTourProgress(progress: TourProgress) {
+  if (!isStorageAllowed()) return;
+  try {
+    localStorage.setItem(TOUR_PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // Speicher voll/deaktiviert - Fortsetzen faellt dann auf Schritt 0
+    // zurueck, kein harter Fehler.
+  }
+}
+
+export function clearTourProgress() {
+  try {
+    localStorage.removeItem(TOUR_PROGRESS_KEY);
+  } catch {
+    // s.o.
+  }
+}

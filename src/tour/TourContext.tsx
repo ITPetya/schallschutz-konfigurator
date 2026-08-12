@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { TOURS } from "./tourDefinitions";
-import { markTourSeen } from "./tourStore";
+import { markTourSeen, loadTourProgress, saveTourProgress, clearTourProgress } from "./tourStore";
 import type { TourStep } from "./types";
 
 interface TourContextValue {
@@ -72,15 +72,35 @@ export function TourProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
+  // Jonas' Vorgabe 2026-08-12: "jederzeit wieder aufrufbar ... an der Stelle
+  // weitermachen, wo man gerade ist" - haelt den zuletzt erreichten Schritt
+  // fortlaufend in localStorage fest (tourStore.ts), solange eine Tour aktiv
+  // ist. So bleibt der Fortschritt auch erhalten, wenn der Nutzer die Tour
+  // per "Überspringen" schliesst, die Seite neu laedt oder den Tab schliesst
+  // - nicht nur beim expliziten "Weiter"-Klick.
+  useEffect(() => {
+    if (!activeTourId) return;
+    saveTourProgress({ tourId: activeTourId, stepIndex });
+  }, [activeTourId, stepIndex]);
+
   function start(tourId: string) {
+    // Bei vorhandenem Fortschritt fuer GENAU diese Tour dort wieder
+    // einsteigen statt immer bei 0 zu beginnen - ein bereits fertig
+    // durchlaufenes Tutorial hat keinen gespeicherten Fortschritt mehr
+    // (siehe next() unten) und beginnt dadurch automatisch wieder von vorne.
+    const saved = loadTourProgress();
+    const resumeIndex = saved && saved.tourId === tourId ? saved.stepIndex : 0;
     setActiveTourId(tourId);
-    setStepIndex(0);
+    setStepIndex(resumeIndex);
     setSuppressed(false);
   }
 
   function next() {
     if (!tour) return;
     if (stepIndex + 1 >= tour.steps.length) {
+      // Echter Abschluss (nicht nur "Überspringen") - nichts mehr
+      // fortzusetzen, naechster Aufruf soll wieder bei Schritt 0 beginnen.
+      clearTourProgress();
       stop();
       return;
     }
