@@ -52,7 +52,7 @@ export function AppShell() {
           <div className="h-1.5 bg-brand-light" />
           <header className="flex items-center justify-between px-4 py-2.5">
             <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
-              Schallschutz-Sondercontainer
+              Container Studio
             </Link>
 
             <div className="flex items-center gap-3">

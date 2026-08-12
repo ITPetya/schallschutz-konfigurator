@@ -137,7 +137,7 @@ export function StartPage() {
 
       <div>
         <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
-          Schallschutz-Sondercontainer
+          Container Studio
         </h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400">3D-Konfigurator für individuelle Sondercontainer</p>
       </div>
