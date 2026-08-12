@@ -16,6 +16,7 @@ import { MeasureMarkers } from "./MeasureMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
@@ -266,6 +267,11 @@ export function ProjectScene3D({
     setMeasureActive((v) => !v);
     setMeasureSelected([]);
   }
+
+  // Siehe Scene.tsx: Mausrad-Taste doppelt klicken = wie der Home-Button,
+  // "M" druecken = wie der Messen-Button (Jonas' Vorgabe 2026-08-12, siehe
+  // useViewerShortcuts.ts).
+  useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure });
 
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
   // lagt sehr"): EINE stabile (useCallback) Funktion statt vormals einer neu

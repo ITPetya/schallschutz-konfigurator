@@ -12,6 +12,7 @@ import { MeasureMarkers } from "./MeasureMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import type { ContainerSize } from "../constants/containerSizes";
@@ -171,6 +172,11 @@ export function Scene({
     setMeasureActive((v) => !v);
     setMeasureSelected([]);
   }
+
+  // Jonas' Vorgabe 2026-08-12: Mausrad-Taste doppelt klicken = wie der
+  // Home-Button, "M" druecken = wie der Messen-Button (siehe
+  // useViewerShortcuts.ts).
+  useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure });
 
   return (
     // Jonas' Fehlerbericht 2026-08-11 ("Viewer als echtes Fenster"): ViewCube/
