@@ -13,6 +13,7 @@ import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
+import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
@@ -130,6 +131,7 @@ export function Scene({
   // (Anwendung der Achsenwerte auf die Kamera, JEDEN Frame innerhalb des
   // Canvas unten).
   const spaceMouse = useSpaceMouse();
+  const { sensitivity: spaceMouseSensitivity, setSensitivity: setSpaceMouseSensitivity } = useSpaceMouseSensitivity();
 
   const isTerrain = background === "terrain";
   // Container.tsx meldet sich per onReady, sobald sein CSG-Aufbau (Waende +
@@ -256,7 +258,7 @@ export function Scene({
             SpaceMouseCameraRig.tsx - greift nur, wenn ein Geraet verbunden
             ist, faengt der Maus-Steuerung ueber OrbitControls nie ins
             Handwerk (kein "SpaceMouse-Modus", laeuft parallel). */}
-        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} />
+        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} sensitivity={spaceMouseSensitivity} />
         {/* Inventor-artiger ViewCube (Jonas' Vorgabe 2026-07-22): hellgrau,
             halbtransparent, unten rechts im Viewer. */}
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
@@ -341,6 +343,8 @@ export function Scene({
         spaceMouseDeviceName={spaceMouse.deviceName}
         onSpaceMouseConnect={spaceMouse.connect}
         onSpaceMouseDisconnect={spaceMouse.disconnect}
+        spaceMouseSensitivity={spaceMouseSensitivity}
+        onSpaceMouseSensitivityChange={setSpaceMouseSensitivity}
       />
       </div>
 

@@ -3,6 +3,7 @@ import { isStorageAllowed } from "./storageConsent";
 import { THEME_KEY } from "../context/ThemeContext";
 import { SEEN_KEY } from "../tour/tourStore";
 import { UNIT_PREFS_KEY } from "./unitPreferencesStore";
+import { SPACEMOUSE_SENSITIVITY_KEY } from "./spaceMouseSettingsStore";
 
 // Verlauf mehrerer zuletzt offener Projekte (Jonas' Vorgabe 2026-07-28: "man
 // sollte mehrere Container/Projekte auch im local storage gespeichert haben
@@ -122,7 +123,8 @@ export function hasMeaningfulProjectDraft(): boolean {
 // gesehen"-Merker auch nach "Daten löschen"/"Nein" bestehen) - deshalb
 // zusaetzlich die Keys aus ThemeContext.tsx und tourStore.ts mit entfernen.
 // UNIT_PREFS_KEY (unitPreferencesStore.ts, Jonas' Vorgabe 2026-08-10:
-// Mess-Einheiten) aus demselben Grund.
+// Mess-Einheiten) aus demselben Grund. SPACEMOUSE_SENSITIVITY_KEY
+// (spaceMouseSettingsStore.ts, Jonas' Vorgabe 2026-08-12) ebenso.
 export function clearProjectDraft() {
   try {
     localStorage.removeItem(HISTORY_KEY);
@@ -130,6 +132,7 @@ export function clearProjectDraft() {
     localStorage.removeItem(THEME_KEY);
     localStorage.removeItem(SEEN_KEY);
     localStorage.removeItem(UNIT_PREFS_KEY);
+    localStorage.removeItem(SPACEMOUSE_SENSITIVITY_KEY);
   } catch {
     // s.o.
   }

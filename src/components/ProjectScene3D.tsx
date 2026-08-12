@@ -17,6 +17,7 @@ import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
+import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import type { ContainerSize } from "../constants/containerSizes";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
@@ -135,6 +136,7 @@ export function ProjectScene3D({
   // Container-Auswahl/-Ziehen ein (reine Kamera-Ergaenzung, siehe
   // SpaceMouseCameraRig.tsx).
   const spaceMouse = useSpaceMouse();
+  const { sensitivity: spaceMouseSensitivity, setSensitivity: setSpaceMouseSensitivity } = useSpaceMouseSensitivity();
 
   // "Hintergrund"/"Schatten"/Gelände-Detailstufe gelten fuer die ganze
   // geteilte 3D-Szene (nicht pro Instanz, siehe onSetAllViewStyle-Kommentar
@@ -392,7 +394,7 @@ export function ProjectScene3D({
             sind OrbitControls bereits deaktiviert (enabled={!draggingId}
             oben) - die SpaceMouse bleibt dabei bewusst weiter aktiv, sie
             bewegt nur die Kamera, nie einen Container. */}
-        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} />
+        <SpaceMouseCameraRig axisRef={spaceMouse.axisRef} controlsRef={controlsRef} enabled={spaceMouse.connected} sensitivity={spaceMouseSensitivity} />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewcube
             faces={VIEWCUBE_FACES}
@@ -453,6 +455,8 @@ export function ProjectScene3D({
         spaceMouseDeviceName={spaceMouse.deviceName}
         onSpaceMouseConnect={spaceMouse.connect}
         onSpaceMouseDisconnect={spaceMouse.disconnect}
+        spaceMouseSensitivity={spaceMouseSensitivity}
+        onSpaceMouseSensitivityChange={setSpaceMouseSensitivity}
       />
       </div>
 

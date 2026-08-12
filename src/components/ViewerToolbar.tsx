@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatedButton } from "./AnimatedButton";
 import { HomeIcon } from "./icons/HomeIcon";
 import { UndoIcon } from "./icons/UndoIcon";
@@ -8,6 +8,7 @@ import { SectionIcon } from "./icons/SectionIcon";
 import { ViewIcon } from "./icons/ViewIcon";
 import { SpaceMouseIcon } from "./icons/SpaceMouseIcon";
 import { MeasureResultPanel } from "./MeasureResultPanel";
+import { SpaceMouseSettingsPanel } from "./SpaceMouseSettingsPanel";
 import { SectionResultPanel, ViewResultPanel, type SectionPlaneState } from "./SectionAndViewPanel";
 import type { MeasurePoint } from "../utils/measurePoints";
 import type { UnitPreferences } from "../config/unitPreferencesStore";
@@ -57,6 +58,12 @@ interface ViewerToolbarProps {
   spaceMouseDeviceName?: string | null;
   onSpaceMouseConnect?: () => void;
   onSpaceMouseDisconnect?: () => void;
+  // Jonas' Vorgabe 2026-08-12: Empfindlichkeit einstellbar (siehe
+  // hooks/useSpaceMouseSensitivity.ts) - optional aus demselben Grund wie
+  // die anderen SpaceMouse-Props (schreibgeschuetzter Viewer bietet das
+  // Panel gar nicht erst an).
+  spaceMouseSensitivity?: number;
+  onSpaceMouseSensitivityChange?: (v: number) => void;
 }
 
 // Home-Button direkt neben dem ViewCube (Jonas' Vorgabe 2026-07-25: "wie bei
@@ -91,12 +98,23 @@ export function ViewerToolbar({
   spaceMouseDeviceName,
   onSpaceMouseConnect,
   onSpaceMouseDisconnect,
+  spaceMouseSensitivity,
+  onSpaceMouseSensitivityChange,
 }: ViewerToolbarProps) {
   // "Ansicht" hat (anders als Schnitt/Messen) kein eigenes "aktiv"-Konzept
   // im Modell - der Button ist einfach "aktiv", solange sein Panel offen
   // ist, unabhaengig davon, was darin eingestellt wird.
   const [viewOpen, setViewOpen] = useState(false);
   const canShowView = !!(onViewStyleChange && onBackgroundChange && onShadowsEnabledChange && viewStyle && background && shadowsEnabled !== undefined && terrainDetail);
+  // Jonas' Vorgabe 2026-08-12: "sobald sie verbunden ist, soll man über den
+  // Button das Menü für Empfindlichkeit etc. darüber öffnen" - genau wie
+  // "Ansicht" ein reines UI-"offen"-Flag, unabhaengig vom Verbindungsstatus
+  // selbst. Faellt automatisch zu, sobald das Geraet getrennt wird (siehe
+  // Effekt weiter unten), statt als leeres Panel offen zu bleiben.
+  const [spaceMouseOpen, setSpaceMouseOpen] = useState(false);
+  useEffect(() => {
+    if (!spaceMouseConnected) setSpaceMouseOpen(false);
+  }, [spaceMouseConnected]);
 
   return (
     <>
@@ -171,6 +189,15 @@ export function ViewerToolbar({
             onChangeUnitPrefs={onChangeUnitPrefs ?? (() => {})}
           />
         )}
+        {spaceMouseConnected && onSpaceMouseDisconnect && onSpaceMouseSensitivityChange && (
+          <SpaceMouseSettingsPanel
+            active={spaceMouseOpen}
+            deviceName={spaceMouseDeviceName ?? null}
+            sensitivity={spaceMouseSensitivity ?? 1}
+            onSensitivityChange={onSpaceMouseSensitivityChange}
+            onDisconnect={onSpaceMouseDisconnect}
+          />
+        )}
       </div>
 
       <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2">
@@ -192,8 +219,17 @@ export function ViewerToolbar({
 
         {spaceMouseSupported && (onSpaceMouseConnect || onSpaceMouseDisconnect) && (
           <ToolButton
-            onClick={spaceMouseConnected ? onSpaceMouseDisconnect! : onSpaceMouseConnect!}
-            label={spaceMouseConnected ? `SpaceMouse verbunden (${spaceMouseDeviceName ?? "Gerät"}) – klicken zum Trennen` : "SpaceMouse verbinden"}
+            // Jonas' Vorgabe 2026-08-12: verbunden -> Klick oeffnet/schliesst
+            // das Einstellungen-Panel (Empfindlichkeit etc., siehe
+            // SpaceMouseSettingsPanel.tsx), nicht mehr sofort trennen -
+            // Trennen ist dafuer als eigener Button IM Panel verfuegbar.
+            // Noch nicht verbunden -> Klick verbindet weiterhin direkt.
+            onClick={spaceMouseConnected ? () => setSpaceMouseOpen((v) => !v) : onSpaceMouseConnect!}
+            label={spaceMouseConnected ? `SpaceMouse-Einstellungen (${spaceMouseDeviceName ?? "Gerät"})` : "SpaceMouse verbinden"}
+            // Bleibt gefuellt/"aktiv" solange verbunden (Verbindungs-
+            // Indikator, wie zuvor) - unabhaengig davon, ob das Panel gerade
+            // offen ist, das steuert nur seine eigene ToolResultPanel-
+            // Sichtbarkeit oben.
             active={spaceMouseConnected}
           >
             <SpaceMouseIcon size={16} />

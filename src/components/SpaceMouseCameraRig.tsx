@@ -18,6 +18,15 @@ const RAW_FULL_SCALE = 400;
 // Ebenfalls eine grobe Startannahme.
 const DEADZONE_RAW = 15;
 
+// Jonas' Fehlerbericht 2026-08-12: "es ruckelt an Stellen noch" - Zeitkonstante
+// (Sekunden) fuer ein exponentielles Glaetten der normierten Achsenwerte
+// zwischen aufeinanderfolgenden Frames. Rohe HID-Reports treffen unregelmaessig
+// und teils in kurzen Buendeln ein (nicht synchron zu requestAnimationFrame),
+// wodurch der zuletzt gecachte Wert innerhalb eines Frames sprunghaft wirken
+// kann. Klein genug gewaehlt, dass keine spuerbare Eingabeverzoegerung
+// entsteht, aber gross genug, um diese Sprünge sichtbar zu daempfen.
+const SMOOTHING_TAU_S = 0.06;
+
 // Geschwindigkeiten bei voller Auslenkung (nach Deadzone/Normierung auf
 // +-1) - grobe Startwerte, mit Jonas nach echtem Test abzustimmen:
 const PAN_SPEED_M_PER_S = 1.5; // Meter/Sekunde
@@ -35,6 +44,11 @@ interface SpaceMouseCameraRigProps {
   axisRef: React.RefObject<SpaceMouseAxisState>;
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   enabled: boolean;
+  // Jonas' Vorgabe 2026-08-12: ueber das SpaceMouse-Einstellungen-Panel
+  // einstellbarer Multiplikator (siehe spaceMouseSettingsStore.ts) - 1 = die
+  // obigen PAN_SPEED_M_PER_S/DOLLY_SPEED_PER_S/ORBIT_SPEED_RAD_PER_S-Werte
+  // unveraendert, wirkt gleichmaessig auf alle drei Bewegungsarten.
+  sensitivity: number;
 }
 
 /**
@@ -62,7 +76,7 @@ interface SpaceMouseCameraRigProps {
  * hier gesetzten camera.position - keine doppelte update()-Anwendung noetig
  * oder gewuenscht.
  */
-export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMouseCameraRigProps) {
+export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity }: SpaceMouseCameraRigProps) {
   const { camera } = useThree();
   const scratch = useRef({
     offset: new THREE.Vector3(),
@@ -70,6 +84,10 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMous
     right: new THREE.Vector3(),
     up: new THREE.Vector3(),
     pan: new THREE.Vector3(),
+    // Geglaettete Achsenwerte (Jonas' Fehlerbericht 2026-08-12: "es ruckelt
+    // an Stellen noch") - siehe SMOOTHING_TAU_S weiter oben. Persistiert
+    // ueber Frames hinweg in diesem Ref, nicht neu angelegt pro Aufruf.
+    smoothed: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
   }).current;
 
   useFrame((_state, delta) => {
@@ -78,13 +96,30 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMous
     if (!controls) return;
 
     const a = axisRef.current;
-    const x = normalizeAxis(a.x);
-    const y = normalizeAxis(a.y);
-    const z = normalizeAxis(a.z);
-    const rx = normalizeAxis(a.rx);
-    const ry = normalizeAxis(a.ry);
-    if (x === 0 && y === 0 && z === 0 && rx === 0 && ry === 0) return;
+    const s = scratch.smoothed;
+    // Exponentielles Glaetten statt den rohen, zuletzt gecachten HID-Wert
+    // direkt zu uebernehmen - HID-Reports treffen unregelmaessig/in Buendeln
+    // ein (nicht synchron zu requestAnimationFrame), was den zwischen zwei
+    // Frames gecachten Wert sonst sprunghaft wirken lassen kann.
+    const alpha = 1 - Math.exp(-delta / SMOOTHING_TAU_S);
+    s.x += (normalizeAxis(a.x) - s.x) * alpha;
+    s.y += (normalizeAxis(a.y) - s.y) * alpha;
+    s.z += (normalizeAxis(a.z) - s.z) * alpha;
+    s.rx += (normalizeAxis(a.rx) - s.rx) * alpha;
+    s.ry += (normalizeAxis(a.ry) - s.ry) * alpha;
 
+    // Erst NACH dem Glaetten pruefen, ob ueberhaupt noch etwas zu tun ist -
+    // sonst wuerde ein frisch losgelassener Griff die Kamera mit dem
+    // zuletzt geglaetteten (noch nicht auf 0 abgeklungenen) Wert
+    // einfrieren, statt sanft auszurollen.
+    const EPS = 1e-4;
+    if (Math.abs(s.x) < EPS && Math.abs(s.y) < EPS && Math.abs(s.z) < EPS && Math.abs(s.rx) < EPS && Math.abs(s.ry) < EPS) return;
+
+    const x = s.x;
+    const y = s.y;
+    const z = s.z;
+    const rx = s.rx;
+    const ry = s.ry;
     const target = controls.target;
 
     // Orbit (Rotation): ry -> horizontale Umkreisung (theta), rx -> vertikale
@@ -92,10 +127,10 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMous
     if (rx !== 0 || ry !== 0) {
       scratch.offset.copy(camera.position).sub(target);
       scratch.spherical.setFromVector3(scratch.offset);
-      scratch.spherical.theta -= ry * ORBIT_SPEED_RAD_PER_S * delta;
-      scratch.spherical.phi -= rx * ORBIT_SPEED_RAD_PER_S * delta;
-      const EPS = 1e-3;
-      scratch.spherical.phi = THREE.MathUtils.clamp(scratch.spherical.phi, EPS, Math.PI - EPS);
+      scratch.spherical.theta -= ry * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
+      scratch.spherical.phi -= rx * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
+      const EPS_POLE = 1e-3;
+      scratch.spherical.phi = THREE.MathUtils.clamp(scratch.spherical.phi, EPS_POLE, Math.PI - EPS_POLE);
       scratch.spherical.makeSafe();
       scratch.offset.setFromSpherical(scratch.spherical);
       camera.position.copy(target).add(scratch.offset);
@@ -107,7 +142,7 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMous
       scratch.offset.copy(camera.position).sub(target);
       const distance = scratch.offset.length();
       const nextDistance = THREE.MathUtils.clamp(
-        distance * (1 - z * DOLLY_SPEED_PER_S * delta),
+        distance * (1 - z * DOLLY_SPEED_PER_S * sensitivity * delta),
         controls.minDistance,
         controls.maxDistance,
       );
@@ -119,12 +154,27 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled }: SpaceMous
     // kamera-lokalen Rechts-/Auf-Achse (steht senkrecht zur aktuellen
     // Blickrichtung, dreht sich also mit der Kamera mit).
     if (x !== 0 || y !== 0) {
+      // Jonas' Fehlerbericht 2026-08-12 ("ruckelt an Stellen"): wurde rx/ry
+      // oben in DIESEM Frame veraendert, spiegelt camera.matrix noch die
+      // Blickrichtung VOR dieser Aenderung wider - drei aktualisiert
+      // Matrix/Quaternion erst beim naechsten controls.update()/Rendern.
+      // Ohne dieses Nachziehen wuerde Pan bei gleichzeitigem Drehen+
+      // Schwenken (haeufige SpaceMouse-Bewegung) mit der um einen Frame
+      // veralteten Richtung rechnen und dadurch sichtbar wackeln. lookAt()
+      // berechnet exakt dasselbe, was OrbitControls' eigenes update() ohnehin
+      // gleich danach nochmal (mit identischem Ergebnis) macht - hier nur
+      // vorgezogen, damit die folgende Rechts-/Auf-Achsen-Extraktion aus
+      // camera.matrix bereits aktuell ist.
+      if (rx !== 0 || ry !== 0) {
+        camera.lookAt(target);
+        camera.updateMatrix();
+      }
       scratch.right.setFromMatrixColumn(camera.matrix, 0);
       scratch.up.setFromMatrixColumn(camera.matrix, 1);
       scratch.pan
         .set(0, 0, 0)
-        .addScaledVector(scratch.right, -x * PAN_SPEED_M_PER_S * delta)
-        .addScaledVector(scratch.up, y * PAN_SPEED_M_PER_S * delta);
+        .addScaledVector(scratch.right, -x * PAN_SPEED_M_PER_S * sensitivity * delta)
+        .addScaledVector(scratch.up, y * PAN_SPEED_M_PER_S * sensitivity * delta);
       camera.position.add(scratch.pan);
       target.add(scratch.pan);
     }
