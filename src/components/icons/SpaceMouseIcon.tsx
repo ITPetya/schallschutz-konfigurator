@@ -6,18 +6,24 @@ interface SpaceMouseIconProps {
   className?: string;
 }
 
-// Jonas' Fehlerbericht 2026-08-12: das vorherige Icon (Kreis + acht Strahlen
-// ringsum) sah "wie eine Sonne" aus statt wie eine SpaceMouse - jetzt eine
-// stilisierte SpaceMouse Compact von der Seite: flacher, trapezfoermiger
-// Sockel (housing) mit den zwei Fronttasten unten, darauf die Kappe (Cap)
-// als Kuppel. Beim Hover kippt die Kappe hin und her (originX/originY statt
-// CSS transformOrigin, weil motion/react bei SVG-Elementen den Pivot darueber
-// relativ zur eigenen BBox erwartet) - deutet die tatsaechliche Kipp-
-// Bewegung der echten Kappe an, gleiche Hover-Konvention wie die anderen
-// Werkzeug-Icons hier (SectionIcon.tsx/RulerIcon.tsx).
-const cap: Variants = {
-  initial: { rotate: 0 },
-  animate: { rotate: [0, -9, 9, 0], transition: { duration: 0.6, ease: "easeInOut" } },
+// Jonas' Skizze 2026-08-12 (ersetzt die vorherige gekippte-Kuppel-Version,
+// die selbst schon ein Fix fuer das noch frueher "wie eine Sonne" aussehende
+// Icon war): "Garnrollen"-Silhouette von der Seite - Kappe (oben) und Sockel
+// (unten) treffen sich an einer schmalen Taille in der Mitte. Beim Hover
+// gehen beide Haelften auseinander (Kappe nach oben, Sockel nach unten) -
+// zeigt, dass die Kappe ein eigenstaendiges, bewegliches Teil ist, statt nur
+// zu kippen. Gleiche "zwei Haelften trennen sich"-Konvention wie
+// SectionIcon.tsx, hier entlang der Y- statt der Diagonalachse. Beide
+// Haelften teilen sich in Ruhestellung exakt dieselbe Taillen-Kante (9,12)-
+// (15,12), verschmelzen also optisch zu einer durchgezogenen Kontur, bis der
+// Hover sie auseinanderzieht.
+const capPart: Variants = {
+  initial: { y: 0 },
+  animate: { y: -2, transition: { duration: 0.3, ease: "easeInOut" } },
+};
+const basePart: Variants = {
+  initial: { y: 0 },
+  animate: { y: 2, transition: { duration: 0.3, ease: "easeInOut" } },
 };
 
 export function SpaceMouseIcon({ size = 15, className }: SpaceMouseIconProps) {
@@ -35,19 +41,19 @@ export function SpaceMouseIcon({ size = 15, className }: SpaceMouseIconProps) {
       strokeLinejoin="round"
       className={className}
     >
-      {/* Sockel (housing), von der Seite - trapezfoermig, unten breiter. */}
-      <path d="M4 20h16l-2-5H6Z" />
-      {/* Kappe (Cap) - kippt beim Hover um ihren Kontaktpunkt mit dem Sockel. */}
+      {/* Kappe (oberer Teil). */}
       <motion.path
-        d="M6 15c0-4 2.5-6 6-6s6 2 6 6Z"
-        variants={cap}
+        d="M5 5C5 9 7 11 9 12L15 12C17 11 19 9 19 5C19 2 15 2 12 2C9 2 5 2 5 5Z"
+        variants={capPart}
         initial="initial"
         animate={target}
-        style={{ originX: 0.5, originY: 1 }}
       />
-      {/* Zwei Fronttasten am Sockel. */}
-      <path d="M9.5 20v-2" strokeWidth={1.5} />
-      <path d="M14.5 20v-2" strokeWidth={1.5} />
+      {/* Sockel (unterer Teil) samt Zierlinie fuer den Gehaeuse-Rand, wie in
+          Jonas' Skizze. */}
+      <motion.g variants={basePart} initial="initial" animate={target}>
+        <path d="M5 19C5 15 7 13 9 12L15 12C17 13 19 15 19 19C19 22 15 22 12 22C9 22 5 22 5 19Z" />
+        <path d="M7 19h10" />
+      </motion.g>
     </motion.svg>
   );
 }
