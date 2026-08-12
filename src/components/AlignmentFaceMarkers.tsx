@@ -18,7 +18,13 @@ interface AlignmentFaceMarkersProps {
 // nur die Markierung an - dadurch bleibt erkennbar, dass es sich um ein
 // Auswahlfeld AUF der Wand handelt, statt dass die Markierung mit der Wand
 // selbst optisch verschmilzt.
-const VISIBLE_INSET_RATIO = 0.7;
+// Jonas' Fehlerbericht 2026-08-12 (Praezisierung): "fester Randabstand, der
+// an der Seite soll der gleiche wie oben sein" - ein PROPORTIONALER Faktor
+// (z. B. "70% der Flaeche") ergibt bei einer rechteckigen, nicht quadratischen
+// Wand zwei UNTERSCHIEDLICHE Randbreiten (breite Wand -> breiterer Rand
+// links/rechts als oben/unten) - deshalb jetzt ein fester Abstand in Metern,
+// gleichermassen von allen vier Seiten abgezogen.
+const VISIBLE_MARGIN_M = 0.3;
 // Kleiner Versatz nach aussen entlang der Flaechen-Normalen, damit die
 // Ebenen nicht exakt in der Wandoberflaeche liegen (Z-Fighting) - gleiche
 // Groessenordnung, die sich in diesem Renderer bei aehnlichen Faellen schon
@@ -38,6 +44,11 @@ export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceM
         const rotationY = f.axis === "x" ? Math.PI / 2 : 0;
         const offset: [number, number, number] = f.axis === "x" ? [f.sign * OUTWARD_OFFSET_M, 0, 0] : [0, 0, f.sign * OUTWARD_OFFSET_M];
         const position: [number, number, number] = [f.position[0] + offset[0], f.position[1] + offset[1], f.position[2] + offset[2]];
+        // Auf beiden Achsen derselbe absolute Randabstand (siehe
+        // VISIBLE_MARGIN_M oben) - Mindestgroesse als Sicherheitsnetz gegen
+        // negative Massse bei sehr kleinen/schmalen Flaechen.
+        const visibleWidth = Math.max(f.width - 2 * VISIBLE_MARGIN_M, 0.1);
+        const visibleHeight = Math.max(f.height - 2 * VISIBLE_MARGIN_M, 0.1);
         return (
           <group key={key} position={position} rotation={[0, rotationY, 0]}>
             {/* Klick-/Hover-Bereich - deckt die GESAMTE Flaeche ab, unsichtbar. */}
@@ -59,7 +70,7 @@ export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceM
                 dekorativ (kein eigener Klick-Handler noetig, liegt innerhalb
                 des Klick-Bereichs oben). */}
             <mesh>
-              <planeGeometry args={[f.width * VISIBLE_INSET_RATIO, f.height * VISIBLE_INSET_RATIO]} />
+              <planeGeometry args={[visibleWidth, visibleHeight]} />
               <meshBasicMaterial
                 color={isSelected ? "#0284c7" : "#7c3aed"}
                 transparent

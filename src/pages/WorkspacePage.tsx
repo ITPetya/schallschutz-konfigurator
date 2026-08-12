@@ -5,6 +5,7 @@ import { ProjectScene3D } from "../components/ProjectScene3D";
 import { OpeningsPanel } from "../components/OpeningsPanel";
 import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
+import { NumberInput } from "../components/NumberInput";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
 import { SoundClassControls } from "../components/SoundClassControls";
 import { ContainerWarningBadge } from "../components/ContainerWarningBadge";
@@ -997,11 +998,15 @@ export function WorkspacePage() {
                             </div>
                             <label className="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">
                               Abstand (mm)
-                              <input
-                                type="number"
+                              {/* NumberInput statt eines rohen <input type="number">
+                                  (siehe AlignmentResultPanel.tsx fuer die
+                                  Begruendung) - bei "Fluchtend" braucht es
+                                  auch negative Werte, um in die jeweils
+                                  andere Richtung auszurichten. */}
+                              <NumberInput
                                 step={10}
                                 value={dep.distanceMm}
-                                onChange={(e) => handleUpdateDependencyDistance(dep.id, Number(e.target.value) || 0)}
+                                onChange={(v) => handleUpdateDependencyDistance(dep.id, v)}
                                 className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                               />
                             </label>

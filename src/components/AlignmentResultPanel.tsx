@@ -1,4 +1,5 @@
 import { ToolResultPanel } from "./ToolResultPanel";
+import { NumberInput } from "./NumberInput";
 import type { AlignmentFacePoint } from "../utils/alignmentDependencies";
 
 export interface AlignmentResultPanelProps {
@@ -79,11 +80,18 @@ export function AlignmentResultPanel({
 
           <label className="block text-xs text-slate-500 dark:text-slate-400">
             Abstand (mm)
-            <input
-              type="number"
+            {/* Jonas' Fehlerbericht 2026-08-12: bei "Fluchtend" soll sich mit
+                einem negativen Abstand auch in die jeweils andere Richtung
+                ausrichten lassen - ein rohes <input type="number"> rundet
+                bei jedem Tastendruck sofort auf 0 zurueck, BEVOR ein "-"
+                gefolgt von Ziffern fertig getippt werden kann (siehe
+                NumberInput.tsx fuer die ausfuehrliche Begruendung/den Fix -
+                dieselbe Komponente wie an den anderen Zahlenfeldern der
+                App). */}
+            <NumberInput
               step={10}
               value={distanceMm}
-              onChange={(e) => onDistanceChange(Number(e.target.value) || 0)}
+              onChange={onDistanceChange}
               className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             />
           </label>
