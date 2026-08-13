@@ -1,5 +1,8 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { AnimatedButton } from "./AnimatedButton";
+import { PlusIcon } from "./icons/PlusIcon";
+import { XIcon } from "./icons/XIcon";
 
 interface ExpandingPanelProps {
   open: boolean;
@@ -16,6 +19,14 @@ const R = BUTTON_SIZE / 2;
 const CORNER_RADIUS = 20;
 const PADDING = 16;
 const HEADER_EXTRA_LEFT = Math.max(0, R + 8 - PADDING);
+// Jonas' Praezisierung 2026-08-14: "jetzt muss das menü noch nach rechts,
+// mit etwas abstand zwischen button und menü und dann noch die verbindung,
+// dass es wie ein element aussieht" - das Panel sitzt nicht mehr buendig am
+// Button (Referenzpunkt = Button-Mittelpunkt), sondern GAP px weiter
+// rechts/unten davon versetzt, die konkave Rundung (weiterhin Radius R,
+// siehe buildNotchedRectPath) ueberbrueckt diesen Zwischenraum als
+// fliessende Verbindung statt einer buendigen Aussparung.
+const GAP = 10;
 
 // Jonas' Skizze 2026-08-14 (drei Teilbilder: nur Button -> Rohbau-Layout mit
 // rot markierten Verbindungslinien -> fertig geglaettete Verbindung):
@@ -91,7 +102,7 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
             transition={springTransition}
-            style={{ position: "absolute", left: 0, top: 0, width, height: h, transformOrigin: "0 0" }}
+            style={{ position: "absolute", left: GAP, top: GAP, width, height: h, transformOrigin: "0 0" }}
             className="z-10"
           >
             <svg width={width} height={h} className="pointer-events-none absolute inset-0 drop-shadow-lg">
@@ -114,13 +125,17 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
       </AnimatePresence>
 
       {/* Button - eigenstaendige, IMMER sichtbare Glas-Kreisform (siehe
-          Kommentar oben), liegt ueber dem Panel. Icon-Wechsel per key-Fade
-          statt reiner Drehung (Jonas: "der Button soll dann eben so darein
-          faden") - key aendert sich NUR mit `open`, nicht bei jedem Render
-          (z. B. beim Tippen in den Maße-Feldern), sonst wuerde eine direkt im
-          animate-Prop erzeugte Keyframe-Opacity bei JEDEM Render neu
-          anspringen. */}
-      <button
+          Kommentar oben), liegt ueber dem Panel. Jonas' Vorgabe 2026-08-14:
+          "der Button soll vorher aber genauso sein wie er immer war, ein
+          animiertes icon usw." - AnimatedButton + PlusIcon/XIcon
+          (animate-ui-Icons mit eigener Hover-Animation ueber
+          IconHoverContext, siehe dortige Komponenten) statt der zuvor
+          selbstgebauten Linien-SVG, damit Hover-/Tap-Verhalten exakt dem
+          Rest der App entspricht. Der Wechsel zwischen den beiden Icons
+          selbst laeuft weiterhin per key-Fade (key haengt NUR an `open`,
+          nicht an jedem Render, siehe vorheriger Kommentar-Verlauf zu dieser
+          Datei). */}
+      <AnimatedButton
         type="button"
         data-tour={triggerDataTour}
         onClick={onToggle}
@@ -129,27 +144,19 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
         style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}
       >
         <AnimatePresence initial={false}>
-          <motion.svg
+          <motion.span
             key={open ? "cross" : "plus"}
-            width={20}
-            height={20}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={{ rotate: open ? 0 : 45, opacity: 0.25 }}
-            animate={{ rotate: open ? 45 : 0, opacity: 1 }}
+            initial={{ opacity: 0.25 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={springTransition}
-            style={{ position: "absolute", left: (BUTTON_SIZE - 20) / 2, top: (BUTTON_SIZE - 20) / 2 }}
+            className="absolute flex items-center justify-center"
+            style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}
           >
-            <line x1={12} y1={19} x2={12} y2={5} />
-            <line x1={5} y1={12} x2={19} y2={12} />
-          </motion.svg>
+            {open ? <XIcon size={20} /> : <PlusIcon size={20} />}
+          </motion.span>
         </AnimatePresence>
-      </button>
+      </AnimatedButton>
     </div>
   );
 }
