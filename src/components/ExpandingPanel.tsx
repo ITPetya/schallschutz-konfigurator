@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedButton } from "./AnimatedButton";
 import { PlusIcon } from "./icons/PlusIcon";
-import { XIcon } from "./icons/XIcon";
 
 interface ExpandingPanelProps {
   open: boolean;
@@ -67,12 +66,19 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
       {/* Button - eigenstaendige, IMMER sichtbare Glas-Kreisform, liegt ueber
           dem Panel. Jonas' Vorgabe 2026-08-14: "der Button soll vorher aber
           genauso sein wie er immer war, ein animiertes icon usw." -
-          AnimatedButton + PlusIcon/XIcon (animate-ui-Icons mit eigener
-          Hover-Animation ueber IconHoverContext) statt einer selbstgebauten
-          Linien-SVG. Icon-Wechsel per key-Fade - key haengt NUR an `open`,
-          nicht an jedem Render (z. B. beim Tippen in den Maße-Feldern),
-          sonst wuerde eine direkt im animate-Prop erzeugte Keyframe-Opacity
-          bei JEDEM Render neu anspringen. */}
+          AnimatedButton + PlusIcon (animate-ui-Icon mit eigener Hover-
+          Animation ueber IconHoverContext) statt einer selbstgebauten
+          Linien-SVG.
+          Jonas' Vorgabe 2026-08-14 (Folgeanfrage): "die Animation die beim
+          Hover kommt, soll auch beim Klick kommen, nur von + zu X und
+          andersrum" - EIN Icon (PlusIcon), das per zusaetzlichem, aeusseren
+          Rotations-Wrapper um 45° dreht (klassischer Plus-zu-Kreuz-Trick,
+          ein senkrecht+waagerechtes Kreuz sieht um 45° gedreht wie ein "X"
+          aus) statt zwischen zwei verschiedenen Icon-Komponenten
+          umzuschalten - dadurch bleibt PlusIcons EIGENE Hover-Wackel-
+          Animation (die inneren Linien) unveraendert erhalten UND kommt
+          zusaetzlich die grosse 45°-Drehung beim Oeffnen/Schliessen dazu,
+          beide Animationen ueberlagern sich einfach. */}
       <AnimatedButton
         type="button"
         data-tour={triggerDataTour}
@@ -81,19 +87,13 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
         className={`absolute left-0 top-0 z-20 flex items-center justify-center rounded-full text-brand-dark hover:text-brand dark:text-brand-light ${GLASS_CLASS}`}
         style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}
       >
-        <AnimatePresence initial={false}>
-          <motion.span
-            key={open ? "cross" : "plus"}
-            initial={{ opacity: 0.25 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={springTransition}
-            className="absolute flex items-center justify-center"
-            style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}
-          >
-            {open ? <XIcon size={20} /> : <PlusIcon size={20} />}
-          </motion.span>
-        </AnimatePresence>
+        <motion.span
+          animate={{ rotate: open ? 45 : 0 }}
+          transition={springTransition}
+          className="flex items-center justify-center"
+        >
+          <PlusIcon size={20} />
+        </motion.span>
       </AnimatedButton>
     </div>
   );
