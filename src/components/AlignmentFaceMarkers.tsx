@@ -7,6 +7,14 @@ interface AlignmentFaceMarkersProps {
   faces: AlignmentFacePoint[];
   selected: AlignmentFacePoint[]; // 0, 1 oder 2 Flaechen
   onPick: (f: AlignmentFacePoint) => void;
+  // Welt-transformierte Schnittebene der AUSGEWAEHLTEN Instanz (dieselbe wie
+  // ProjectScene3D.tsx's measureSectionPlane) + deren instanceId - "Schnitt"
+  // bezieht sich immer nur auf genau einen Container, deshalb clippingPlanes
+  // unten NUR bei Flaechen DIESER instanceId setzen, sonst wuerde die
+  // Schnittebene faelschlich auch Markierungen anderer, nicht geschnittener
+  // Instanzen kappen.
+  sectionPlane?: THREE.Plane | null;
+  sectionInstanceId?: string | null;
 }
 
 // Jonas' Fehlerbericht 2026-08-12: "die ganze Flaeche soll klickbar sein,
@@ -31,12 +39,20 @@ const VISIBLE_MARGIN_M = 0.3;
 // bewaehrt hat (siehe CornerCasting.tsx).
 const OUTWARD_OFFSET_M = 0.01;
 
-export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceMarkersProps) {
+export function AlignmentFaceMarkers({ faces, selected, onPick, sectionPlane, sectionInstanceId }: AlignmentFaceMarkersProps) {
   return (
     <group>
       {faces.map((f) => {
         const key = `${f.instanceId}:${f.axis}:${f.sign}`;
         const isSelected = selected.some((s) => s.instanceId === f.instanceId && s.axis === f.axis && s.sign === f.sign);
+        // Jonas' Fehlerbericht 2026-08-13 (Folgefehler): ProjectScene3D.tsx
+        // blendet eine Flaeche bisher nur KOMPLETT aus, wenn ihr Mittelpunkt
+        // weggeschnitten ist (siehe visibleAlignmentFaces dort) - schneidet
+        // der Schnitt eine Flaeche mittendurch, blieb sie trotzdem in voller
+        // Groesse sichtbar, weil ihr Material (anders als die echte Wand-
+        // Geometrie) keine clippingPlanes hatte. Nur bei der tatsaechlich
+        // geschnittenen Instanz anwenden (siehe Props-Kommentar oben).
+        const clippingPlanes = sectionPlane && f.instanceId === sectionInstanceId ? [sectionPlane] : [];
         // Ebene senkrecht zur Flaechen-Normalen ausrichten: eine PlaneGeometry
         // liegt standardmaessig in der XY-Ebene (Normale = Welt-Z) - fuer eine
         // X-Flaeche um 90° um Y drehen, fuer eine Z-Flaeche liegt sie schon
@@ -64,7 +80,7 @@ export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceM
               onPointerOut={resetPointerCursor}
             >
               <planeGeometry args={[f.width, f.height]} />
-              <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+              <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
             </mesh>
             {/* Sichtbare Markierung - deutlich kleiner als die Flaeche, rein
                 dekorativ (kein eigener Klick-Handler noetig, liegt innerhalb
@@ -77,6 +93,7 @@ export function AlignmentFaceMarkers({ faces, selected, onPick }: AlignmentFaceM
                 opacity={isSelected ? 0.85 : 0.5}
                 side={THREE.DoubleSide}
                 depthWrite={false}
+                clippingPlanes={clippingPlanes}
               />
             </mesh>
           </group>

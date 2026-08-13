@@ -22,6 +22,7 @@ import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import { computeAlignmentFaces, type AlignmentFacePoint } from "../utils/alignmentDependencies";
+import { isRectFullyCutAway } from "../utils/planeClipping";
 import type { ContainerSize } from "../constants/containerSizes";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 import type { AlignmentDependency } from "../config/projectTypes";
@@ -298,13 +299,18 @@ export function ProjectScene3D({
   // immer nur auf den ausgewaehlten Container (siehe measureSectionPlane
   // oben, dieselbe bereits welt-transformierte Ebene), deshalb nur dessen
   // Flaechen gegen die Ebene pruefen - Flaechen anderer Instanzen sind nie
-  // betroffen. Gleiche Vorzeichen-Konvention wie ueberall sonst im Projekt:
-  // distanceToPoint >= 0 = behaltene Seite.
+  // betroffen. isRectFullyCutAway prueft ALLE VIER Ecken statt nur des
+  // Mittelpunkts (Jonas' Fehlerbericht 2026-08-13, zweite Runde) - eine
+  // X-Flaeche z. B. bei einem R/L- oder O/U-Schnitt liegt sonst faelschlich
+  // fast immer "weggeschnitten" da, obwohl nur ein Teil betroffen ist (siehe
+  // planeClipping.ts fuer die ausfuehrliche Begruendung). rotationY hier
+  // dieselbe Formel wie AlignmentFaceMarkers.tsx.
   const visibleAlignmentFaces = useMemo(() => {
     if (!measureSectionPlane || !selectedInstance) return alignmentFaces;
     return alignmentFaces.filter((f) => {
       if (f.instanceId !== selectedInstance.id) return true;
-      return measureSectionPlane.distanceToPoint(new THREE.Vector3(...f.position)) >= 0;
+      const rotationY = f.axis === "x" ? Math.PI / 2 : 0;
+      return !isRectFullyCutAway(f.position, [0, rotationY, 0], f.width, f.height, measureSectionPlane);
     });
   }, [alignmentFaces, measureSectionPlane, selectedInstance]);
   // Faellt eine bereits gewaehlte Flaeche durch einen DANACH gesetzten/
@@ -454,7 +460,15 @@ export function ProjectScene3D({
           />
         )}
 
-        {alignmentActive && <AlignmentFaceMarkers faces={visibleAlignmentFaces} selected={alignmentSelected} onPick={handleAlignmentPick} />}
+        {alignmentActive && (
+          <AlignmentFaceMarkers
+            faces={visibleAlignmentFaces}
+            selected={alignmentSelected}
+            onPick={handleAlignmentPick}
+            sectionPlane={measureSectionPlane}
+            sectionInstanceId={selectedInstance?.id ?? null}
+          />
+        )}
 
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
             Herkunft dieser HDRI-Dateien. */}

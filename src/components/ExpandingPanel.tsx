@@ -15,6 +15,17 @@ interface ExpandingPanelProps {
 const BUTTON_SIZE = 36; // px, entspricht der bisherigen h-9 w-9
 const R = BUTTON_SIZE / 2;
 const CORNER_RADIUS = 14;
+// Jonas' Fehlerbericht 2026-08-13: "der Randabstand soll oben, unten und an
+// den Seiten überall gleich sein" - EIN gemeinsamer Aussenabstand fuer die
+// gesamte Flaeche statt der bisherigen, an jeder Seite verschiedenen
+// Tailwind-Klassen (px-4/pb-3/pt-1 fuer den Koerper, pr-3/pt-2.5 fuer den
+// Kopf). Nur die Kopfzeile braucht LINKS zusaetzlich Platz ueber PADDING
+// hinaus, um die Notch-Rundung nicht zu ueberlappen (siehe
+// buildNotchedRectPath: bei y=0 beginnt die Flaeche erst bei x=R) - dieser
+// Zusatzabstand ist eine unvermeidliche Ausnahme durch die Button-Aussparung
+// selbst, keine erneute Asymmetrie "ohne Grund".
+const PADDING = 16;
+const HEADER_EXTRA_LEFT = Math.max(0, R + 8 - PADDING);
 
 // Jonas' Vorgabe 2026-08-13 ("das Menü soll so aus dem Plus-Button
 // expandieren, damit es nicht mit anderen Elementen kollidiert"): ersetzt
@@ -100,11 +111,11 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
                 Playwright-Debug). Mit eigener Positionierung zaehlt die
                 normale DOM-Reihenfolge, der Inhalt (kommt im JSX nach der
                 SVG) malt sich korrekt darueber. */}
-            <div ref={contentRef} className="relative">
-              <div style={{ minHeight: BUTTON_SIZE, paddingLeft: BUTTON_SIZE + 8 }} className="flex items-center pr-3 pt-2.5">
+            <div ref={contentRef} className="relative flex flex-col gap-3" style={{ padding: PADDING }}>
+              <div style={{ minHeight: R, paddingLeft: HEADER_EXTRA_LEFT }} className="flex items-center">
                 {header}
               </div>
-              <div className="space-y-3 px-4 pb-3 pt-1">{children}</div>
+              {children}
             </div>
           </motion.div>
         )}

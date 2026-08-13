@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { WallFace } from "../utils/wallFaces";
 import type { PanelId } from "../types/openings";
 import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
+import { isRectFullyCutAway } from "../utils/planeClipping";
 
 interface WallFaceMarkersProps {
   faces: WallFace[];
@@ -24,8 +25,22 @@ interface WallFaceMarkersProps {
 const VISIBLE_MARGIN_M = 0.3;
 
 export function WallFaceMarkers({ faces, selected, onPick, sectionPlane }: WallFaceMarkersProps) {
+  // Jonas' Fehlerbericht 2026-08-13 (Folgefehler): die Faces-Filterung unten
+  // blendet eine Markierung nur KOMPLETT aus, sobald ihr MITTELPUNKT auf der
+  // weggeschnittenen Seite liegt - schneidet der Schnitt eine Flaeche aber
+  // mittendurch, blieb der Mittelpunkt oft noch auf der behaltenen Seite,
+  // waehrend die Markierung selbst trotzdem ueber die halbe (unsichtbare)
+  // Restwand hinausragte, weil ihr Material - anders als die echten Wand-
+  // Materialien in Wall.tsx - bisher KEINE clippingPlanes hatte. Beides ist
+  // noetig: die Filterung unten fuer den Fall "ganze Flaeche weg" (siehe
+  // isRectFullyCutAway - prueft ALLE VIER Ecken, nicht nur den Mittelpunkt,
+  // sonst waeren z. B. Vorne/Hinten bei einem R/L-Schnitt faelschlich immer
+  // komplett verschwunden, siehe planeClipping.ts), UND clippingPlanes hier
+  // fuer den Fall "Flaeche nur teilweise weg" (echtes pixelgenaues
+  // Mitschneiden, exakt wie bei der Container-Geometrie selbst).
+  const clippingPlanes = sectionPlane ? [sectionPlane] : [];
   const visibleFaces = sectionPlane
-    ? faces.filter((f) => sectionPlane.distanceToPoint(new THREE.Vector3(...f.position)) >= 0)
+    ? faces.filter((f) => !isRectFullyCutAway(f.position, f.rotation, f.width, f.height, sectionPlane))
     : faces;
 
   return (
@@ -49,7 +64,7 @@ export function WallFaceMarkers({ faces, selected, onPick, sectionPlane }: WallF
               onPointerOut={resetPointerCursor}
             >
               <planeGeometry args={[f.width, f.height]} />
-              <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+              <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={clippingPlanes} />
             </mesh>
             {/* Sichtbare Markierung - deutlich kleiner als die Flaeche, rein
                 dekorativ (kein eigener Klick-Handler noetig, liegt innerhalb
@@ -62,6 +77,7 @@ export function WallFaceMarkers({ faces, selected, onPick, sectionPlane }: WallF
                 opacity={isSelected ? 0.85 : 0.5}
                 side={THREE.DoubleSide}
                 depthWrite={false}
+                clippingPlanes={clippingPlanes}
               />
             </mesh>
           </group>
