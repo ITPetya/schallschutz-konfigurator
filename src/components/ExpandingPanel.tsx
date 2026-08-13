@@ -19,14 +19,17 @@ const R = BUTTON_SIZE / 2;
 const CORNER_RADIUS = 20;
 const PADDING = 16;
 const HEADER_EXTRA_LEFT = Math.max(0, R + 8 - PADDING);
-// Jonas' Praezisierung 2026-08-14: "jetzt muss das menü noch nach rechts,
-// mit etwas abstand zwischen button und menü und dann noch die verbindung,
-// dass es wie ein element aussieht" - das Panel sitzt nicht mehr buendig am
-// Button (Referenzpunkt = Button-Mittelpunkt), sondern GAP px weiter
-// rechts/unten davon versetzt, die konkave Rundung (weiterhin Radius R,
-// siehe buildNotchedRectPath) ueberbrueckt diesen Zwischenraum als
-// fliessende Verbindung statt einer buendigen Aussparung.
+// Jonas' Fehlerbericht 2026-08-14 ("der Kasten ist immernoch im Button, die
+// beiden Elemente sollen von ihren AUSSENKANTEN etwas Abstand haben"): GAP
+// muss ab der Button-AUSSENKANTE (Radius R) gemessen werden, nicht ab dessen
+// Mittelpunkt - PANEL_OFFSET = R + GAP versetzt das Panel jetzt tatsaechlich
+// so weit, dass zwischen der Button-Kante und der Panel-Kante Luft bleibt
+// (der vorherige Versuch nutzte GAP allein als Versatz und landete damit
+// noch INNERHALB des Button-Radius). Die konkave Rundung (weiterhin Radius
+// R, siehe buildNotchedRectPath) ueberbrueckt diesen Zwischenraum als
+// fliessende Verbindung.
 const GAP = 10;
+const PANEL_OFFSET = R + GAP;
 
 // Jonas' Skizze 2026-08-14 (drei Teilbilder: nur Button -> Rohbau-Layout mit
 // rot markierten Verbindungslinien -> fertig geglaettete Verbindung):
@@ -102,7 +105,7 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
             transition={springTransition}
-            style={{ position: "absolute", left: GAP, top: GAP, width, height: h, transformOrigin: "0 0" }}
+            style={{ position: "absolute", left: PANEL_OFFSET, top: PANEL_OFFSET, width, height: h, transformOrigin: "0 0" }}
             className="z-10"
           >
             <svg width={width} height={h} className="pointer-events-none absolute inset-0 drop-shadow-lg">
