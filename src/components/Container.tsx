@@ -165,7 +165,19 @@ export function Container({ size, wallThickness, openings, floorThickness = DEFA
   const verticalWallVOffset = verticalWallPositionY - verticalWallHeight / 2;
   const openingsFor = (panel: PanelId) => {
     const filtered = openingsM.filter((o) => o.panel === panel);
-    if (!isVerticalWall(panel)) return filtered;
+    if (!isVerticalWall(panel)) {
+      // Jonas' Vorgabe 2026-08-14: auf Boden/Dach soll "Breite" IMMER die
+      // Links-Rechts-Achse treiben, "Höhe" IMMER die Vorne-Hinten-Achse -
+      // Wall.tsx/RoofRidge.tsx legen die Ausschnitt-Breite/-Hoehe aber
+      // generisch auf lokal X/Y (= u/v-Achse) um, was bei Oben/Unten ohne
+      // diese Vertauschung genau andersherum war (u = Länge, v = Breite,
+      // siehe panelGeometry.ts). uExtent/vExtent sind die kanonische
+      // Zuordnung, hier fuer BEIDE Verbraucher (Wall.tsx UND RoofRidge.tsx,
+      // die diese Liste beide ueber openingsFor("top") bekommen) an EINER
+      // Stelle aufgeloest, damit width/height danach wieder generisch als
+      // "u-Ausdehnung"/"v-Ausdehnung" gelesen werden koennen.
+      return filtered.map((o) => ({ ...o, width: o.height, height: o.width }));
+    }
     return filtered.map((o) => ({ ...o, v: o.v - verticalWallVOffset }));
   };
 

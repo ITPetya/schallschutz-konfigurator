@@ -3,6 +3,7 @@ import type { Opening, PanelId } from "../types/openings";
 import { isVerticalWall } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { CORNER_WALL_RECESS_MM } from "../components/CornerCasting";
+import { uExtent, vExtent } from "./panelGeometry";
 
 const MM_TO_M = 1 / 1000;
 
@@ -253,8 +254,10 @@ export function computeMeasurePoints(
   for (const opening of openings) {
     const typeDef = OPENING_TYPES[opening.kind];
     const uM = opening.u * MM_TO_M;
+    // width/height fuer die runde Form direkt (dort sind beide ohnehin
+    // synchron gehalten, siehe OpeningFieldsEditor.tsx) - fuer die
+    // rechteckige Form siehe hw/hh weiter unten (uExtent/vExtent).
     const widthM = opening.width * MM_TO_M;
-    const heightM = opening.height * MM_TO_M;
     // Siehe Container.tsx's openingsM/openingsFor - exakt dieselbe
     // Umrechnung (Tuer-Unterkante -> Mitte, dann bei Seitenwaenden um
     // wallRecess+floorT nach unten korrigiert - Jonas' Korrektur
@@ -311,8 +314,15 @@ export function computeMeasurePoints(
           });
         }
       } else {
-        const hw = widthM / 2;
-        const hh = heightM / 2;
+        // Jonas' Vorgabe 2026-08-14: auf Boden/Dach treibt "Breite" die
+        // v-Achse und "Höhe" die u-Achse (siehe panelGeometry.ts's
+        // uExtent/vExtent-Kommentar) - dieselbe Vertauschung, die
+        // Container.tsx's openingsFor fuer die tatsaechliche CSG-Geometrie
+        // anwendet, muss hier fuer die Messpunkt-Eckenlage genauso gelten,
+        // sonst landen die Eck-Messpunkte eines Kabeldurchbruchs auf Boden/
+        // Dach nicht mehr an den echten (jetzt vertauschten) Kanten.
+        const hw = (uExtent(opening, opening.panel) * MM_TO_M) / 2;
+        const hh = (vExtent(opening, opening.panel) * MM_TO_M) / 2;
         const corners: [number, number][] = [
           [-hw, -hh],
           [hw, -hh],

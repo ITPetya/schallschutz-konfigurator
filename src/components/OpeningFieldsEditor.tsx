@@ -2,7 +2,7 @@ import type { DoorHinge, Opening } from "../types/openings";
 import { OPENING_SIZE_PRESETS, OPENING_TYPES } from "../constants/openingTypes";
 import type { ContainerSize } from "../constants/containerSizes";
 import { clampVerticalPosition, verticalBounds } from "../utils/openingConstraints";
-import { panelSpanU, panelSpanV, positionLabels } from "../utils/panelGeometry";
+import { panelSpanU, panelSpanV, positionLabels, uExtent, vExtent } from "../utils/panelGeometry";
 import { NumberInput } from "./NumberInput";
 
 interface OpeningFieldsEditorProps {
@@ -32,16 +32,23 @@ const labelTextClass = "flex min-h-[2rem] items-end";
 // "strukturell identisches extrahieren statt duplizieren".
 export function OpeningFieldsEditor({ opening: o, size, onChange }: OpeningFieldsEditorProps) {
   const typeDef = OPENING_TYPES[o.kind];
-  const maxU = Math.max(0, panelSpanU(o.panel, size) / 2 - o.width / 2);
+  // Jonas' Vorgabe 2026-08-14: auf Boden/Dach treibt "Breite" die v-Achse
+  // und "Höhe" die u-Achse (umgekehrt zu den Seitenwaenden, siehe
+  // panelGeometry.ts's uExtent/vExtent-Kommentar und Container.tsx's
+  // openingsFor, wo dieselbe Vertauschung fuer die tatsaechliche CSG-
+  // Geometrie passiert) - die Positionsgrenzen hier muessen dieselbe
+  // Zuordnung nutzen, sonst liesse sich ein Durchbruch ausserhalb der
+  // Panel-Flaeche positionieren.
+  const maxU = Math.max(0, panelSpanU(o.panel, size) / 2 - uExtent(o, o.panel) / 2);
   // Bei runden Durchbruechen ist width der Durchmesser und height wird laut
-  // Datenmodell ignoriert (siehe types/openings.ts) - hier trotzdem effektiv
-  // auf width umgelegt, falls height (z. B. aus einem aelteren Speicherstand
-  // oder vor dem Fix unten) noch veraltet/abweichend ist (Jonas'
-  // Fehlerbericht 2026-08-10: "eckiger Schlitz statt rund" an einem
-  // vergroesserten runden Dach-Durchbruch, siehe railLayout.ts's
-  // verticalSpan fuer denselben Fix an der eigentlichen Ausschnitt-Stelle).
-  const effectiveHeight = typeDef.shape === "round" ? o.width : o.height;
-  const vBounds = verticalBounds(typeDef, effectiveHeight, panelSpanV(o.panel, size));
+  // Datenmodell ignoriert (siehe types/openings.ts) - vExtent liefert dafuer
+  // automatisch width zurueck (width/height werden fuer runde Formen an
+  // jeder Aenderung synchron gehalten, siehe die Breite-Feld-onChange unten),
+  // kein eigener Sonderfall mehr noetig (Jonas' Fehlerbericht 2026-08-10:
+  // "eckiger Schlitz statt rund" an einem vergroesserten runden
+  // Dach-Durchbruch, siehe railLayout.ts's verticalSpan fuer denselben Fix
+  // an der eigentlichen Ausschnitt-Stelle).
+  const vBounds = verticalBounds(typeDef, vExtent(o, o.panel), panelSpanV(o.panel, size));
   const [uLabel, vLabel] = positionLabels(o.panel, !!typeDef.isDoor);
   const widthMin = typeDef.minWidth ?? typeDef.minSize;
   const widthMax = typeDef.maxWidth ?? typeDef.maxSize;

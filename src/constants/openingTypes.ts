@@ -133,7 +133,12 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     maxSize: 0,
     protrusionDepth: 12,
     // Jonas' Fehlerbericht 2026-07-25: "keine Wetterschutzgitter auf dem Dach".
-    excludedPanels: ["top"],
+    // Jonas' Fehlerbericht 2026-08-14: "kann man im Boden hinzufügen, das
+    // ist natürlich nicht korrekt" - dieselbe Begruendung gilt hier: das
+    // Gitter ist fuer eine SENKRECHTE Aussenwand konstruiert (baut nach
+    // aussen auf, siehe protrusionDepth), auf einer horizontalen Flaeche
+    // (Boden ODER Dach) ergibt die Bauform keinen Sinn.
+    excludedPanels: ["top", "bottom"],
   },
   cable: {
     kind: "cable",
