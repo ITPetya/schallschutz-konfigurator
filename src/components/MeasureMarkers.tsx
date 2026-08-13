@@ -54,16 +54,21 @@ const MARKER_RADIUS_M = 0.08;
 // Messpunkt-Benutzbarkeit, egal in welcher Form. Stattdessen zwei einfache,
 // rein deklarative Regeln, die nichts mehr gegen die Szene testen:
 //
-// 1. Aussenpunkte (interior=false/undefined) sind IMMER benutzbar - sie
-//    sitzen per Definition auf der Aussenhuelle des Containers und waren
-//    von KEINER Kameraposition aus jemals tatsaechlich verdeckt (das war
-//    schon vor 9c5cd59, also vor jeder Occlusion-Logik ueberhaupt, so - und
-//    hat immer funktioniert). Keine Berechnung noetig.
-// 2. Innenpunkte (interior=true) sind NUR benutzbar, wenn (a) eine
-//    Schnittansicht aktiv ist UND (b) der Punkt auf der behaltenen Seite der
-//    Schnittebene liegt - exakt dieselbe Vorzeichen-Regel, die auch die
-//    echte Geometrie-Beschneidung nutzt (siehe isUsable unten). Kein
-//    Durchbruch-/Tuer-Sichtfeld-Sonderfall mehr (das urspruengliche
+// 1. Ohne aktiven Schnitt: Aussenpunkte (interior=false/undefined) sind
+//    IMMER benutzbar - sie sitzen per Definition auf der Aussenhuelle des
+//    Containers und waren von KEINER Kameraposition aus jemals tatsaechlich
+//    verdeckt (das war schon vor 9c5cd59, also vor jeder Occlusion-Logik
+//    ueberhaupt, so - und hat immer funktioniert). Innenpunkte sind ohne
+//    Schnitt nie benutzbar (liegen im soliden Material).
+// 2. Mit aktivem Schnitt gilt fuer ALLE Punkte (innen UND aussen) dieselbe
+//    Vorzeichen-Regel, die auch die echte Geometrie-Beschneidung nutzt
+//    (siehe isUsable unten): nur benutzbar, wenn der Punkt auf der
+//    behaltenen Seite der Schnittebene liegt. Jonas' Fehlerbericht
+//    2026-08-13 (fuenfte Runde): vorher blieben Aussenpunkte AUCH dann
+//    anklickbar, wenn der Schnitt sie tatsaechlich weggeschnitten hatte
+//    (z. B. eine Container-Ecke auf der entfernten Haelfte) - "immer
+//    benutzbar" galt bis dahin unabhaengig vom Schnitt. Kein
+//    Durchbruch-/Tuer-Sichtfeld-Sonderfall (das urspruengliche
 //    9c5cd59-Verhalten bleibt bewusst entfernt, siehe measurePoints.ts).
 //
 // Strukturell wichtig: "benutzbar" wird EINMAL berechnet (isUsable) und
@@ -85,12 +90,18 @@ export function MeasureMarkers({ points, selected, onPick, unit, sectionPlane }:
   // einmal direkt) aufzufuehren.
   const isUsable = useCallback(
     (p: MeasurePoint): boolean => {
-      if (!p.interior) return true;
-      if (!sectionPlane) return false;
-      // Selbe Vorzeichen-Konvention wie three.js' material.clippingPlanes
-      // (und wie SectionAndViewPanel.tsx's useSectionPlane die Ebene baut):
-      // distanceToPoint >= 0 = behaltene Seite.
-      return sectionPlane.distanceToPoint(new THREE.Vector3(...p.position)) >= 0;
+      // Jonas' Fehlerbericht 2026-08-13: nicht nur Innenpunkte, auch
+      // AUSSENpunkte muessen verschwinden, wenn ein aktiver Schnitt sie
+      // tatsaechlich wegschneidet (z. B. eine Container-Ecke auf der
+      // entfernten Haelfte) - vorher waren Aussenpunkte IMMER nutzbar,
+      // unabhaengig vom Schnitt. Ist ein Schnitt aktiv, gilt dieselbe
+      // Vorzeichen-Konvention (wie three.js' material.clippingPlanes und
+      // SectionAndViewPanel.tsx's useSectionPlane: distanceToPoint >= 0 =
+      // behaltene Seite) fuer ALLE Punkte, nicht mehr nur fuer Innenpunkte.
+      // Ohne aktiven Schnitt bleibt es beim alten Verhalten: Aussenpunkte
+      // immer nutzbar, Innenpunkte nie (sie liegen sonst im soliden Material).
+      if (sectionPlane) return sectionPlane.distanceToPoint(new THREE.Vector3(...p.position)) >= 0;
+      return !p.interior;
     },
     [sectionPlane],
   );

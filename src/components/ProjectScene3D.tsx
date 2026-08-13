@@ -292,6 +292,31 @@ export function ProjectScene3D({
   const [alignmentMode, setAlignmentMode] = useState<"mate" | "flush">("mate");
   const [alignmentDistanceMm, setAlignmentDistanceMm] = useState(500);
   const alignmentFaces = useMemo(() => (alignmentActive ? computeAlignmentFaces(instances) : EMPTY_ALIGNMENT_FACES), [instances, alignmentActive]);
+  // Jonas' Fehlerbericht 2026-08-13: Ausrichten-Flaechen kannten bisher
+  // keinen Schnitt - eine weggeschnittene Flaeche des ausgewaehlten
+  // Containers blieb trotzdem anklickbar/markiert. "Schnitt" bezieht sich
+  // immer nur auf den ausgewaehlten Container (siehe measureSectionPlane
+  // oben, dieselbe bereits welt-transformierte Ebene), deshalb nur dessen
+  // Flaechen gegen die Ebene pruefen - Flaechen anderer Instanzen sind nie
+  // betroffen. Gleiche Vorzeichen-Konvention wie ueberall sonst im Projekt:
+  // distanceToPoint >= 0 = behaltene Seite.
+  const visibleAlignmentFaces = useMemo(() => {
+    if (!measureSectionPlane || !selectedInstance) return alignmentFaces;
+    return alignmentFaces.filter((f) => {
+      if (f.instanceId !== selectedInstance.id) return true;
+      return measureSectionPlane.distanceToPoint(new THREE.Vector3(...f.position)) >= 0;
+    });
+  }, [alignmentFaces, measureSectionPlane, selectedInstance]);
+  // Faellt eine bereits gewaehlte Flaeche durch einen DANACH gesetzten/
+  // verschobenen Schnitt aus visibleAlignmentFaces heraus, aus der Auswahl
+  // entfernen - sonst wuerde "Verknuepfen" mit einer nicht mehr sichtbaren
+  // Flaeche arbeiten (gleiches Prinzip wie MeasureMarkers.tsx's usableIds/
+  // showDimensions fuer verwaiste Messpunkt-Auswahlen).
+  useEffect(() => {
+    setAlignmentSelected((prev) =>
+      prev.filter((f) => visibleAlignmentFaces.some((v) => v.instanceId === f.instanceId && v.axis === f.axis && v.sign === f.sign)),
+    );
+  }, [visibleAlignmentFaces]);
 
   function handleToggleAlignment() {
     setAlignmentActive((v) => !v);
@@ -429,7 +454,7 @@ export function ProjectScene3D({
           />
         )}
 
-        {alignmentActive && <AlignmentFaceMarkers faces={alignmentFaces} selected={alignmentSelected} onPick={handleAlignmentPick} />}
+        {alignmentActive && <AlignmentFaceMarkers faces={visibleAlignmentFaces} selected={alignmentSelected} onPick={handleAlignmentPick} />}
 
         {/* Siehe Scene.tsx fuer den Kommentar zur (unbestaetigten) Poly-Haven-
             Herkunft dieser HDRI-Dateien. */}

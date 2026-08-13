@@ -9,6 +9,7 @@ import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
+import { WallFaceMarkers } from "./WallFaceMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
@@ -16,8 +17,9 @@ import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import type { ContainerSize } from "../constants/containerSizes";
-import type { Opening } from "../types/openings";
+import type { Opening, PanelId } from "../types/openings";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
+import { computeWallFaces } from "../utils/wallFaces";
 import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
@@ -69,6 +71,19 @@ interface SceneProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // Jonas' Vorgabe 2026-08-13 ("Einbauten hinzufügen"-Assistent): Live-
+  // Vorschau der gerade im Assistenten konfigurierten (noch nicht
+  // committeten) Einbaute - wird NUR fuers Rendering in die an <Container>
+  // gehende Liste gemischt, landet nie in `openings`/der Undo-Historie
+  // selbst (die haelt WorkspacePage.tsx separat).
+  draftOpening?: Opening | null;
+  // Waehrend der Assistent offen ist: macht die 6 Waende im Viewer klickbar
+  // (WallFaceMarkers.tsx, gleiches Muster wie "Ausrichten"), onPickPanel
+  // meldet die angeklickte Wand nach oben. selectedPanel hebt die aktuell im
+  // Assistenten gewaehlte Wand farblich hervor.
+  wallPickActive?: boolean;
+  selectedPanel?: PanelId | null;
+  onPickPanel?: (panel: PanelId) => void;
 }
 
 const MM_TO_M = 1 / 1000;
@@ -101,6 +116,10 @@ export function Scene({
   onRedo,
   canUndo,
   canRedo,
+  draftOpening,
+  wallPickActive,
+  selectedPanel,
+  onPickPanel,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -214,7 +233,7 @@ export function Scene({
             <Container
               size={size}
               wallThickness={wallThickness}
-              openings={openings}
+              openings={draftOpening ? [...openings, draftOpening] : openings}
               floorThickness={resolvedFloorThickness}
               floorInsulated={floorInsulated}
               onReady={() => setContainerReady(true)}
@@ -228,6 +247,15 @@ export function Scene({
             selected={measureSelected}
             onPick={handleMeasurePick}
             unit={unitPrefs.primary}
+            sectionPlane={section.sectionPlane}
+          />
+        )}
+
+        {wallPickActive && onPickPanel && (
+          <WallFaceMarkers
+            faces={computeWallFaces(size, wallThickness, resolvedFloorThickness)}
+            selected={selectedPanel ?? null}
+            onPick={onPickPanel}
             sectionPlane={section.sectionPlane}
           />
         )}

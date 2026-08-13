@@ -23,7 +23,15 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
-import type { Opening } from "../types/openings";
+import type { Opening, PanelId } from "../types/openings";
+import {
+  applyFamilyPick,
+  applyPanelPick,
+  buildDraft,
+  createInitialWizardState,
+  type OpeningWizardState,
+} from "../utils/openingWizard";
+import type { OpeningFamily } from "../constants/openingFamilies";
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
 import { REQUEST_EMAIL } from "../config/requestEmail";
@@ -266,7 +274,13 @@ export function WorkspacePage() {
   // (die Instanz wurde waehrend der Bearbeitung schon laufend aktualisiert).
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const editingInstance = project.instances.find((i) => i.id === editingInstanceId) ?? null;
-  const [showAddPopup, setShowAddPopup] = useState(false);
+  // Jonas' Vorgabe 2026-08-13 ("Einbauten hinzufügen"-Assistent): der
+  // gesamte Assistenten-Zustand (welche Fläche/Einbaute/Maße gerade gewählt
+  // sind) lebt hier statt im bisherigen showAddPopup-Boolean - `null` heisst
+  // "Assistent geschlossen", AddOpeningPopup.tsx ist eine reine controlled
+  // Component darauf. Siehe utils/openingWizard.ts fuer die Uebergangs-
+  // funktionen (applyPanelPick/applyFamilyPick/buildDraft).
+  const [openingWizard, setOpeningWizard] = useState<OpeningWizardState | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   // Steuert das Disc-Icon (statt Download-Icon) auf den "Speichern"-Buttons,
@@ -487,6 +501,32 @@ export function WorkspacePage() {
     updateEditingConfig({ openings: [...editingInstance.config.openings, opening] });
     notifyEvent("opening-added");
   }
+
+  // ---------- "Einbauten hinzufügen"-Assistent (Jonas' Vorgabe 2026-08-13) ----------
+  // Wandwahl per Dropdown IM Popup UND per Klick auf die Wand im 3D-Viewer
+  // (Scene.tsx's onPickPanel, siehe WallFaceMarkers.tsx) rufen beide
+  // denselben Handler - beide Wege sind gleichwertig.
+  function handleWizardPanelChange(panel: PanelId) {
+    setOpeningWizard((w) => (w ? applyPanelPick(w, panel) : w));
+  }
+  function handleWizardFamilyChange(family: OpeningFamily) {
+    if (!editingInstance) return;
+    setOpeningWizard((w) => (w ? applyFamilyPick(w, family, editingInstance.config.size) : w));
+  }
+  function handleWizardFieldsChange(patch: Partial<Opening>) {
+    setOpeningWizard((w) => (w ? { ...w, opening: { ...w.opening, ...patch } } : w));
+  }
+  function handleWizardCommit() {
+    if (!openingWizard) return;
+    const draft = buildDraft(openingWizard);
+    if (!draft) return;
+    handleAddOpening(draft);
+    setOpeningWizard(null);
+  }
+  function handleWizardClose() {
+    setOpeningWizard(null);
+  }
+
   function handleUpdateOpening(id: string, patch: Partial<Opening>) {
     if (!editingInstance) return;
     updateEditingConfig({ openings: editingInstance.config.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
@@ -1113,23 +1153,37 @@ export function WorkspacePage() {
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}
                 canRedo={redoStack.length > 0}
+                draftOpening={openingWizard ? buildDraft(openingWizard) : null}
+                // Nur sichtbar/klickbar, solange noch keine Einbaute gewaehlt
+                // ist (Abschnitt 1) - sobald eine Live-Vorschau existiert,
+                // wuerde die grossflaechige Wand-Markierung sie sonst optisch
+                // verdecken (per Playwright-Screenshot bestaetigt). Die
+                // Wand laesst sich danach weiterhin ueber das Dropdown in
+                // Abschnitt 1 wechseln, nur der 3D-Klick ist dann aus.
+                wallPickActive={!!openingWizard && !openingWizard.family}
+                selectedPanel={openingWizard?.panel ?? null}
+                onPickPanel={handleWizardPanelChange}
               />
-              {!showAddPopup && (
+              {!openingWizard && (
                 <AnimatedButton
                   type="button"
                   data-tour="add-opening"
-                  onClick={() => setShowAddPopup(true)}
-                  aria-label="Durchbruch hinzufügen"
+                  onClick={() => setOpeningWizard(createInitialWizardState())}
+                  aria-label="Einbauten hinzufügen"
                   className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
                 >
                   <PlusIcon size={20} />
                 </AnimatedButton>
               )}
-              {showAddPopup && (
+              {openingWizard && (
                 <AddOpeningPopup
                   size={editingInstance.config.size}
-                  onAdd={handleAddOpening}
-                  onClose={() => setShowAddPopup(false)}
+                  wizard={openingWizard}
+                  onPanelChange={handleWizardPanelChange}
+                  onFamilyChange={handleWizardFamilyChange}
+                  onFieldsChange={handleWizardFieldsChange}
+                  onCommit={handleWizardCommit}
+                  onClose={handleWizardClose}
                 />
               )}
             </>

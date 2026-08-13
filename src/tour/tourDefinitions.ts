@@ -18,7 +18,7 @@ import type { Tour } from "./types";
 // 1. KERNABLAUF (erste 9 Schritte, jeder mit waitForEvent) - erzwingt eine
 //    ECHTE Aktion, bevor es weitergeht: Projekt anlegen -> Container
 //    hinzufuegen -> Detail bearbeiten -> Groesse/Wand-/Bodenstaerke aendern ->
-//    Schallschutzklasse wechseln -> Durchbruch hinzufuegen. "Weiter" bleibt
+//    Schallschutzklasse wechseln -> Einbauten hinzufuegen. "Weiter" bleibt
 //    ueberall zusaetzlich als manueller Ausweg nutzbar (z. B. wenn schon ein
 //    Projekt/Container existiert und der Schritt technisch schon erfuellt
 //    waere).
@@ -114,8 +114,8 @@ export const TOURS: Record<string, Tour> = {
       },
       {
         selector: '[data-tour="add-opening"]',
-        title: "Durchbruch hinzufügen",
-        body: "Über dieses Plus öffnest du ein Formular, um Wand, Typ und Position eines neuen Durchbruchs festzulegen. Füge probeweise eine Tür hinzu – Maße kannst du direkt danach in der „Einbauten“-Liste frei anpassen.",
+        title: "Einbauten hinzufügen",
+        body: "Über dieses Plus öffnest du den Assistenten: erst die Fläche wählen (per Dropdown oder direkt durch Klick auf eine Wand im Viewer), dann die Einbaute, dann Maße & Details – alles erscheint live im Viewer, bevor du unten „Hinzufügen“ bestätigst. Füge probeweise eine Tür hinzu – Maße kannst du danach jederzeit in der „Einbauten“-Liste frei anpassen.",
         placement: "bottom",
         waitForEvent: "opening-added",
       },
