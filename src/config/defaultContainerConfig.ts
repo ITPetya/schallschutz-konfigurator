@@ -15,13 +15,9 @@ export function defaultConfig(): ContainerConfig {
     size: DEFAULT_CONTAINER_SIZE,
     wallThickness: DEFAULT_WALL_THICKNESS,
     openings: [],
-    viewStyle: "realistic",
-    background: "studio",
     // RAL 7004 Signalgrau.
     insideColor: RAL_STANDARD_COLORS[1].hex,
     outsideColor: RAL_STANDARD_COLORS[1].hex,
-    shadowsEnabled: true,
-    terrainDetail: "low",
     insideUnpainted: false,
     outsideNotes: "",
     insideNotes: "",

@@ -4,6 +4,7 @@ import { THEME_KEY } from "../context/ThemeContext";
 import { SEEN_KEY, TOUR_PROGRESS_KEY } from "../tour/tourStore";
 import { UNIT_PREFS_KEY } from "./unitPreferencesStore";
 import { SPACEMOUSE_SENSITIVITY_KEY } from "./spaceMouseSettingsStore";
+import { VIEW_PREFS_KEY } from "./viewPreferencesStore";
 
 // Verlauf mehrerer zuletzt offener Projekte (Jonas' Vorgabe 2026-07-28: "man
 // sollte mehrere Container/Projekte auch im local storage gespeichert haben
@@ -125,6 +126,9 @@ export function hasMeaningfulProjectDraft(): boolean {
 // UNIT_PREFS_KEY (unitPreferencesStore.ts, Jonas' Vorgabe 2026-08-10:
 // Mess-Einheiten) aus demselben Grund. SPACEMOUSE_SENSITIVITY_KEY
 // (spaceMouseSettingsStore.ts, Jonas' Vorgabe 2026-08-12) ebenso.
+// VIEW_PREFS_KEY (viewPreferencesStore.ts, Jonas' Vorgabe 2026-08-14:
+// Ansicht-Einstellungen sind jetzt ebenfalls reine Browser-Praeferenz statt
+// Teil der gespeicherten Konfiguration) ebenso.
 export function clearProjectDraft() {
   try {
     localStorage.removeItem(HISTORY_KEY);
@@ -134,6 +138,7 @@ export function clearProjectDraft() {
     localStorage.removeItem(TOUR_PROGRESS_KEY);
     localStorage.removeItem(UNIT_PREFS_KEY);
     localStorage.removeItem(SPACEMOUSE_SENSITIVITY_KEY);
+    localStorage.removeItem(VIEW_PREFS_KEY);
   } catch {
     // s.o.
   }

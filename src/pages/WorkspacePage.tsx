@@ -1134,8 +1134,6 @@ export function WorkspacePage() {
                 size={editingInstance.config.size}
                 wallThickness={editingInstance.config.wallThickness}
                 openings={editingInstance.config.openings}
-                viewStyle={editingInstance.config.viewStyle}
-                background={editingInstance.config.background}
                 insideColor={editingInstance.config.insideColor}
                 outsideColor={editingInstance.config.outsideColor}
                 insideUnpainted={editingInstance.config.insideUnpainted ?? false}
@@ -1143,12 +1141,6 @@ export function WorkspacePage() {
                 floorInsulated={
                   editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)
                 }
-                shadowsEnabled={editingInstance.config.shadowsEnabled ?? true}
-                terrainDetail={editingInstance.config.terrainDetail ?? "low"}
-                onViewStyleChange={(viewStyle) => updateEditingConfig({ viewStyle })}
-                onBackgroundChange={(background) => updateEditingConfig({ background })}
-                onShadowsEnabledChange={(shadowsEnabled) => updateEditingConfig({ shadowsEnabled })}
-                onTerrainDetailChange={(terrainDetail) => updateEditingConfig({ terrainDetail })}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}
@@ -1213,9 +1205,6 @@ export function WorkspacePage() {
                 draggingId={draggingId}
                 dragValid={dragValid}
                 onSelect={setSelectedId}
-                onSetAllViewStyle={(v) =>
-                  setProject((p) => ({ ...p, instances: p.instances.map((i) => ({ ...i, config: { ...i.config, viewStyle: v } })) }))
-                }
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}

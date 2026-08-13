@@ -13,6 +13,7 @@ import { WallFaceMarkers } from "./WallFaceMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useViewPreferences } from "../hooks/useViewPreferences";
 import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
@@ -23,19 +24,12 @@ import { computeWallFaces } from "../utils/wallFaces";
 import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
-import {
-  DisplaySettingsProvider,
-  type BackgroundStyle,
-  type TerrainDetail,
-  type ViewStyle,
-} from "../context/DisplaySettingsContext";
+import { DisplaySettingsProvider } from "../context/DisplaySettingsContext";
 
 interface SceneProps {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
-  viewStyle: ViewStyle;
-  background: BackgroundStyle;
   insideColor: string;
   outsideColor: string;
   insideUnpainted: boolean;
@@ -47,23 +41,6 @@ interface SceneProps {
   // Hohl oder isoliert gefuellt - optional mit Default true in
   // Container.tsx, falls ein Aufrufer das Prop (noch) nicht setzt.
   floorInsulated?: boolean;
-  // Jonas' Vorgabe 2026-07-24: Schatten abschaltbar. Steuert direkt
-  // <Canvas shadows={...}> - deaktiviert damit den Shadow-Map-Pass des
-  // Renderers global, kein Umweg ueber einzelne Mesh-Props noetig.
-  shadowsEnabled: boolean;
-  // Jonas' Vorgabe 2026-07-25: 4 Detailstufen fuer den "Gelände"-Hintergrund
-  // (siehe TerrainBackground.tsx) - nur relevant/sichtbar, wenn background
-  // bereits "terrain" ist, faellt sonst auf "low" zurueck.
-  terrainDetail: TerrainDetail;
-  // Jonas' Vorgabe 2026-07-24: das "Ansicht"-Panel (Realistisch/Schattiert
-  // mit Kanten, Hintergrund, Schatten) zieht aus der Seitenleiste in den
-  // Viewer, direkt neben "Schnitt" - deshalb braucht Scene jetzt auch
-  // Schreibzugriff (vorher nur lesend als Anzeige-Props). Optional: im
-  // readonly-Viewer gibt es diese Steuerung nicht.
-  onViewStyleChange?: (v: ViewStyle) => void;
-  onBackgroundChange?: (b: BackgroundStyle) => void;
-  onShadowsEnabledChange?: (v: boolean) => void;
-  onTerrainDetailChange?: (d: TerrainDetail) => void;
   // Jonas' Vorgabe 2026-07-25: "vor und zurück buttons ... für strg+z usw." -
   // optional, weil der schreibgeschuetzte Viewer (KonfiguratorPage.tsx)
   // nichts rueckgaengig machen kann.
@@ -99,19 +76,11 @@ export function Scene({
   size,
   wallThickness,
   openings,
-  viewStyle,
-  background,
   insideColor,
   outsideColor,
   insideUnpainted,
   floorThickness,
   floorInsulated,
-  shadowsEnabled,
-  terrainDetail,
-  onViewStyleChange,
-  onBackgroundChange,
-  onShadowsEnabledChange,
-  onTerrainDetailChange,
   onUndo,
   onRedo,
   canUndo,
@@ -158,7 +127,12 @@ export function Scene({
   const spaceMouse = useSpaceMouse();
   const { sensitivity: spaceMouseSensitivity, setSensitivity: setSpaceMouseSensitivity } = useSpaceMouseSensitivity();
 
-  const isTerrain = background === "terrain";
+  // Jonas' Vorgabe 2026-08-14: Ansicht-Einstellungen sind keine
+  // Container-Eigenschaft mehr, sondern reine Browser-Praeferenz - Scene
+  // zieht sie sich selbst (genau wie unitPrefs unten), statt sie von aussen
+  // als Props+Callbacks zu bekommen.
+  const { prefs: viewPrefs, updatePrefs: updateViewPrefs } = useViewPreferences();
+  const isTerrain = viewPrefs.background === "terrain";
   // Container.tsx meldet sich per onReady, sobald sein CSG-Aufbau (Waende +
   // Eckbeschlaege) WIRKLICH fertig ist - nicht nur "gemountet" (Container
   // gibt seine 14 Teile selbst stueckweise frei, siehe dort/
@@ -216,7 +190,7 @@ export function Scene({
     <div className="flex h-full w-full flex-col">
       <div ref={viewerContainerRef} className="relative min-h-0 flex-1">
       <Canvas
-        shadows={shadowsEnabled}
+        shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
       >
@@ -225,10 +199,10 @@ export function Scene({
         <directionalLight
           position={[10, 12, 6]}
           intensity={1.2}
-          castShadow={shadowsEnabled}
+          castShadow={viewPrefs.shadowsEnabled}
           shadow-mapSize={[2048, 2048]}
         />
-        <DisplaySettingsProvider value={{ viewStyle, insideColor, outsideColor, insideUnpainted }}>
+        <DisplaySettingsProvider value={{ viewStyle: viewPrefs.viewStyle, insideColor, outsideColor, insideUnpainted }}>
           <SectionPlaneProvider value={section.sectionPlane}>
             <Container
               size={size}
@@ -266,7 +240,7 @@ export function Scene({
             vor Live-Schaltung als Unterseite pruefen/bestaetigen. */}
         {isTerrain ? (
           <>
-            <TerrainBackground detail={terrainDetail} extentM={containerExtentM} />
+            <TerrainBackground detail={viewPrefs.terrainDetail} extentM={containerExtentM} />
             <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
@@ -365,14 +339,14 @@ export function Scene({
         canUndo={canUndo}
         canRedo={canRedo}
         section={section}
-        viewStyle={viewStyle}
-        background={background}
-        shadowsEnabled={shadowsEnabled}
-        terrainDetail={terrainDetail}
-        onViewStyleChange={onViewStyleChange}
-        onBackgroundChange={onBackgroundChange}
-        onShadowsEnabledChange={onShadowsEnabledChange}
-        onTerrainDetailChange={onTerrainDetailChange}
+        viewStyle={viewPrefs.viewStyle}
+        background={viewPrefs.background}
+        shadowsEnabled={viewPrefs.shadowsEnabled}
+        terrainDetail={viewPrefs.terrainDetail}
+        onViewStyleChange={(v) => updateViewPrefs({ viewStyle: v })}
+        onBackgroundChange={(b) => updateViewPrefs({ background: b })}
+        onShadowsEnabledChange={(v) => updateViewPrefs({ shadowsEnabled: v })}
+        onTerrainDetailChange={(d) => updateViewPrefs({ terrainDetail: d })}
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
         measureSelected={measureSelected}

@@ -39,12 +39,8 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
   const [size] = useState<ContainerSize>(config.size);
   const [wallThickness] = useState(config.wallThickness);
   const [openings] = useState<Opening[]>(config.openings);
-  const [viewStyle] = useState(config.viewStyle);
-  const [background] = useState(config.background);
   const [outsideColor] = useState(config.outsideColor);
   const [insideColor] = useState(config.insideColor);
-  const [shadowsEnabled] = useState(config.shadowsEnabled ?? true);
-  const [terrainDetail] = useState(config.terrainDetail ?? "low");
   const [insideUnpainted] = useState(config.insideUnpainted ?? false);
   const [outsideNotes] = useState(config.outsideNotes ?? "");
   const [insideNotes] = useState(config.insideNotes ?? "");
@@ -139,15 +135,11 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
           size={size}
           wallThickness={wallThickness}
           openings={openings}
-          viewStyle={viewStyle}
-          background={background}
           insideColor={insideColor}
           outsideColor={outsideColor}
           insideUnpainted={insideUnpainted}
           floorThickness={floorThickness}
           floorInsulated={floorInsulated}
-          shadowsEnabled={shadowsEnabled}
-          terrainDetail={terrainDetail}
         />
       </ViewerSidebarLayout>
     </div>

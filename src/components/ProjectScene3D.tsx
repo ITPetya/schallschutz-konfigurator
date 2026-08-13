@@ -17,6 +17,7 @@ import { AlignmentFaceMarkers } from "./AlignmentFaceMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
+import { useViewPreferences } from "../hooks/useViewPreferences";
 import { useViewerShortcuts } from "../hooks/useViewerShortcuts";
 import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
@@ -75,17 +76,6 @@ interface ProjectScene3DProps extends ProjectScene3DHandlers {
   selectedId: string | null;
   draggingId: string | null;
   dragValid: boolean;
-  // Schreibt einen Ansicht-Stil auf ALLE Instanzen gleichzeitig (Jonas'
-  // Fehlerbericht 2026-07-25: "kann in der Baugruppen-Ansicht keine Schnitte
-  // oder die Ansicht verwalten") - anders als "Schnitt" (bezieht sich immer
-  // auf GENAU den ausgewaehlten Container) betrifft "Ansicht" hier bewusst
-  // die ganze Baugruppe einheitlich, weil Hintergrund/Schatten ohnehin nur
-  // EINMAL fuer die ganze geteilte 3D-Szene existieren koennen.
-  // Optional: fehlt im schreibgeschuetzten Konstrukteur-Viewer (Jonas'
-  // Vorgabe 2026-07-25), dort soll nichts an der geladenen Baugruppe
-  // veraendert werden koennen - das Ansicht-Panel blendet sich dann
-  // komplett aus (siehe SectionAndViewPanel.tsx's Gate darauf).
-  onSetAllViewStyle?: (v: ViewStyle) => void;
   // Jonas' Vorgabe 2026-07-25: "vor und zurück buttons ... für strg+z usw."
   onUndo?: () => void;
   onRedo?: () => void;
@@ -94,9 +84,9 @@ interface ProjectScene3DProps extends ProjectScene3DHandlers {
   // Jonas' Vorgabe 2026-08-12: "Ausrichten" als eigenes Werkzeug (Flaechen im
   // Viewer anklicken statt Dropdowns) - erstellt eine dauerhafte Abhaengigkeit
   // in project.dependencies (WorkspacePage.tsx haelt/loest sie, siehe
-  // alignmentDependencies.ts). Optional wie onSetAllViewStyle: fehlt im
-  // schreibgeschuetzten Konstrukteur-Viewer (InternalProjectViewer.tsx),
-  // dort blendet sich der Werkzeug-Button dann komplett aus.
+  // alignmentDependencies.ts). Optional: fehlt im schreibgeschuetzten
+  // Konstrukteur-Viewer (InternalProjectViewer.tsx), dort blendet sich der
+  // Werkzeug-Button dann komplett aus.
   onCreateDependency?: (dep: Omit<AlignmentDependency, "id">) => void;
 }
 
@@ -119,7 +109,6 @@ export function ProjectScene3D({
   onPointerMove,
   onPointerUp,
   onOpenDetail,
-  onSetAllViewStyle,
   onUndo,
   onRedo,
   canUndo,
@@ -156,13 +145,15 @@ export function ProjectScene3D({
   const spaceMouse = useSpaceMouse();
   const { sensitivity: spaceMouseSensitivity, setSensitivity: setSpaceMouseSensitivity } = useSpaceMouseSensitivity();
 
-  // "Hintergrund"/"Schatten"/Gelände-Detailstufe gelten fuer die ganze
-  // geteilte 3D-Szene (nicht pro Instanz, siehe onSetAllViewStyle-Kommentar
-  // oben) - deshalb lokaler Szene-Zustand statt eines Felds pro Container.
-  const [background, setBackground] = useState<"studio" | "terrain">("studio");
-  const [shadowsEnabled, setShadowsEnabled] = useState(true);
-  const [terrainDetail, setTerrainDetail] = useState<"low" | "medium" | "high" | "ultra">("low");
-  const isTerrain = background === "terrain";
+  // Jonas' Vorgabe 2026-08-14: Ansicht-Einstellungen sind keine Container-
+  // Eigenschaft mehr, sondern reine Browser-Praeferenz, EIN geteilter Wert
+  // fuer die ganze Szene (nicht mehr "auf alle Instanzen geschrieben", siehe
+  // frueherer onSetAllViewStyle-Mechanismus - das war nur eine Notloesung,
+  // solange viewStyle noch technisch pro Instanz gespeichert war). Genau wie
+  // unitPrefs unten zieht sich ProjectScene3D das selbst, statt es von aussen
+  // als Props+Callbacks zu bekommen.
+  const { prefs: viewPrefs, updatePrefs: updateViewPrefs } = useViewPreferences();
+  const isTerrain = viewPrefs.background === "terrain";
   const { theme } = useTheme();
 
   const selectedInstance = instances.find((i) => i.id === selectedId) ?? null;
@@ -189,10 +180,6 @@ export function ProjectScene3D({
     matrix.setPosition(xM, 0, zM);
     return section.sectionPlane.clone().applyMatrix4(matrix);
   }, [section.sectionPlane, selectedInstance]);
-  // Der Stil-Toggle im Ansicht-Panel zeigt den Wert der ausgewaehlten Instanz
-  // (oder der ersten, falls keine ausgewaehlt) und schreibt beim Klick auf
-  // ALLE Instanzen zurueck (siehe onSetAllViewStyle).
-  const displayedViewStyle = (selectedInstance ?? instances[0])?.config.viewStyle ?? "realistic";
   // Jede Instanz gibt ihre eigenen 14 Teile (Waende + Eckbeschlaege) bereits
   // STUECKWEISE via useChunkedReveal frei (siehe Container.tsx) - dadurch
   // blockiert der Haupt-Thread nie so lange, dass ein Ladescreen dazwischen
@@ -416,7 +403,7 @@ export function ProjectScene3D({
     <div className="flex h-full w-full flex-col">
       <div ref={viewerContainerRef} className="relative min-h-0 flex-1">
       <Canvas
-        shadows={shadowsEnabled}
+        shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
         onPointerMissed={() => onSelect(null)}
@@ -426,7 +413,7 @@ export function ProjectScene3D({
         <directionalLight
           position={[10, 12, 6]}
           intensity={1.2}
-          castShadow={shadowsEnabled}
+          castShadow={viewPrefs.shadowsEnabled}
           shadow-mapSize={[2048, 2048]}
         />
 
@@ -444,6 +431,7 @@ export function ProjectScene3D({
             // Kollisionspruefung neu gerendert, nicht nur die gezogene.
             dragInvalid={draggingId === inst.id && !dragValid}
             sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
+            viewStyle={viewPrefs.viewStyle}
             onPointerEvent={handlePointerEvent}
             onInstanceReady={handleInstanceReady}
             onOpenDetail={onOpenDetail}
@@ -474,7 +462,7 @@ export function ProjectScene3D({
             Herkunft dieser HDRI-Dateien. */}
         {isTerrain ? (
           <>
-            <TerrainBackground detail={terrainDetail} extentM={maxReachM} />
+            <TerrainBackground detail={viewPrefs.terrainDetail} extentM={maxReachM} />
             <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
@@ -555,14 +543,14 @@ export function ProjectScene3D({
         canRedo={canRedo}
         section={section}
         sectionDisabledHint={selectedId ? undefined : "Container auswählen, um einen Schnitt zu setzen."}
-        viewStyle={displayedViewStyle}
-        background={background}
-        shadowsEnabled={shadowsEnabled}
-        terrainDetail={terrainDetail}
-        onViewStyleChange={onSetAllViewStyle}
-        onBackgroundChange={setBackground}
-        onShadowsEnabledChange={setShadowsEnabled}
-        onTerrainDetailChange={setTerrainDetail}
+        viewStyle={viewPrefs.viewStyle}
+        background={viewPrefs.background}
+        shadowsEnabled={viewPrefs.shadowsEnabled}
+        terrainDetail={viewPrefs.terrainDetail}
+        onViewStyleChange={(v) => updateViewPrefs({ viewStyle: v })}
+        onBackgroundChange={(b) => updateViewPrefs({ background: b })}
+        onShadowsEnabledChange={(v) => updateViewPrefs({ shadowsEnabled: v })}
+        onTerrainDetailChange={(d) => updateViewPrefs({ terrainDetail: d })}
         measureActive={measureActive}
         onToggleMeasure={handleToggleMeasure}
         measureSelected={measureSelected}
@@ -613,6 +601,13 @@ interface InstanceGroupProps {
   // ein Schnitt an einem verschobenen/gedrehten Container an der falschen
   // Stelle (relativ zum echten Weltursprung) auftauchen.
   sectionPlane: THREE.Plane | null;
+  // Jonas' Vorgabe 2026-08-14: kommt jetzt aus der geteilten Ansicht-
+  // Praeferenz (useViewPreferences in ProjectScene3D), nicht mehr aus
+  // instance.config.viewStyle - als Prop durchgereicht statt hier selbst
+  // erneut den Hook aufzurufen, sonst wuerde eine Aenderung im Eltern-Hook
+  // NICHT reaktiv bei dieser (memoized) Instanz ankommen (jeder Hook-Aufruf
+  // haelt seinen eigenen, unabhaengigen useState).
+  viewStyle: ViewStyle;
   // EINE stabile Funktion statt separater onPointerDown/Move/Up (siehe
   // Aufrufstelle) - noetig, damit React.memo unten ueberhaupt greifen kann.
   onPointerEvent: (id: string, e: ThreeEvent<PointerEvent>, action: "down" | "move" | "up") => void;
@@ -644,6 +639,7 @@ const InstanceGroup = memo(function InstanceGroup({
   dragging,
   dragInvalid,
   sectionPlane,
+  viewStyle,
   onPointerEvent,
   onInstanceReady,
   onOpenDetail,
@@ -687,7 +683,7 @@ const InstanceGroup = memo(function InstanceGroup({
 
       <DisplaySettingsProvider
         value={{
-          viewStyle: instance.config.viewStyle,
+          viewStyle,
           insideColor: instance.config.insideColor,
           outsideColor: instance.config.outsideColor,
           insideUnpainted: instance.config.insideUnpainted ?? false,

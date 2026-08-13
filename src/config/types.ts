@@ -1,28 +1,27 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
-import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 import type { SoundClass } from "../constants/lcStandard";
 
 // Kompletter Konfigurator-Zustand, wie er in eine .sszkonfig-Datei
 // geschrieben/aus ihr gelesen wird (Jonas' Vorgabe 2026-07-23: kein Server,
 // kein Konto - die Konfiguration lebt nur als Datei auf dem Rechner des
 // Nutzers, siehe configFileCodec.ts).
+//
+// Jonas' Vorgabe 2026-08-14: viewStyle/background/shadowsEnabled/
+// terrainDetail sind bewusst KEINE Felder mehr hier - reine
+// Betrachtungseinstellungen ("wie schaue ich mir das gerade an"), keine
+// Produkteigenschaft, sollen deshalb nicht mit in die Datei gespeichert
+// werden und beim Laden "kleben bleiben", sondern als Browser-Praeferenz
+// pro Nutzer gelten (siehe config/viewPreferencesStore.ts,
+// hooks/useViewPreferences.ts). Alte .sszkonfig/.sszprojekt-Dateien haben
+// diese Felder im JSON noch stehen - unschaedlich, wird beim Decode einfach
+// nicht mehr gelesen.
 export interface ContainerConfig {
   size: ContainerSize;
   wallThickness: number;
   openings: Opening[];
-  viewStyle: ViewStyle;
-  background: BackgroundStyle;
   insideColor: string;
   outsideColor: string;
-  // Optional (Jonas' Vorgabe 2026-07-24, nachtraeglich hinzugefuegt) - vor
-  // dieser Datei gespeicherte .sszkonfig-Dateien haben das Feld nicht,
-  // KonfiguratorPage faellt dann auf true zurueck.
-  shadowsEnabled?: boolean;
-  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-07-25): 4 Detailstufen fuer
-  // den Gelände-Hintergrund - alte Dateien haben das Feld nicht, faellt dann
-  // auf "low" zurueck (der bisherige, unveraenderte Gelände-Look).
-  terrainDetail?: TerrainDetail;
   // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-07-24): "innen unlackiert"
   // als Alternative zur Innenfarbe, plus zwei freie Notizfelder fuer
   // Sonderwuensche - alle optional aus demselben Altdatei-Kompatibilitaetsgrund.
