@@ -1164,28 +1164,18 @@ export function WorkspacePage() {
                 selectedPanel={openingWizard?.panel ?? null}
                 onPickPanel={handleWizardPanelChange}
               />
-              {!openingWizard && (
-                <AnimatedButton
-                  type="button"
-                  data-tour="add-opening"
-                  onClick={() => setOpeningWizard(createInitialWizardState())}
-                  aria-label="Einbauten hinzufügen"
-                  className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-md hover:bg-brand-dark"
-                >
-                  <PlusIcon size={20} />
-                </AnimatedButton>
-              )}
-              {openingWizard && (
+              <div className="absolute left-4 top-4">
                 <AddOpeningPopup
                   size={editingInstance.config.size}
                   wizard={openingWizard}
+                  onOpen={() => setOpeningWizard(createInitialWizardState())}
                   onPanelChange={handleWizardPanelChange}
                   onFamilyChange={handleWizardFamilyChange}
                   onFieldsChange={handleWizardFieldsChange}
                   onCommit={handleWizardCommit}
                   onClose={handleWizardClose}
                 />
-              )}
+              </div>
             </>
           ) : (
             <>

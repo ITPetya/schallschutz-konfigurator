@@ -5,14 +5,14 @@ import { OPENING_FAMILIES, type OpeningFamily } from "../constants/openingFamili
 import type { ContainerSize } from "../constants/containerSizes";
 import type { OpeningWizardState } from "../utils/openingWizard";
 import { SONDER_DOOR_TEXT, isSonderDoor } from "../utils/containerWarnings";
-import { XIcon } from "./icons/XIcon";
-import { AnimatedButton } from "./AnimatedButton";
 import { OpeningFieldsEditor } from "./OpeningFieldsEditor";
 import { SonderBadge } from "./SonderBadge";
+import { ExpandingPanel } from "./ExpandingPanel";
 
 interface AddOpeningPopupProps {
   size: ContainerSize;
-  wizard: OpeningWizardState;
+  wizard: OpeningWizardState | null;
+  onOpen: () => void;
   onPanelChange: (panel: PanelId) => void;
   onFamilyChange: (family: OpeningFamily) => void;
   onFieldsChange: (patch: Partial<Opening>) => void;
@@ -25,104 +25,103 @@ const inputClass =
 const sectionTitleClass = "flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-brand";
 
 // Assistent zum Anlegen einer neuen Einbaute - liegt IM Viewer an der linken
-// Seite (Jonas' Vorgabe 2026-07-22), ausgeloest durch den "+"-Button in
-// WorkspacePage.tsx. Umbenannt von "Neuer Durchbruch" und schrittweise
-// aufklappend (Jonas' Vorgabe 2026-08-13): Abschnitt 2 ("Einbaute wählen")
-// erscheint erst, sobald eine Fläche gewählt ist, Abschnitt 3 ("Maße &
-// Details") erst, sobald eine Einbaute-Familie gewählt ist - "Man soll klar
-// erst die Fläche auswählen". Die Fläche laesst sich hier per Dropdown ODER
-// (siehe WorkspacePage.tsx/Scene.tsx/WallFaceMarkers.tsx) per Klick auf die
-// Wand im 3D-Viewer waehlen, genau wie bei "Ausrichten" - beide Wege landen
-// im selben wizard.panel-Zustand.
+// Seite (Jonas' Vorgabe 2026-07-22), ausgeloest durch den runden "+"-Button,
+// der jetzt TEIL dieser Komponente ist (siehe ExpandingPanel.tsx: die Flaeche
+// waechst sichtbar aus dem Button heraus, statt als separate Box daneben
+// aufzutauchen - Jonas' Vorgabe 2026-08-13, "damit es nicht mit anderen
+// Elementen kollidiert"). Umbenannt von "Neuer Durchbruch" und schrittweise
+// aufklappend: Abschnitt 2 ("Einbaute wählen") erscheint erst, sobald eine
+// Fläche gewählt ist, Abschnitt 3 ("Maße & Details") erst, sobald eine
+// Einbaute-Familie gewählt ist - "Man soll klar erst die Fläche auswählen".
+// Die Fläche laesst sich hier per Dropdown ODER (siehe WorkspacePage.tsx/
+// Scene.tsx/WallFaceMarkers.tsx) per Klick auf die Wand im 3D-Viewer waehlen,
+// genau wie bei "Ausrichten" - beide Wege landen im selben wizard.panel-
+// Zustand.
 //
-// Diese Komponente ist bewusst eine reine controlled Component: der
-// gesamte Assistenten-Zustand (wizard) lebt in WorkspacePage.tsx, das daraus
-// auch die Live-Vorschau (draftOpening) fuer den Viewer ableitet - hier
-// werden ausschliesslich Werte angezeigt und Aenderungen nach oben gemeldet.
-export function AddOpeningPopup({ size, wizard, onPanelChange, onFamilyChange, onFieldsChange, onCommit, onClose }: AddOpeningPopupProps) {
-  const { panel, family, opening } = wizard;
+// wizard === null heisst "Assistent geschlossen" (nur der Button ist
+// sichtbar) - der gesamte Zustand lebt in WorkspacePage.tsx, das daraus auch
+// die Live-Vorschau (draftOpening) fuer den Viewer ableitet.
+export function AddOpeningPopup({ size, wizard, onOpen, onPanelChange, onFamilyChange, onFieldsChange, onCommit, onClose }: AddOpeningPopupProps) {
+  const open = wizard !== null;
+  const panel = wizard?.panel ?? null;
+  const family = wizard?.family ?? null;
 
   const availableFamilies = (Object.entries(OPENING_FAMILIES) as [OpeningFamily, (typeof OPENING_FAMILIES)[OpeningFamily]][]).filter(
     ([, def]) => !panel || isKindAllowedOnPanel(OPENING_TYPES[def.creationKind], panel),
   );
 
   return (
-    <div
-      data-tour="add-opening"
-      className="absolute left-4 top-4 w-72 space-y-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-md dark:border-slate-700 dark:bg-slate-800/95"
+    <ExpandingPanel
+      open={open}
+      onToggle={open ? onClose : onOpen}
+      ariaLabel={open ? "Schließen" : "Einbauten hinzufügen"}
+      triggerDataTour="add-opening"
+      header={<span className="text-xs font-bold uppercase tracking-widest text-brand">Einbauten hinzufügen</span>}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-brand">Einbauten hinzufügen</span>
-        <AnimatedButton
-          type="button"
-          onClick={onClose}
-          className="text-slate-400 hover:text-red-500 dark:text-slate-500"
-          aria-label="Schließen"
-        >
-          <XIcon size={16} />
-        </AnimatedButton>
-      </div>
-
-      <div className="space-y-1.5">
-        <span className={sectionTitleClass}>1. Fläche wählen</span>
-        <select
-          aria-label="Wand"
-          value={panel ?? ""}
-          onChange={(e) => onPanelChange(e.target.value as PanelId)}
-          className={inputClass}
-        >
-          <option value="" disabled>
-            Fläche wählen…
-          </option>
-          {(Object.keys(PANEL_LABELS) as PanelId[]).map((p) => (
-            <option key={p} value={p}>
-              {PANEL_LABELS[p]}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-slate-400 dark:text-slate-500">Oder direkt auf eine Wand im Viewer klicken.</p>
-      </div>
-
-      {panel && (
-        <div className="space-y-1.5">
-          <span className={sectionTitleClass}>2. Einbaute wählen</span>
-          <select
-            aria-label="Einbaute"
-            value={family ?? ""}
-            onChange={(e) => onFamilyChange(e.target.value as OpeningFamily)}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              Einbaute wählen…
-            </option>
-            {availableFamilies.map(([f, def]) => (
-              <option key={f} value={f}>
-                {def.label}
+      {wizard && (
+        <>
+          <div className="space-y-1.5">
+            <span className={sectionTitleClass}>1. Fläche wählen</span>
+            <select
+              aria-label="Wand"
+              value={panel ?? ""}
+              onChange={(e) => onPanelChange(e.target.value as PanelId)}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Fläche wählen…
               </option>
-            ))}
-          </select>
-        </div>
-      )}
+              {(Object.keys(PANEL_LABELS) as PanelId[]).map((p) => (
+                <option key={p} value={p}>
+                  {PANEL_LABELS[p]}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Oder direkt auf eine Wand im Viewer klicken.</p>
+          </div>
 
-      {family && (
-        <div className="space-y-1.5">
-          <span className={sectionTitleClass}>
-            3. Maße & Details
-            {isSonderDoor(opening) && <SonderBadge text={SONDER_DOOR_TEXT} />}
-          </span>
-          <OpeningFieldsEditor opening={opening} size={size} onChange={onFieldsChange} />
-        </div>
-      )}
+          {panel && (
+            <div className="space-y-1.5">
+              <span className={sectionTitleClass}>2. Einbaute wählen</span>
+              <select
+                aria-label="Einbaute"
+                value={family ?? ""}
+                onChange={(e) => onFamilyChange(e.target.value as OpeningFamily)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  Einbaute wählen…
+                </option>
+                {availableFamilies.map(([f, def]) => (
+                  <option key={f} value={f}>
+                    {def.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-      {family && (
-        <button
-          type="button"
-          onClick={onCommit}
-          className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
-        >
-          Hinzufügen
-        </button>
+          {family && wizard.opening && (
+            <div className="space-y-1.5">
+              <span className={sectionTitleClass}>
+                3. Maße & Details
+                {isSonderDoor(wizard.opening) && <SonderBadge text={SONDER_DOOR_TEXT} />}
+              </span>
+              <OpeningFieldsEditor opening={wizard.opening} size={size} onChange={onFieldsChange} />
+            </div>
+          )}
+
+          {family && (
+            <button
+              type="button"
+              onClick={onCommit}
+              className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
+            >
+              Hinzufügen
+            </button>
+          )}
+        </>
       )}
-    </div>
+    </ExpandingPanel>
   );
 }

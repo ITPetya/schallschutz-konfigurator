@@ -222,9 +222,25 @@ export function ViewerToolbar({
           wird der ueberschuessige Teil jetzt abgeschnitten statt scrollbar
           zu sein. Dieser Edge-Case war ohnehin selten/theoretisch, waehrend
           die Bildlaufleiste bei JEDEM normalen Oeffnen/Schliessen sichtbar
-          war - klar der bessere Kompromiss. */}
+          war - klar der bessere Kompromiss.
+          Jonas' Fehlerbericht 2026-08-13 (Folgefehler): trotzdem weiterhin
+          eine HORIZONTALE Bildlaufleiste beim Auf-/Zuklappen sichtbar. Root
+          Cause: nur overflow-y war auf "hidden" gesetzt, overflow-x blieb
+          implizit "visible" - die CSS-Overflow-Spezifikation schreibt aber
+          vor, dass eine Achse, die "visible" bleibt, waehrend die ANDERE
+          Achse einen Nicht-"visible"-Wert hat, vom Browser effektiv als
+          "auto" behandelt wird (nicht laenger als echtes "visible") - dieses
+          implizite "auto" bei overflow-x hat waehrend der seitlichen
+          Wachsen-Animation von ToolResultPanel.tsx (initial x: 12px, siehe
+          dort) kurzzeitig eine horizontale Leiste erzeugt, obwohl im Code
+          nirgends "overflow-x-auto" stand. Fix: BEIDE Achsen explizit auf
+          "hidden" (overflow-hidden statt nur overflow-y-hidden) - Jonas'
+          Vorgabe "die Menüs brauchen eigentlich generell keine
+          Bildlaufleiste" bestaetigt, dass auf das Y-Sicherheitsnetz ohnehin
+          schon verzichtet wurde (s.o.), ein X-Sicherheitsnetz war nie
+          beabsichtigt. */}
       <div
-        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-hidden"
+        className="absolute right-[3.75rem] top-1/2 z-20 flex max-h-[85%] w-64 -translate-y-1/2 flex-col gap-2 overflow-hidden"
         style={verticalStyle}
       >
         <SectionResultPanel active={section.sectionEnabled} section={section} disabledHint={sectionDisabledHint} />
