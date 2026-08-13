@@ -13,28 +13,49 @@ interface ExpandingPanelProps {
 
 const BUTTON_SIZE = 36; // px, entspricht der bisherigen h-9 w-9
 const R = BUTTON_SIZE / 2;
-const PANEL_RADIUS = 20;
+const CORNER_RADIUS = 20;
 const PADDING = 16;
-const HEADER_EXTRA_LEFT = Math.max(0, BUTTON_SIZE + 8 - PADDING);
+const HEADER_EXTRA_LEFT = Math.max(0, R + 8 - PADDING);
 
-// Glas-Farbe fuer BEIDE Zustaende (Button UND Flaeche) identisch, damit der
-// Uebergang nahtlos wirkt (Jonas' Vorgabe 2026-08-14: "der Button soll in
-// der gleichen Farbe wie das Menü sein, und wirklich so sein als wäre eine
-// Flüssigkeit aus dem Button ausgelaufen" - Referenz: Apples "Liquid Glass").
-const GLASS_CLASS = "border border-white/60 bg-white/75 shadow-lg backdrop-blur-md dark:border-slate-500/40 dark:bg-slate-800/75";
+// Jonas' Skizze 2026-08-14 (drei Teilbilder: nur Button -> Rohbau-Layout mit
+// rot markierten Verbindungslinien -> fertig geglaettete Verbindung):
+// Button-Kreis (Radius R) UND Panel bleiben ZWEI EIGENSTAENDIGE, jederzeit
+// eigenstaendig sichtbare Formen (nicht wie im vorherigen Zwischenstand eine
+// einzelne, sich umformende Flaeche) - der Kreis behaelt immer seinen
+// eigenen Umriss, das Panel schliesst ueber eine KONKAVE Ausparung exakt in
+// Button-Groesse nahtlos daran an. Button-Mittelpunkt = Panel-Eck-
+// Referenzpunkt (0,0) - der Pfad faehrt von (R,0) dem Kreisbogen nach (0,R),
+// aber auf der zur Rechteckmitte hin gewoelbten Seite (sweep-flag 0 statt 1
+// wie bei den drei normalen konvexen Ecken).
+function buildNotchedRectPath(w: number, h: number): string {
+  const r = CORNER_RADIUS;
+  return [
+    `M ${R} 0`,
+    `L ${w - r} 0`,
+    `A ${r} ${r} 0 0 1 ${w} ${r}`,
+    `L ${w} ${h - r}`,
+    `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
+    `L ${r} ${h}`,
+    `A ${r} ${r} 0 0 1 0 ${h - r}`,
+    `L 0 ${R}`,
+    `A ${R} ${R} 0 0 0 ${R} 0`,
+    "Z",
+  ].join(" ");
+}
 
-// Jonas' Praezisierung 2026-08-14 ("das Fenster soll rechts neben dem
-// Button sein und der Button dann eben so darein faden, siehe die Skizze"):
-// der Button-MITTELPUNKT liegt exakt auf dem Eck-Referenzpunkt O der
-// aufklappenden Flaeche, nicht (wie im vorherigen Zwischenstand) der
-// Button-RAND - dadurch ragt der Button sichtbar UEBER die Flaeche hinaus
-// (Skizze: der Kreis sitzt an der Ecke, ein Teil liegt ausserhalb des
-// Rechtecks), und die Flaeche selbst beginnt spuerbar rechts/unterhalb
-// davon, statt den Button komplett zu umschliessen. Technisch: die
-// morphende Flaeche animiert `left/top` GEMEINSAM mit `width/height` von
-// (0,0)/(2R,2R) [Kreis, deckungsgleich mit dem Button] nach (R,R)/(width,h)
-// [Rechteck, dessen Ecke exakt auf O sitzt] - dasselbe einzelne Element wie
-// zuvor, nur mit Positions- statt nur Groessenanimation.
+// Jonas' Vorgabe 2026-08-13/14 ("Liquid Glass"-Optik, gleiche Farbe fuer
+// Button und Menü): der Button ist eine NORMALE CSS-Kreisform (border-radius
+// 50%) - dort funktioniert echtes backdrop-blur browseruebergreifend
+// zuverlaessig. Das Panel braucht wegen der konkaven Ausparung eine SVG-
+// Pfadform (CSS clip-path/border-radius koennen keine konkaven Ecken); SVG-
+// Elemente unterstuetzen backdrop-filter nicht zuverlaessig genug (vor allem
+// Safari), deshalb dort eine dichtere, weiterhin durchscheinende Fuellfarbe
+// statt echtem Weichzeichner-Hintergrund - optisch minimal weniger "glasig"
+// an dieser einen Stelle, aber seitengleiche Farbe/Deckkraft wie der Button.
+const GLASS_PANEL_FILL = "fill-white/90 stroke-white/70 dark:fill-slate-800/90 dark:stroke-slate-500/50";
+const GLASS_BUTTON_CLASS =
+  "border border-white/70 bg-white/85 shadow-md backdrop-blur-md dark:border-slate-500/40 dark:bg-slate-800/85";
+
 export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, width = 272, triggerDataTour }: ExpandingPanelProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(BUTTON_SIZE);
@@ -54,68 +75,57 @@ export function ExpandingPanel({ open, onToggle, ariaLabel, header, children, wi
   }, [open]);
 
   const h = Math.max(height, BUTTON_SIZE);
+  const path = buildNotchedRectPath(width, h);
   const springTransition = { type: "spring" as const, stiffness: 340, damping: 28, mass: 0.9 };
 
   return (
-    // Groesser als nur der Button, weil die offene Flaeche jetzt spuerbar
-    // ueber die urspruengliche Button-Box hinausreicht (siehe Kommentar
-    // oben) - reiner Platzhalter, alle Kinder sind absolut positioniert und
-    // richten sich nach O = (R,R), nicht nach diesem Wrapper selbst.
     <div className="relative" style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}>
-      {/* Die morphende "Fluessigkeits"-Flaeche - Button UND Panel in einem
-          Element. overflow-hidden gibt den Inhalt sichtbar VON DER FORM
-          SELBST frei, waehrend sie waechst ("liquid reveal"). */}
-      <motion.div
-        initial={false}
-        animate={{
-          left: open ? R : 0,
-          top: open ? R : 0,
-          width: open ? width : BUTTON_SIZE,
-          height: open ? h : BUTTON_SIZE,
-          borderRadius: open ? PANEL_RADIUS : BUTTON_SIZE / 2,
-        }}
-        transition={springTransition}
-        className={`absolute z-10 overflow-hidden ${GLASS_CLASS}`}
-      >
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { delay: 0.1, duration: 0.15 } }}
-              exit={{ opacity: 0, transition: { duration: 0.08 } }}
-              style={{ width }}
-            >
-              <div ref={contentRef} className="flex flex-col gap-3" style={{ padding: PADDING }}>
-                <div style={{ minHeight: BUTTON_SIZE, paddingLeft: HEADER_EXTRA_LEFT }} className="flex items-center">
-                  {header}
-                </div>
-                {children}
+      {/* Panel - eigene Form mit konkaver Ausparung genau in Button-Groesse
+          an der Ecke, waechst per Scale+Opacity aus dem Button-Mittelpunkt
+          heraus (transformOrigin exakt auf O). */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={springTransition}
+            style={{ position: "absolute", left: 0, top: 0, width, height: h, transformOrigin: "0 0" }}
+            className="z-10"
+          >
+            <svg width={width} height={h} className="pointer-events-none absolute inset-0 drop-shadow-lg">
+              <path d={path} className={GLASS_PANEL_FILL} strokeWidth={1.5} />
+            </svg>
+            {/* position:"relative" ist hier NICHT nur Layout: ohne eigene
+                Positionierung wuerde dieser Inhalt (in-flow, unpositioniert)
+                gemaess CSS-Stapelreihenfolge HINTER der absolut positionierten
+                SVG-Flaeche gemalt werden, obwohl er im DOM danach kommt (siehe
+                Fehlerbericht 2026-08-13: Text schimmerte nur durch die
+                Fuellfarbe hindurch, computed opacity war ueberall 1). */}
+            <div ref={contentRef} className="relative flex flex-col gap-3" style={{ padding: PADDING, width }}>
+              <div style={{ minHeight: BUTTON_SIZE, paddingLeft: HEADER_EXTRA_LEFT }} className="flex items-center">
+                {header}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Icon-Ebene - bleibt IMMER genau auf O (Mittelpunkt bei wrapper-lokal
-          (R,R)) zentriert, unabhaengig vom aktuellen Zustand der Glasflaeche,
-          damit Plus/Kreuz nie mitgedehnt wird. Statt nur zu rotieren, wird
-          bei jedem Umschalten per `key`-Wechsel ein NEUES Icon eingeblendet
-          (kurzer Opacity-Fade, siehe initial/exit) - dadurch wirkt der
-          Wechsel, als wuerde das alte Icon kurz in die Fluessigkeit
-          eintauchen und das neue daraus auftauchen (Jonas: "der Button soll
-          dann eben so darein faden"), statt nur starr zu rotieren. `key`
-          aendert sich NUR mit `open`, nicht bei jedem Render (z. B. beim
-          Tippen in den Maße-Feldern) - eine Keyframe-Opacity-Animation direkt
-          im `animate`-Prop wuerde dagegen bei JEDEM Render neu anspringen,
-          da neu erzeugte Array-Literale von Motion nicht zuverlaessig als
-          "unveraendert" erkannt werden. */}
+      {/* Button - eigenstaendige, IMMER sichtbare Glas-Kreisform (siehe
+          Kommentar oben), liegt ueber dem Panel. Icon-Wechsel per key-Fade
+          statt reiner Drehung (Jonas: "der Button soll dann eben so darein
+          faden") - key aendert sich NUR mit `open`, nicht bei jedem Render
+          (z. B. beim Tippen in den Maße-Feldern), sonst wuerde eine direkt im
+          animate-Prop erzeugte Keyframe-Opacity bei JEDEM Render neu
+          anspringen. */}
       <button
         type="button"
         data-tour={triggerDataTour}
         onClick={onToggle}
         aria-label={ariaLabel}
-        className="absolute left-0 top-0 z-20 text-brand-dark hover:text-brand dark:text-brand-light"
+        className={`absolute left-0 top-0 z-20 flex items-center justify-center rounded-full text-brand-dark hover:text-brand dark:text-brand-light ${GLASS_BUTTON_CLASS}`}
         style={{ width: BUTTON_SIZE, height: BUTTON_SIZE }}
       >
         <AnimatePresence initial={false}>
