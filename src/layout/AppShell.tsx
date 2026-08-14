@@ -10,14 +10,15 @@ import { clearProjectDraft } from "../config/projectHistoryStore";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { CircleHelpIcon } from "../components/icons/CircleHelpIcon";
 import { TrashIcon } from "../components/icons/TrashIcon";
+import { CONTACT_URL } from "../config/contactLink";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { ThemeToggle } from "../components/ThemeToggle";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
 // rechts. Der "?"-Button oeffnet ein kleines Menü mit "Tutorial" (startet
-// die Tour erneut) und "Hilfe" (Jonas' Vorgabe 2026-07-24: fuehrt zu einer
-// Kontaktseite, die er spaeter verlinkt - siehe pages/HilfePage.tsx).
+// die Tour erneut) und "Hilfe" (Jonas' Vorgabe 2026-08-14: keine eigene
+// Hilfeseite mehr, oeffnet direkt CONTACT_URL in einem neuen Tab).
 //
 // ?embed=1 (Nacht-Session 2026-07-23, Vorgabe "auf anderen Webseiten
 // einbettbar"): der Konfigurator selbst hat serverseitig KEINE
@@ -59,7 +60,7 @@ export function AppShell() {
               <ThemeToggle />
               <HelpMenu
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
-                onHilfe={() => navigate("/hilfe")}
+                onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
                 onVerlauf={() => navigate("/verlauf")}
                 onDeleteData={() => setShowDeleteConfirm(true)}
               />
@@ -72,7 +73,7 @@ export function AppShell() {
           <ThemeToggle />
           <HelpMenu
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
-            onHilfe={() => navigate("/hilfe?embed=1")}
+            onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
             onVerlauf={() => navigate("/verlauf")}
             onDeleteData={() => setShowDeleteConfirm(true)}
           />
