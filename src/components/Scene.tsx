@@ -19,6 +19,7 @@ import { useSpaceMouse } from "../hooks/useSpaceMouse";
 import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening, PanelId } from "../types/openings";
+import type { PartitionWallConfig } from "../types/partitionWall";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
 import { computeWallFaces } from "../utils/wallFaces";
 import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
@@ -41,6 +42,9 @@ interface SceneProps {
   // Hohl oder isoliert gefuellt - optional mit Default true in
   // Container.tsx, falls ein Aufrufer das Prop (noch) nicht setzt.
   floorInsulated?: boolean;
+  // Optionale Trennwaende (Jonas' Vorgabe 2026-08-14), siehe
+  // types/partitionWall.ts/PartitionWall.tsx/Container.tsx.
+  partitionWalls?: PartitionWallConfig[];
   // Jonas' Vorgabe 2026-07-25: "vor und zurück buttons ... für strg+z usw." -
   // optional, weil der schreibgeschuetzte Viewer (KonfiguratorPage.tsx)
   // nichts rueckgaengig machen kann.
@@ -81,6 +85,7 @@ export function Scene({
   insideUnpainted,
   floorThickness,
   floorInsulated,
+  partitionWalls = [],
   onUndo,
   onRedo,
   canUndo,
@@ -210,6 +215,7 @@ export function Scene({
               openings={draftOpening ? [...openings, draftOpening] : openings}
               floorThickness={resolvedFloorThickness}
               floorInsulated={floorInsulated}
+              partitionWalls={partitionWalls}
               onReady={() => setContainerReady(true)}
             />
           </SectionPlaneProvider>

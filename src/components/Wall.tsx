@@ -56,6 +56,11 @@ interface WallProps {
   // Erscheinung von einer Container-EIGENSCHAFT (floorInsulated) statt von
   // der einheitlichen Innenfarben-Wahl abhaengt.
   insideColorOverride?: string;
+  // Nur fuer die Trennwand gesetzt (Jonas' Vorgabe 2026-08-14): beide
+  // Wandflaechen sind Innenraum, keine davon soll die globale AUSSENfarbe
+  // bekommen (die waere fuer eine Innenwand falsch) - laesst material-0
+  // ebenfalls resolvedInsideColor statt outsideColor nutzen.
+  paintBothSidesInside?: boolean;
 }
 
 // Ein Evaluator reicht global - er haelt keinen Zustand zwischen Aufrufen,
@@ -204,6 +209,7 @@ export function Wall({
   claddingInsetU = 0,
   claddingInsetV = 0,
   insideColorOverride,
+  paintBothSidesInside = false,
 }: WallProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
   const resolvedInsideColor = insideColorOverride ?? (insideUnpainted ? UNPAINTED_INSIDE_COLOR : insideColor);
@@ -394,7 +400,7 @@ export function Wall({
       <mesh geometry={geometry} castShadow receiveShadow>
         <meshStandardMaterial
           attach="material-0"
-          color={outsideColor}
+          color={paintBothSidesInside ? resolvedInsideColor : outsideColor}
           side={THREE.DoubleSide}
           clippingPlanes={clippingPlanes}
           {...materialProps}
@@ -414,7 +420,12 @@ export function Wall({
       )}
       {protrusions.map((o) => {
         const depth = OPENING_TYPES[o.kind].protrusionDepth! * MM_TO_M;
-        const zOffset = outwardSign * (thickness / 2 + depth / 2);
+        // Trennwand-Durchbrueche koennen ihre Bauseite unabhaengig vom
+        // Wand-weiten outwardSign waehlen (Jonas' Vorgabe 2026-08-14, siehe
+        // Opening.protrusionSign) - Aussenwand-Durchbrueche setzen dieses
+        // Feld nie, fallen also unveraendert auf outwardSign zurueck.
+        const sign = o.protrusionSign ?? outwardSign;
+        const zOffset = sign * (thickness / 2 + depth / 2);
         const localY = o.v - panelHeight / 2;
 
         // Lamellen fuellen die Rahmenflaeche (o.width x o.height) mit
@@ -436,7 +447,7 @@ export function Wall({
           <group key={o.id}>
             <mesh position={[o.u, localY, zOffset]} castShadow>
               <boxGeometry args={[o.width, o.height, depth]} />
-              <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+              <meshStandardMaterial color={paintBothSidesInside ? resolvedInsideColor : outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
               {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
             </mesh>
             {Array.from({ length: slatCount }, (_, i) => {
@@ -444,12 +455,12 @@ export function Wall({
               return (
                 <mesh
                   key={i}
-                  position={[o.u, slatY, outwardSign * (thickness / 2 + depth * 0.55)]}
-                  rotation={[outwardSign * LOUVER_TILT_RAD, 0, 0]}
+                  position={[o.u, slatY, sign * (thickness / 2 + depth * 0.55)]}
+                  rotation={[sign * LOUVER_TILT_RAD, 0, 0]}
                   castShadow
                 >
                   <boxGeometry args={[slatWidth, slatBlade, slatThickness]} />
-                  <meshStandardMaterial color={outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
+                  <meshStandardMaterial color={paintBothSidesInside ? resolvedInsideColor : outsideColor} clippingPlanes={clippingPlanes} {...materialProps} />
                   {shaded && <Edges threshold={20} color="#1e293b" clippingPlanes={clippingPlanes} />}
                 </mesh>
               );
@@ -479,6 +490,7 @@ export function Wall({
                 hinge="left"
                 clippingPlanes={clippingPlanes}
                 outwardSign={outwardSign}
+                paintBothSidesInside={paintBothSidesInside}
               />
               <DoorLeaf
                 u={o.u + leafWidth / 2}
@@ -489,6 +501,7 @@ export function Wall({
                 hinge="right"
                 clippingPlanes={clippingPlanes}
                 outwardSign={outwardSign}
+                paintBothSidesInside={paintBothSidesInside}
               />
             </group>
           );
@@ -504,6 +517,7 @@ export function Wall({
             hinge={o.hinge ?? "left"}
             clippingPlanes={clippingPlanes}
             outwardSign={outwardSign}
+            paintBothSidesInside={paintBothSidesInside}
           />
         );
       })}

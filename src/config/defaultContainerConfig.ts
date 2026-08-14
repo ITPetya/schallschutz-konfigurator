@@ -24,5 +24,6 @@ export function defaultConfig(): ContainerConfig {
     soundClass: DEFAULT_SOUND_CLASS,
     floorThickness: DEFAULT_FLOOR_THICKNESS,
     floorInsulated: defaultFloorInsulated(DEFAULT_SOUND_CLASS),
+    partitionWalls: [],
   };
 }

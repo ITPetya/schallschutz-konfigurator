@@ -47,6 +47,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
   const [soundClass] = useState(config.soundClass ?? DEFAULT_SOUND_CLASS);
   const [floorThickness] = useState(config.floorThickness ?? DEFAULT_FLOOR_THICKNESS);
   const [floorInsulated] = useState(config.floorInsulated ?? defaultFloorInsulated(soundClass));
+  const [partitionWalls] = useState(config.partitionWalls ?? []);
   const soundClassSpec = SOUND_CLASSES.find((c) => c.id === soundClass) ?? SOUND_CLASSES[0];
 
   return (
@@ -135,6 +136,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
           size={size}
           wallThickness={wallThickness}
           openings={openings}
+          partitionWalls={partitionWalls}
           insideColor={insideColor}
           outsideColor={outsideColor}
           insideUnpainted={insideUnpainted}

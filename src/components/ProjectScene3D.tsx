@@ -696,6 +696,7 @@ const InstanceGroup = memo(function InstanceGroup({
             openings={instance.config.openings}
             floorThickness={instance.config.floorThickness ?? DEFAULT_FLOOR_THICKNESS}
             floorInsulated={instance.config.floorInsulated ?? defaultFloorInsulated(instance.config.soundClass ?? DEFAULT_SOUND_CLASS)}
+            partitionWalls={instance.config.partitionWalls ?? []}
             onReady={() => onInstanceReady(instance.id)}
           />
         </SectionPlaneProvider>

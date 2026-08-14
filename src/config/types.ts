@@ -1,6 +1,7 @@
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { SoundClass } from "../constants/lcStandard";
+import type { PartitionWallConfig } from "../types/partitionWall";
 
 // Kompletter Konfigurator-Zustand, wie er in eine .sszkonfig-Datei
 // geschrieben/aus ihr gelesen wird (Jonas' Vorgabe 2026-07-23: kein Server,
@@ -46,4 +47,10 @@ export interface ContainerConfig {
   // Altdatei-Kompatibilitaetsgrund - alte Dateien haben ihn nicht, faellt
   // dann auf defaultFloorInsulated(soundClass) zurueck (siehe lcStandard.ts).
   floorInsulated?: boolean;
+  // Ebenfalls nachtraeglich (Jonas' Vorgabe 2026-08-14): optionale Trennwaende,
+  // die den Innenraum entlang der Laenge unterteilen (siehe
+  // types/partitionWall.ts, PartitionWall.tsx). Optional aus dem ueblichen
+  // Altdatei-Kompatibilitaetsgrund - alte Dateien haben das Feld nicht, faellt
+  // dann auf eine leere Liste zurueck (keine Trennwaende).
+  partitionWalls?: PartitionWallConfig[];
 }

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { OpeningsPanel } from "../components/OpeningsPanel";
+import { PartitionWallsPanel } from "../components/PartitionWallsPanel";
 import { AddOpeningPopup } from "../components/AddOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { NumberInput } from "../components/NumberInput";
@@ -24,6 +25,7 @@ import { LoadingIcon } from "../components/LoadingIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
 import type { Opening, PanelId } from "../types/openings";
+import type { PartitionWallConfig } from "../types/partitionWall";
 import {
   applyFamilyPick,
   applyPanelPick,
@@ -536,6 +538,34 @@ export function WorkspacePage() {
     updateEditingConfig({ openings: editingInstance.config.openings.filter((o) => o.id !== id) });
   }
 
+  // ---------- Trennwaende (Jonas' Vorgabe 2026-08-14) ----------
+  // Nested Durchbrueche/Tuer je Trennwand werden NICHT ueber eigene Handler
+  // hier gefuehrt, sondern von PartitionWallsPanel.tsx selbst per
+  // onUpdate(id, { openings/door: ... }) gepatcht (gleiches Prinzip wie
+  // OpeningFieldsEditor.tsx's onChange, nur eine Ebene tiefer) - haelt die
+  // Handler-Flaeche hier auf drei, analog zu handleAddOpening/-Update/-Remove.
+  function handleAddPartitionWall() {
+    if (!editingInstance) return;
+    const pw: PartitionWallConfig = {
+      id: crypto.randomUUID(),
+      positionU: 0,
+      thickness: editingInstance.config.wallThickness,
+      smoothSide: "front",
+      openings: [],
+    };
+    updateEditingConfig({ partitionWalls: [...(editingInstance.config.partitionWalls ?? []), pw] });
+  }
+  function handleUpdatePartitionWall(id: string, patch: Partial<PartitionWallConfig>) {
+    if (!editingInstance) return;
+    updateEditingConfig({
+      partitionWalls: (editingInstance.config.partitionWalls ?? []).map((pw) => (pw.id === id ? { ...pw, ...patch } : pw)),
+    });
+  }
+  function handleRemovePartitionWall(id: string) {
+    if (!editingInstance) return;
+    updateEditingConfig({ partitionWalls: (editingInstance.config.partitionWalls ?? []).filter((pw) => pw.id !== id) });
+  }
+
   function applyResetInstance() {
     if (!editingInstanceId) return;
     updateEditingConfig(defaultConfig());
@@ -868,6 +898,16 @@ export function WorkspacePage() {
                     onUpdate={handleUpdateOpening}
                     onRemove={handleRemoveOpening}
                   />
+                  <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                    <PartitionWallsPanel
+                      size={editingInstance.config.size}
+                      wallThickness={editingInstance.config.wallThickness}
+                      partitionWalls={editingInstance.config.partitionWalls ?? []}
+                      onAdd={handleAddPartitionWall}
+                      onUpdate={handleUpdatePartitionWall}
+                      onRemove={handleRemovePartitionWall}
+                    />
+                  </div>
                 </AccordionSection>
 
                 <div data-tour="save-project" className="mt-6 space-y-2">
@@ -1141,6 +1181,7 @@ export function WorkspacePage() {
                 floorInsulated={
                   editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)
                 }
+                partitionWalls={editingInstance.config.partitionWalls ?? []}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}

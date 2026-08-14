@@ -15,6 +15,10 @@ interface DoorLeafProps {
   // Wie bei Wall: +1/-1, welche lokale Z-Richtung nach aussen zeigt - fuer
   // die Innen-/Aussenfarben-Aufteilung des Blatts (Jonas' Vorgabe 2026-07-22).
   outwardSign: 1 | -1;
+  // Wie Wall.tsx's gleichnamiges Prop (Jonas' Vorgabe 2026-08-14, Trennwand):
+  // beide Blattseiten UND die Zargenkanten sind Innenraum, keine davon soll
+  // die globale Aussenfarbe bekommen.
+  paintBothSidesInside?: boolean;
 }
 
 const LEAF_THICKNESS = 0.04;
@@ -34,7 +38,7 @@ const HANDLE_COLOR = "#4b5563";
 // Aufruf) - Fund aus Jonas' Fehlerbericht 2026-07-22: die Scharnier-/Griff-
 // Meshes hatten VORHER ueberhaupt kein clippingPlanes gesetzt (nur das
 // Blatt selbst), blieben bei aktiver Schnittansicht also immer sichtbar.
-export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlanes, outwardSign }: DoorLeafProps) {
+export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlanes, outwardSign, paintBothSidesInside = false }: DoorLeafProps) {
   const { viewStyle, insideColor, outsideColor, insideUnpainted } = useDisplaySettings();
   const localY = v - panelHeight / 2;
   const hingeEdgeU = hinge === "left" ? u - width / 2 : u + width / 2;
@@ -54,7 +58,7 @@ export function DoorLeaf({ u, v, width, height, panelHeight, hinge, clippingPlan
       <mesh position={[u, localY, 0]} castShadow receiveShadow>
         <boxGeometry args={[width - LEAF_GAP, height - LEAF_GAP, LEAF_THICKNESS]} />
         {[0, 1, 2, 3, 4, 5].map((groupIndex) => {
-          const isInside = groupIndex === insideGroup;
+          const isInside = paintBothSidesInside || groupIndex === insideGroup;
           const unpaintedHere = isInside && insideUnpainted;
           return (
             <meshStandardMaterial

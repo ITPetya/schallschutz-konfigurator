@@ -160,6 +160,29 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     minSize: 50,
     maxSize: 500,
   },
+  // Feste Trennwand-Tuer (Jonas' Vorgabe 2026-08-14): 932x1932mm, IMMER DIN
+  // rechts von der glatten Seite aus gesehen - keine Bandseiten-Auswahl
+  // (hasHinge:false), die Bandseite wird stattdessen in PartitionWall.tsx aus
+  // dem Spiegel-Zustand hergeleitet. excludedPanels deckt alle sechs
+  // Aussenpanels ab, damit dieser Typ nie im normalen "Einbauten
+  // hinzufügen"-Assistenten (AddOpeningPopup.tsx) auftauchen kann - er wird
+  // ausschliesslich von PartitionWall.tsx erzeugt.
+  partition_door: {
+    kind: "partition_door",
+    label: "Trennwandtür 932 × 1932",
+    category: "standard",
+    shape: "rect",
+    fixedWidth: 932,
+    fixedHeight: 1932,
+    minSize: 0,
+    maxSize: 0,
+    minBottomOffset: 0,
+    minTopMargin: 150,
+    hasHinge: false,
+    verticalOnly: true,
+    excludedPanels: ["front", "back", "left", "right", "top", "bottom"],
+    isDoor: true,
+  },
 };
 
 export interface OpeningSizePreset {

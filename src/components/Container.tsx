@@ -3,7 +3,9 @@ import type { ContainerSize } from "../constants/containerSizes";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import type { Opening, PanelId } from "../types/openings";
 import { isVerticalWall } from "../types/openings";
+import type { PartitionWallConfig } from "../types/partitionWall";
 import { Wall } from "./Wall";
+import { PartitionWall } from "./PartitionWall";
 import { RoofRidge } from "./RoofRidge";
 import {
   CornerCasting,
@@ -33,6 +35,11 @@ interface ContainerProps {
   // den Container ohne dieses Prop rendert - true ist die "bessere"
   // Blindannahme (isoliert wirkt hochwertiger als sichtbar hohl).
   floorInsulated?: boolean;
+  // Optionale Trennwaende (Jonas' Vorgabe 2026-08-14), siehe
+  // types/partitionWall.ts/PartitionWall.tsx. Optional mit Default [], falls
+  // eine Stelle den Container ohne dieses Prop rendert (altes Muster, siehe
+  // floorThickness oben).
+  partitionWalls?: PartitionWallConfig[];
   // Wird EINMAL aufgerufen, sobald alle 14 Bauteile (6 Waende + 8
   // Eckbeschlaege) tatsaechlich gemountet/berechnet sind - Scene.tsx/
   // ProjectScene3D.tsx nutzen das, um ihr Lade-Overlay so lange sichtbar zu
@@ -70,7 +77,15 @@ const MM_TO_M = 1 / 1000;
 // types/openings.ts) in die fuer Wall/DoorLeaf erwartete Mitte umgerechnet -
 // beide Konzepte (Einheit + Bezugspunkt) an derselben Stelle aufgeloest,
 // damit Wall.tsx/DoorLeaf.tsx von beidem nichts wissen muessen.
-export function Container({ size, wallThickness, openings, floorThickness = DEFAULT_FLOOR_THICKNESS, floorInsulated = true, onReady }: ContainerProps) {
+export function Container({
+  size,
+  wallThickness,
+  openings,
+  floorThickness = DEFAULT_FLOOR_THICKNESS,
+  floorInsulated = true,
+  partitionWalls = [],
+  onReady,
+}: ContainerProps) {
   const L = size.length * MM_TO_M;
   const W = size.width * MM_TO_M;
   const H = size.height * MM_TO_M;
@@ -318,6 +333,20 @@ export function Container({ size, wallThickness, openings, floorThickness = DEFA
     // additiv, sitzt auf der Aussenflaeche des flachen Dach-Panels
     // (wall-top) oben drauf, siehe RoofRidge.tsx.
     <RoofRidge key="roof-ridge" lengthM={effectiveL} widthM={effectiveW} baseY={H - wallRecess} openings={openingsFor("top")} />,
+    // Trennwaende (Jonas' Vorgabe 2026-08-14): gleiche Ausrichtung/Spannweite
+    // wie Vorne/Hinten (quer zur Laenge, spannt endWallWidth x
+    // verticalWallHeight), nur an einer frei waehlbaren Laengsposition statt
+    // an den beiden festen Enden - siehe PartitionWall.tsx.
+    ...partitionWalls.map((pw) => (
+      <PartitionWall
+        key={pw.id}
+        pw={pw}
+        panelWidth={endWallWidth}
+        panelHeight={verticalWallHeight}
+        positionY={verticalWallPositionY}
+        verticalWallVOffset={verticalWallVOffset}
+      />
+    )),
   ];
 
   const revealed = useChunkedReveal(parts.length);
@@ -325,11 +354,13 @@ export function Container({ size, wallThickness, openings, floorThickness = DEFA
   onReadyRef.current = onReady;
   useEffect(() => {
     if (revealed >= parts.length) onReadyRef.current?.();
-    // parts.length ist pro Render stabil (haengt nur von SIGNS/den 6 festen
-    // Waenden ab, nie von Props) - absichtlich nicht in den Deps, um nicht
-    // bei jeder Neuberechnung von "parts" (jedes Render) neu zu feuern.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed]);
+    // parts.length war bisher pro Render stabil (haengt nur von SIGNS/den 6
+    // festen Waenden ab) - seit den Trennwaenden (Jonas' Vorgabe 2026-08-14)
+    // haengt es zusaetzlich von partitionWalls.length ab (einer echten Prop,
+    // die sich waehrend des Bearbeitens aendern kann, wenn eine Trennwand
+    // hinzugefuegt/entfernt wird) - deshalb jetzt explizit in den Deps, statt
+    // wie vorher bewusst wegzulassen.
+  }, [revealed, parts.length]);
 
   return <group>{parts.slice(0, revealed)}</group>;
 }

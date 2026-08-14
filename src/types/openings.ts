@@ -22,7 +22,13 @@ export type OpeningKind =
   | "door_custom_double"
   | "vent_weather"
   | "cable"
-  | "pipe";
+  | "pipe"
+  // Nur fuer die Trennwand (siehe types/partitionWall.ts) - feste 932x1932mm,
+  // DIN-Bandseite wird dort aus dem Spiegel-Zustand der Wand hergeleitet statt
+  // gespeichert, deshalb hasHinge:false. excludedPanels (openingTypes.ts)
+  // verhindert, dass dieser Typ ueber den normalen Aussenwand-Assistenten
+  // waehlbar ist.
+  | "partition_door";
 
 // DIN Links/Rechts (Tuerbandseite) - bestimmt jetzt tatsaechlich sichtbar,
 // auf welcher Seite Scharniere sitzen (Tuerblatt-Darstellung, siehe
@@ -96,4 +102,10 @@ export interface Opening {
   width: number;
   height: number;
   hinge?: DoorHinge;
+  // Nur fuer die Trennwand gesetzt (siehe types/partitionWall.ts): ueberschreibt
+  // fuer DIESEN einen Durchbruch, auf welcher lokalen Z-Seite ein Protrusion-
+  // Bauteil (aktuell nur das Wetterschutzgitter) baut - unabhaengig vom
+  // Wand-weiten outwardSign. Bei Aussenwaenden nie gesetzt, dort bleibt es
+  // beim bisherigen Verhalten (immer outwardSign).
+  protrusionSign?: 1 | -1;
 }
