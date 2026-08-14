@@ -176,7 +176,12 @@ export const OPENING_TYPES: Record<OpeningKind, OpeningTypeDef> = {
     fixedHeight: 1932,
     minSize: 0,
     maxSize: 0,
-    minBottomOffset: 0,
+    // Jonas' Vorgabe 2026-08-14 (Nachbesserung): die Trennwandtür beginnt
+    // IMMER 100mm ueber der echten Innenflaeche des Bodens (v=0 ist bereits
+    // die Bodenoberflaeche, siehe Container.tsx's verticalWallVOffset - "100
+    // ueber dem Boden innen" ist deshalb direkt dieser Wert, keine
+    // zusaetzliche Bodenstaerken-Addition noetig).
+    minBottomOffset: 100,
     minTopMargin: 150,
     hasHinge: false,
     verticalOnly: true,

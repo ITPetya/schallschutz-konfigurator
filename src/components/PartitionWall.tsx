@@ -6,11 +6,14 @@ import { Wall } from "./Wall";
 
 const MM_TO_M = 1 / 1000;
 
-// Feste Trennwandtuer-Masse (Jonas' Vorgabe 2026-08-14), floor-buendig (kein
-// Sockel/Schwelle) - siehe openingTypes.ts's partition_door.
+// Feste Trennwandtuer-Masse (Jonas' Vorgabe 2026-08-14) - siehe
+// openingTypes.ts's partition_door. minBottomOffset dort (100mm) ist die
+// einzige Quelle der Wahrheit fuer den Bodenabstand, hier nicht erneut
+// hartkodiert.
 const DOOR_KIND = "partition_door" as const;
 const DOOR_WIDTH_MM = OPENING_TYPES[DOOR_KIND].fixedWidth!;
 const DOOR_HEIGHT_MM = OPENING_TYPES[DOOR_KIND].fixedHeight!;
+const DOOR_BOTTOM_OFFSET_MM = OPENING_TYPES[DOOR_KIND].minBottomOffset!;
 
 // "Immer DIN rechts von der glatten Seite aus gesehen" (Jonas' Vorgabe
 // 2026-08-14) - hergeleitet aus Wall.tsx/DoorLeaf.tsx's tatsaechlicher
@@ -84,7 +87,7 @@ export function PartitionWall({ pw, panelWidth, panelHeight, positionY, vertical
   });
 
   if (pw.door) {
-    const doorCenterV_mm = DOOR_HEIGHT_MM / 2; // Unterkante = Boden (0mm), siehe types/partitionWall.ts
+    const doorCenterV_mm = DOOR_BOTTOM_OFFSET_MM + DOOR_HEIGHT_MM / 2; // Unterkante 100mm ueber dem Boden, siehe openingTypes.ts
     openingsM.push({
       id: `${pw.id}-door`,
       kind: DOOR_KIND,
