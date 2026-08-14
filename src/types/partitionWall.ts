@@ -59,6 +59,17 @@ export interface PartitionWallConfig {
   door?: PartitionDoor;
 }
 
+// Zwischenzustand waehrend des Anlegens im "Einbauten hinzufügen"-Assistenten
+// (Jonas' Vorgabe 2026-08-14) - bewusst NUR die drei Felder, die er beim
+// Anlegen nannte (Position/Wandstärke/Tür ja-nein). smoothSide/Durchbrüche
+// kommen erst im Drill-in-Editor dazu (siehe PartitionWallSettings.tsx),
+// analog zum bestehenden Muster "schnell anlegen, im Detail verfeinern".
+export interface PartitionWallCreateDraft {
+  positionU: number;
+  thickness: number;
+  hasDoor: boolean;
+}
+
 // Wandelt einen Trennwand-Durchbruch in die von Wall.tsx erwartete Opening-
 // Form um. panel wird nie von Wall.tsx gelesen (rein interne CSG-Ausschnitt-
 // Logik dort kennt keine Panel-Identitaet) - "front" ist hier ein reiner

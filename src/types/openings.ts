@@ -14,6 +14,17 @@ export function isVerticalWall(panel: PanelId): panel is WallId {
   return panel === "front" || panel === "back" || panel === "left" || panel === "right";
 }
 
+// Die vier Flaechen, die entlang der LAENGE des Containers verlaufen (siehe
+// wallFaces.ts/Container.tsx: ihre Spannweite ist effectiveL, im Unterschied
+// zu front/back, deren Spannweite die Breite ist) - Jonas' Vorgabe
+// 2026-08-14: genau diese vier bieten im "Einbauten hinzufügen"-Assistenten
+// zusaetzlich "Trennwand" an, weil eine Trennwand IMMER quer zur Laenge
+// liegt und sich deshalb nur von einer dieser vier Seiten aus "betreten"
+// laesst, nicht von vorne/hinten.
+export function isLengthSpanningPanel(panel: PanelId): boolean {
+  return panel === "top" || panel === "bottom" || panel === "left" || panel === "right";
+}
+
 export type OpeningKind =
   | "door_single_1918"
   | "door_single_2418"

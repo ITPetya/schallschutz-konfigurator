@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { OpeningsPanel } from "../components/OpeningsPanel";
 import { PartitionWallsPanel } from "../components/PartitionWallsPanel";
+import { PartitionWallSettings } from "../components/PartitionWallSettings";
+import { PartitionOpeningsPanel } from "../components/PartitionOpeningsPanel";
 import { AddOpeningPopup } from "../components/AddOpeningPopup";
+import { AddPartitionOpeningPopup } from "../components/AddPartitionOpeningPopup";
 import { ContainerSizeControls } from "../components/ContainerSizeControls";
 import { NumberInput } from "../components/NumberInput";
 import { DisplaySettingsPanel } from "../components/DisplaySettingsPanel";
@@ -24,8 +27,8 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
-import type { Opening, PanelId } from "../types/openings";
-import type { PartitionWallConfig } from "../types/partitionWall";
+import { isLengthSpanningPanel, type Opening, type PanelId } from "../types/openings";
+import type { PartitionWallConfig, PartitionOpening, PartitionOpeningKind, PartitionWallCreateDraft } from "../types/partitionWall";
 import {
   applyFamilyPick,
   applyPanelPick,
@@ -33,6 +36,12 @@ import {
   createInitialWizardState,
   type OpeningWizardState,
 } from "../utils/openingWizard";
+import {
+  applyPartitionFamilyPick,
+  buildPartitionOpeningDraft,
+  createInitialPartitionOpeningWizardState,
+  type PartitionOpeningWizardState,
+} from "../utils/partitionOpeningWizard";
 import type { OpeningFamily } from "../constants/openingFamilies";
 import type { ContainerConfig } from "../config/types";
 import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, sanitizeFileName } from "../config/configFileCodec";
@@ -276,6 +285,17 @@ export function WorkspacePage() {
   // (die Instanz wurde waehrend der Bearbeitung schon laufend aktualisiert).
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const editingInstance = project.instances.find((i) => i.id === editingInstanceId) ?? null;
+  // Trennwand-Drill-in (Jonas' Vorgabe 2026-08-14): eine Ebene tiefer als
+  // editingInstanceId, nur waehrend editingInstance gesetzt ist relevant -
+  // gleiches Muster (id statt direkter Objektreferenz + Safety-Net-Effekt
+  // weiter unten, falls die Wand anderweitig geloescht wird).
+  const [editingPartitionWallId, setEditingPartitionWallId] = useState<string | null>(null);
+  const editingPartitionWall = editingInstance?.config.partitionWalls?.find((pw) => pw.id === editingPartitionWallId) ?? null;
+  // Lichte Breite EINER Trennwand (spannt wie Vorne/Hinten zwischen
+  // Links/Rechts, siehe Container.tsx's endWallWidth/PartitionWall.tsx) -
+  // Naeherung ohne Eckbeschlag-Recess, reicht fuers UI-Clamping der
+  // Durchbruch-Positionsfelder.
+  const partitionSpan = editingInstance ? Math.max(0, editingInstance.config.size.width - 2 * editingInstance.config.wallThickness) : 0;
   // Jonas' Vorgabe 2026-08-13 ("Einbauten hinzufügen"-Assistent): der
   // gesamte Assistenten-Zustand (welche Fläche/Einbaute/Maße gerade gewählt
   // sind) lebt hier statt im bisherigen showAddPopup-Boolean - `null` heisst
@@ -283,6 +303,32 @@ export function WorkspacePage() {
   // Component darauf. Siehe utils/openingWizard.ts fuer die Uebergangs-
   // funktionen (applyPanelPick/applyFamilyPick/buildDraft).
   const [openingWizard, setOpeningWizard] = useState<OpeningWizardState | null>(null);
+  // Trennwand-Zweig desselben Assistenten (Jonas' Vorgabe 2026-08-14): laeuft
+  // PARALLEL zu openingWizard statt als echte OpeningFamily, weil eine
+  // Trennwand ein PartitionWallConfig statt eines Opening erzeugt - siehe
+  // types/partitionWall.ts/AddOpeningPopup.tsx. Nicht null heisst "Trennwand
+  // ist in Schritt 2 gewaehlt", openingWizard.panel bleibt dabei die
+  // Quelle der Wahrheit fuer Schritt 1.
+  const [partitionDraft, setPartitionDraft] = useState<PartitionWallCreateDraft | null>(null);
+  // "+"-Assistent INNERHALB einer fokussierten Trennwand (Drill-in) - eigener,
+  // kleinerer Zustand (siehe utils/partitionOpeningWizard.ts), unabhaengig von
+  // openingWizard/partitionDraft oben.
+  const [partitionOpeningWizard, setPartitionOpeningWizard] = useState<PartitionOpeningWizardState | null>(null);
+  // Live-Vorschau einer NEUEN Trennwand waehrend des Anlegens (Schritt 3 des
+  // Assistenten, siehe partitionDraft oben) - mischt sich nur fuers Rendering
+  // rein, landet nie in der eigentlichen Liste vor handleCommitPartitionWallCreate.
+  const draftPartitionWall: PartitionWallConfig | null = partitionDraft
+    ? { id: "__draft__", positionU: partitionDraft.positionU, thickness: partitionDraft.thickness, smoothSide: "front", openings: [], door: partitionDraft.hasDoor ? { u: 0 } : undefined }
+    : null;
+  // Live-Vorschau eines Durchbruchs INNERHALB der gerade fokussierten
+  // Trennwand (partitionOpeningWizard) - gemischt in die jeweilige Wand,
+  // nicht in editingInstance.config selbst, gleiches Prinzip wie draftOpening.
+  const partitionOpeningDraft = partitionOpeningWizard ? buildPartitionOpeningDraft(partitionOpeningWizard) : null;
+  const partitionWallsForViewer: PartitionWallConfig[] = editingInstance
+    ? (editingInstance.config.partitionWalls ?? []).map((pw) =>
+        pw.id === editingPartitionWallId && partitionOpeningDraft ? { ...pw, openings: [...pw.openings, partitionOpeningDraft] } : pw,
+      )
+    : [];
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   // Steuert das Disc-Icon (statt Download-Icon) auf den "Speichern"-Buttons,
@@ -341,6 +387,11 @@ export function WorkspacePage() {
   useEffect(() => {
     if (editingInstanceId && !editingInstance) setEditingInstanceId(null);
   }, [editingInstanceId, editingInstance]);
+  // Gleicher Schutz eine Ebene tiefer: Trennwand geloescht (oder der ganze
+  // Container verlassen) waehrend ihr Drill-in-Editor offen war.
+  useEffect(() => {
+    if (editingPartitionWallId && !editingPartitionWall) setEditingPartitionWallId(null);
+  }, [editingPartitionWallId, editingPartitionWall]);
 
   // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
   // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
@@ -487,6 +538,8 @@ export function WorkspacePage() {
 
   function handleBackToBaugruppe() {
     setEditingInstanceId(null);
+    setEditingPartitionWallId(null);
+    setPartitionOpeningWizard(null);
     // Tutorial-Ueberarbeitung 2026-08-11: die Baugruppen-Uebersicht (Container-
     // Liste/Ausrichten/Speichern-Laden-Anfragen auf Projekt-Ebene) wird erst
     // ab HIER wieder sichtbar - ohne dieses Ereignis muesste die Tour beim
@@ -510,10 +563,17 @@ export function WorkspacePage() {
   // denselben Handler - beide Wege sind gleichwertig.
   function handleWizardPanelChange(panel: PanelId) {
     setOpeningWizard((w) => (w ? applyPanelPick(w, panel) : w));
+    // Jonas' Vorgabe 2026-08-14: "Trennwand" ist nur auf den vier
+    // Laengsflaechen waehlbar - Wandwechsel auf front/back muss die
+    // Trennwand-Auswahl deshalb zuruecksetzen, gleiches Prinzip wie
+    // applyPanelPick's bestehendes Zuruecksetzen einer nicht mehr erlaubten
+    // OpeningFamily.
+    if (partitionDraft && !isLengthSpanningPanel(panel)) setPartitionDraft(null);
   }
   function handleWizardFamilyChange(family: OpeningFamily) {
     if (!editingInstance) return;
     setOpeningWizard((w) => (w ? applyFamilyPick(w, family, editingInstance.config.size) : w));
+    setPartitionDraft(null);
   }
   function handleWizardFieldsChange(patch: Partial<Opening>) {
     setOpeningWizard((w) => (w ? { ...w, opening: { ...w.opening, ...patch } } : w));
@@ -527,6 +587,36 @@ export function WorkspacePage() {
   }
   function handleWizardClose() {
     setOpeningWizard(null);
+    setPartitionDraft(null);
+  }
+
+  // ---------- Trennwand anlegen (Jonas' Vorgabe 2026-08-14, Teil desselben
+  // Assistenten wie oben) ----------
+  function handleSelectTrennwand() {
+    if (!editingInstance) return;
+    // Laesst Schritt 1 (Flaeche) unveraendert, raeumt aber eine evtl. vorher
+    // gewaehlte normale Einbaute-Familie weg - sonst wuerden beide
+    // Feld-Bloecke in AddOpeningPopup.tsx gleichzeitig sichtbar.
+    setOpeningWizard((w) => (w ? { ...w, family: null } : w));
+    setPartitionDraft({ positionU: 0, thickness: editingInstance.config.wallThickness, hasDoor: false });
+  }
+  function handlePartitionFieldsChange(patch: Partial<PartitionWallCreateDraft>) {
+    setPartitionDraft((d) => (d ? { ...d, ...patch } : d));
+  }
+  function handleCommitPartitionWallCreate() {
+    if (!editingInstance || !partitionDraft) return;
+    const pw: PartitionWallConfig = {
+      id: crypto.randomUUID(),
+      positionU: partitionDraft.positionU,
+      thickness: partitionDraft.thickness,
+      smoothSide: "front",
+      openings: [],
+      door: partitionDraft.hasDoor ? { u: 0 } : undefined,
+    };
+    updateEditingConfig({ partitionWalls: [...(editingInstance.config.partitionWalls ?? []), pw] });
+    notifyEvent("opening-added");
+    setOpeningWizard(null);
+    setPartitionDraft(null);
   }
 
   function handleUpdateOpening(id: string, patch: Partial<Opening>) {
@@ -539,22 +629,6 @@ export function WorkspacePage() {
   }
 
   // ---------- Trennwaende (Jonas' Vorgabe 2026-08-14) ----------
-  // Nested Durchbrueche/Tuer je Trennwand werden NICHT ueber eigene Handler
-  // hier gefuehrt, sondern von PartitionWallsPanel.tsx selbst per
-  // onUpdate(id, { openings/door: ... }) gepatcht (gleiches Prinzip wie
-  // OpeningFieldsEditor.tsx's onChange, nur eine Ebene tiefer) - haelt die
-  // Handler-Flaeche hier auf drei, analog zu handleAddOpening/-Update/-Remove.
-  function handleAddPartitionWall() {
-    if (!editingInstance) return;
-    const pw: PartitionWallConfig = {
-      id: crypto.randomUUID(),
-      positionU: 0,
-      thickness: editingInstance.config.wallThickness,
-      smoothSide: "front",
-      openings: [],
-    };
-    updateEditingConfig({ partitionWalls: [...(editingInstance.config.partitionWalls ?? []), pw] });
-  }
   function handleUpdatePartitionWall(id: string, patch: Partial<PartitionWallConfig>) {
     if (!editingInstance) return;
     updateEditingConfig({
@@ -564,6 +638,51 @@ export function WorkspacePage() {
   function handleRemovePartitionWall(id: string) {
     if (!editingInstance) return;
     updateEditingConfig({ partitionWalls: (editingInstance.config.partitionWalls ?? []).filter((pw) => pw.id !== id) });
+  }
+
+  // ---------- Trennwand-Drill-in (Jonas' Vorgabe 2026-08-14) ----------
+  function handleEditPartitionWall(pw: PartitionWallConfig) {
+    setEditingPartitionWallId(pw.id);
+    setPartitionOpeningWizard(null);
+  }
+  function handleBackToContainer() {
+    setEditingPartitionWallId(null);
+    setPartitionOpeningWizard(null);
+  }
+
+  // Durchbrueche INNERHALB der gerade fokussierten Trennwand - patchen immer
+  // ueber handleUpdatePartitionWall(editingPartitionWallId, ...), analog zu
+  // OpeningFieldsEditor.tsx's onChange, nur eine Ebene tiefer.
+  function handleUpdatePartitionOpening(id: string, patch: Partial<PartitionOpening>) {
+    if (!editingPartitionWall) return;
+    handleUpdatePartitionWall(editingPartitionWall.id, {
+      openings: editingPartitionWall.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    });
+  }
+  function handleRemovePartitionOpening(id: string) {
+    if (!editingPartitionWall) return;
+    handleUpdatePartitionWall(editingPartitionWall.id, { openings: editingPartitionWall.openings.filter((o) => o.id !== id) });
+  }
+
+  function handlePartitionOpeningWizardOpen() {
+    setPartitionOpeningWizard(createInitialPartitionOpeningWizardState());
+  }
+  function handlePartitionOpeningWizardClose() {
+    setPartitionOpeningWizard(null);
+  }
+  function handlePartitionOpeningFamilyChange(family: PartitionOpeningKind) {
+    if (!editingInstance) return;
+    setPartitionOpeningWizard((w) => (w ? applyPartitionFamilyPick(w, family, editingInstance.config.size.height) : w));
+  }
+  function handlePartitionOpeningFieldsChange(patch: Partial<PartitionOpening>) {
+    setPartitionOpeningWizard((w) => (w ? { ...w, opening: { ...w.opening, ...patch } } : w));
+  }
+  function handlePartitionOpeningWizardCommit() {
+    if (!partitionOpeningWizard || !editingPartitionWall) return;
+    const draft = buildPartitionOpeningDraft(partitionOpeningWizard);
+    if (!draft) return;
+    handleUpdatePartitionWall(editingPartitionWall.id, { openings: [...editingPartitionWall.openings, draft] });
+    setPartitionOpeningWizard(null);
   }
 
   function applyResetInstance() {
@@ -775,15 +894,26 @@ export function WorkspacePage() {
         <Sidebar>
           {editingInstance && (
             <SidebarHeader>
-              <AnimatedButton
-                type="button"
-                data-tour="back-to-project"
-                onClick={handleBackToBaugruppe}
-                className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
-              >
-                <ArrowLeftIcon size={16} />
-                Zurück zur Baugruppe
-              </AnimatedButton>
+              {editingPartitionWall ? (
+                <AnimatedButton
+                  type="button"
+                  onClick={handleBackToContainer}
+                  className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+                >
+                  <ArrowLeftIcon size={16} />
+                  Zurück zur Container-Konfiguration
+                </AnimatedButton>
+              ) : (
+                <AnimatedButton
+                  type="button"
+                  data-tour="back-to-project"
+                  onClick={handleBackToBaugruppe}
+                  className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-brand hover:text-brand-dark"
+                >
+                  <ArrowLeftIcon size={16} />
+                  Zurück zur Baugruppe
+                </AnimatedButton>
+              )}
             </SidebarHeader>
           )}
           <SidebarContent>
@@ -801,7 +931,33 @@ export function WorkspacePage() {
                     (Detailbearbeitung), die dadurch schon beim ersten
                     Anzeigen unerwartet offen war. key={title} zwingt React,
                     bei jedem Titelwechsel eine frische Komponenteninstanz
-                    (frischer State) anzulegen. */}
+                    (frischer State) anzulegen. Gleicher Fallstrick eine Ebene
+                    tiefer (Jonas' Vorgabe 2026-08-14): der Trennwand-Drill-in
+                    rendert "Grundeinstellungen"/"Einbauten" NOCH EINMAL an
+                    derselben Baumposition - deshalb steckt jeder der beiden
+                    Zweige zusaetzlich in einem eigens gekeyten Fragment. */}
+                {editingPartitionWall ? (
+                  <Fragment key="pw-edit">
+                    <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
+                      <PartitionWallSettings
+                        pw={editingPartitionWall}
+                        size={editingInstance.config.size}
+                        wallThickness={editingInstance.config.wallThickness}
+                        onUpdate={(patch) => handleUpdatePartitionWall(editingPartitionWall.id, patch)}
+                      />
+                    </AccordionSection>
+                    <AccordionSection key="Einbauten" title="Einbauten" defaultOpen>
+                      <PartitionOpeningsPanel
+                        openings={editingPartitionWall.openings}
+                        partitionSpan={partitionSpan}
+                        containerHeight={editingInstance.config.size.height}
+                        onUpdate={handleUpdatePartitionOpening}
+                        onRemove={handleRemovePartitionOpening}
+                      />
+                    </AccordionSection>
+                  </Fragment>
+                ) : (
+                  <Fragment key="container-edit">
                 <AccordionSection
                   key="Grundeinstellungen"
                   title="Grundeinstellungen"
@@ -898,17 +1054,18 @@ export function WorkspacePage() {
                     onUpdate={handleUpdateOpening}
                     onRemove={handleRemoveOpening}
                   />
-                  <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
-                    <PartitionWallsPanel
-                      size={editingInstance.config.size}
-                      wallThickness={editingInstance.config.wallThickness}
-                      partitionWalls={editingInstance.config.partitionWalls ?? []}
-                      onAdd={handleAddPartitionWall}
-                      onUpdate={handleUpdatePartitionWall}
-                      onRemove={handleRemovePartitionWall}
-                    />
-                  </div>
+                  {(editingInstance.config.partitionWalls?.length ?? 0) > 0 && (
+                    <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                      <PartitionWallsPanel
+                        partitionWalls={editingInstance.config.partitionWalls ?? []}
+                        onEdit={handleEditPartitionWall}
+                        onRemove={handleRemovePartitionWall}
+                      />
+                    </div>
+                  )}
                 </AccordionSection>
+                  </Fragment>
+                )}
 
                 <div data-tour="save-project" className="mt-6 space-y-2">
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Speichern</p>
@@ -1181,7 +1338,9 @@ export function WorkspacePage() {
                 floorInsulated={
                   editingInstance.config.floorInsulated ?? defaultFloorInsulated(editingInstance.config.soundClass ?? DEFAULT_SOUND_CLASS)
                 }
-                partitionWalls={editingInstance.config.partitionWalls ?? []}
+                partitionWalls={partitionWallsForViewer}
+                draftPartitionWall={draftPartitionWall}
+                focusPartitionWall={editingPartitionWall}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 canUndo={undoStack.length > 0}
@@ -1193,21 +1352,42 @@ export function WorkspacePage() {
                 // verdecken (per Playwright-Screenshot bestaetigt). Die
                 // Wand laesst sich danach weiterhin ueber das Dropdown in
                 // Abschnitt 1 wechseln, nur der 3D-Klick ist dann aus.
-                wallPickActive={!!openingWizard && !openingWizard.family}
+                // Zusaetzlich komplett aus, solange eine Trennwand fokussiert
+                // ist (Jonas' Vorgabe 2026-08-14) - dort ergibt ein
+                // Aussenwand-Klick keinen Sinn.
+                wallPickActive={!editingPartitionWall && !!openingWizard && !openingWizard.family}
                 selectedPanel={openingWizard?.panel ?? null}
                 onPickPanel={handleWizardPanelChange}
               />
               <div className="absolute left-4 top-4">
-                <AddOpeningPopup
-                  size={editingInstance.config.size}
-                  wizard={openingWizard}
-                  onOpen={() => setOpeningWizard(createInitialWizardState())}
-                  onPanelChange={handleWizardPanelChange}
-                  onFamilyChange={handleWizardFamilyChange}
-                  onFieldsChange={handleWizardFieldsChange}
-                  onCommit={handleWizardCommit}
-                  onClose={handleWizardClose}
-                />
+                {editingPartitionWall ? (
+                  <AddPartitionOpeningPopup
+                    wizard={partitionOpeningWizard}
+                    partitionSpan={partitionSpan}
+                    containerHeight={editingInstance.config.size.height}
+                    onOpen={handlePartitionOpeningWizardOpen}
+                    onFamilyChange={handlePartitionOpeningFamilyChange}
+                    onFieldsChange={handlePartitionOpeningFieldsChange}
+                    onCommit={handlePartitionOpeningWizardCommit}
+                    onClose={handlePartitionOpeningWizardClose}
+                  />
+                ) : (
+                  <AddOpeningPopup
+                    size={editingInstance.config.size}
+                    wallThickness={editingInstance.config.wallThickness}
+                    wizard={openingWizard}
+                    onOpen={() => setOpeningWizard(createInitialWizardState())}
+                    onPanelChange={handleWizardPanelChange}
+                    onFamilyChange={handleWizardFamilyChange}
+                    onFieldsChange={handleWizardFieldsChange}
+                    onCommit={handleWizardCommit}
+                    onClose={handleWizardClose}
+                    partitionDraft={partitionDraft}
+                    onSelectTrennwand={handleSelectTrennwand}
+                    onPartitionFieldsChange={handlePartitionFieldsChange}
+                    onCommitPartitionWall={handleCommitPartitionWallCreate}
+                  />
+                )}
               </div>
             </>
           ) : (

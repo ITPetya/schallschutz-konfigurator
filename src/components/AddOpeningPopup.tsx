@@ -1,16 +1,21 @@
 import type { Opening, PanelId } from "../types/openings";
-import { isKindAllowedOnPanel } from "../types/openings";
+import { isKindAllowedOnPanel, isLengthSpanningPanel } from "../types/openings";
 import { OPENING_TYPES, PANEL_LABELS } from "../constants/openingTypes";
 import { OPENING_FAMILIES, type OpeningFamily } from "../constants/openingFamilies";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { OpeningWizardState } from "../utils/openingWizard";
+import type { PartitionWallCreateDraft } from "../types/partitionWall";
 import { SONDER_DOOR_TEXT, isSonderDoor } from "../utils/containerWarnings";
 import { OpeningFieldsEditor } from "./OpeningFieldsEditor";
+import { PartitionWallCreateFields } from "./PartitionWallCreateFields";
 import { SonderBadge } from "./SonderBadge";
 import { ExpandingPanel } from "./ExpandingPanel";
 
+const TRENNWAND_VALUE = "__trennwand__";
+
 interface AddOpeningPopupProps {
   size: ContainerSize;
+  wallThickness: number;
   wizard: OpeningWizardState | null;
   onOpen: () => void;
   onPanelChange: (panel: PanelId) => void;
@@ -18,6 +23,14 @@ interface AddOpeningPopupProps {
   onFieldsChange: (patch: Partial<Opening>) => void;
   onCommit: () => void;
   onClose: () => void;
+  // Jonas' Vorgabe 2026-08-14: "Trennwand" ist keine echte OpeningFamily
+  // (erzeugt ein PartitionWallConfig statt eines Opening) - laeuft deshalb
+  // als eigener, paralleler Zweig statt ueber onFamilyChange/onFieldsChange/
+  // onCommit, siehe types/partitionWall.ts.
+  partitionDraft: PartitionWallCreateDraft | null;
+  onSelectTrennwand: () => void;
+  onPartitionFieldsChange: (patch: Partial<PartitionWallCreateDraft>) => void;
+  onCommitPartitionWall: () => void;
 }
 
 const inputClass =
@@ -41,7 +54,21 @@ const sectionTitleClass = "flex items-center gap-1.5 text-xs font-bold uppercase
 // wizard === null heisst "Assistent geschlossen" (nur der Button ist
 // sichtbar) - der gesamte Zustand lebt in WorkspacePage.tsx, das daraus auch
 // die Live-Vorschau (draftOpening) fuer den Viewer ableitet.
-export function AddOpeningPopup({ size, wizard, onOpen, onPanelChange, onFamilyChange, onFieldsChange, onCommit, onClose }: AddOpeningPopupProps) {
+export function AddOpeningPopup({
+  size,
+  wallThickness,
+  wizard,
+  onOpen,
+  onPanelChange,
+  onFamilyChange,
+  onFieldsChange,
+  onCommit,
+  onClose,
+  partitionDraft,
+  onSelectTrennwand,
+  onPartitionFieldsChange,
+  onCommitPartitionWall,
+}: AddOpeningPopupProps) {
   const open = wizard !== null;
   const panel = wizard?.panel ?? null;
   const family = wizard?.family ?? null;
@@ -85,8 +112,8 @@ export function AddOpeningPopup({ size, wizard, onOpen, onPanelChange, onFamilyC
               <span className={sectionTitleClass}>2. Einbaute wählen</span>
               <select
                 aria-label="Einbaute"
-                value={family ?? ""}
-                onChange={(e) => onFamilyChange(e.target.value as OpeningFamily)}
+                value={partitionDraft ? TRENNWAND_VALUE : (family ?? "")}
+                onChange={(e) => (e.target.value === TRENNWAND_VALUE ? onSelectTrennwand() : onFamilyChange(e.target.value as OpeningFamily))}
                 className={inputClass}
               >
                 <option value="" disabled>
@@ -97,6 +124,7 @@ export function AddOpeningPopup({ size, wizard, onOpen, onPanelChange, onFamilyC
                     {def.label}
                   </option>
                 ))}
+                {isLengthSpanningPanel(panel) && <option value={TRENNWAND_VALUE}>Trennwand</option>}
               </select>
             </div>
           )}
@@ -111,10 +139,17 @@ export function AddOpeningPopup({ size, wizard, onOpen, onPanelChange, onFamilyC
             </div>
           )}
 
-          {family && (
+          {partitionDraft && (
+            <div className="space-y-1.5">
+              <span className={sectionTitleClass}>3. Maße & Details</span>
+              <PartitionWallCreateFields size={size} wallThickness={wallThickness} draft={partitionDraft} onChange={onPartitionFieldsChange} />
+            </div>
+          )}
+
+          {(family || partitionDraft) && (
             <button
               type="button"
-              onClick={onCommit}
+              onClick={partitionDraft ? onCommitPartitionWall : onCommit}
               className="w-full rounded-full bg-brand px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark"
             >
               Hinzufügen

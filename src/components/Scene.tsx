@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
@@ -22,6 +22,7 @@ import type { Opening, PanelId } from "../types/openings";
 import type { PartitionWallConfig } from "../types/partitionWall";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
 import { computeWallFaces } from "../utils/wallFaces";
+import { computePartitionWallFocus } from "../utils/partitionWallFocus";
 import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { useTheme } from "../context/ThemeContext";
@@ -65,6 +66,15 @@ interface SceneProps {
   wallPickActive?: boolean;
   selectedPanel?: PanelId | null;
   onPickPanel?: (panel: PanelId) => void;
+  // Jonas' Vorgabe 2026-08-14: Live-Vorschau der gerade im Assistenten
+  // angelegten (noch nicht committeten) Trennwand - gleiches Prinzip wie
+  // draftOpening oben, nur fuers Trennwand-Rendering.
+  draftPartitionWall?: PartitionWallConfig | null;
+  // Gesetzt, solange eine Trennwand im Drill-in-Editor fokussiert ist -
+  // steuert automatisch Kamera + Schnitt (siehe useEffect unten,
+  // computePartitionWallFocus). null = normale Container-Ansicht, der vorher
+  // aktive Schnitt-Zustand wird wiederhergestellt.
+  focusPartitionWall?: PartitionWallConfig | null;
 }
 
 const MM_TO_M = 1 / 1000;
@@ -94,6 +104,8 @@ export function Scene({
   wallPickActive,
   selectedPanel,
   onPickPanel,
+  draftPartitionWall,
+  focusPartitionWall,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -176,6 +188,60 @@ export function Scene({
   // useViewerShortcuts.ts).
   useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure });
 
+  // Jonas' Vorgabe 2026-08-14 (Trennwand-Drill-in): beim Fokussieren einer
+  // Trennwand automatisch auf ihre C-Schienen-Seite blicken + einen Schnitt
+  // bis kurz davor legen, weil sie normalerweise unsichtbar im geschlossenen
+  // Container sitzt - siehe utils/partitionWallFocus.ts fuer die Herleitung.
+  // Kamera-Positionierung ist bewusst ein einmaliges Setzen, keine Animation
+  // (keine Vorgabe fuer eine Flug-Animation). Beim Verlassen (focus -> null)
+  // wird NUR der vorherige Schnitt-Zustand wiederhergestellt, nicht die
+  // Kamera - der Nutzer soll dort weiterschauen koennen, wo er zuletzt hin
+  // orbitiert hat.
+  const previousSectionRef = useRef<{ enabled: boolean; axis: typeof section.sectionAxis; offsetMm: number; direction: 1 | -1 } | null>(null);
+  useEffect(() => {
+    if (focusPartitionWall) {
+      // NUR beim UEBERGANG unfokussiert -> fokussiert sichern - dieser Effekt
+      // feuert bei JEDER Bearbeitung der Trennwand erneut (Position/Staerke/
+      // Spiegeln aendern jeweils die Objektidentitaet von focusPartitionWall,
+      // gewollt: die Kamera/der Schnitt sollen live mitziehen). Ein
+      // unbedingtes Ueberschreiben hier wuerde bei jeder solchen Aenderung
+      // faelschlich den BEREITS FOKUSSIERTEN Zustand als "vorherigen"
+      // Zustand einfrieren und beim Zurueck-Button die falsche (nicht die
+      // echte vor-dem-Fokussieren-)Ansicht wiederherstellen.
+      if (!previousSectionRef.current) {
+        previousSectionRef.current = {
+          enabled: section.sectionEnabled,
+          axis: section.sectionAxis,
+          offsetMm: section.sectionOffsetMm,
+          direction: section.cutDirection,
+        };
+      }
+      const focus = computePartitionWallFocus(focusPartitionWall, size);
+      section.handleAxisChange("x");
+      section.setSectionOffsetMm(focus.sectionOffsetMm);
+      section.setCutDirection(focus.cutDirection);
+      section.setSectionEnabled(true);
+      const controls = controlsRef.current;
+      if (controls) {
+        controls.object.position.set(...focus.cameraPosition);
+        controls.target.set(...focus.target);
+        controls.update();
+      }
+    } else if (previousSectionRef.current) {
+      const prev = previousSectionRef.current;
+      previousSectionRef.current = null;
+      section.handleAxisChange(prev.axis);
+      section.setSectionOffsetMm(prev.offsetMm);
+      section.setCutDirection(prev.direction);
+      section.setSectionEnabled(prev.enabled);
+    }
+    // section-Objekt aendert sich jedes Render (neues Objekt-Literal aus
+    // useSectionPlane) - nur auf den tatsaechlichen Fokus-Wechsel reagieren,
+    // sonst wuerde dieser Effekt bei jeder Schnitt-Reglerbewegung erneut
+    // feuern und die eigene Aenderung ueberschreiben.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusPartitionWall, size]);
+
   return (
     // Jonas' Fehlerbericht 2026-08-11 ("Viewer als echtes Fenster"): ViewCube/
     // Fadenkreuz/Werkzeugleiste sassen naeher am unteren Rand als am
@@ -215,7 +281,7 @@ export function Scene({
               openings={draftOpening ? [...openings, draftOpening] : openings}
               floorThickness={resolvedFloorThickness}
               floorInsulated={floorInsulated}
-              partitionWalls={partitionWalls}
+              partitionWalls={draftPartitionWall ? [...partitionWalls, draftPartitionWall] : partitionWalls}
               onReady={() => setContainerReady(true)}
             />
           </SectionPlaneProvider>
