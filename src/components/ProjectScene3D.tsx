@@ -24,6 +24,7 @@ import { useSpaceMouseSensitivity } from "../hooks/useSpaceMouseSensitivity";
 import { computeMeasurePoints, measurePointsToWorld, type MeasurePoint } from "../utils/measurePoints";
 import { computeAlignmentFaces, type AlignmentFacePoint } from "../utils/alignmentDependencies";
 import { isRectFullyCutAway } from "../utils/planeClipping";
+import { setPointerCursor, resetPointerCursor } from "../utils/pointerCursor";
 import type { ContainerSize } from "../constants/containerSizes";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, defaultFloorInsulated } from "../constants/lcStandard";
 import type { AlignmentDependency } from "../config/projectTypes";
@@ -650,8 +651,14 @@ const InstanceGroup = memo(function InstanceGroup({
   const zM = instance.position.z * MM_TO_M;
   const rotRad = (instance.rotationY * Math.PI) / 180;
 
+  // Jonas' Vorgabe 2026-08-17: Hover soll erkennbar signalisieren "ein Klick
+  // wuerde DIESEN Container auswaehlen" (ueblich in 3D-Tools) - eine
+  // Zwischenstufe zwischen dem sehr dezenten Idle-Zustand (0.12) und der
+  // echten Auswahl (0.4), damit man Hover nicht mit "bereits ausgewaehlt"
+  // verwechselt. dragInvalid/dragging/selected haben weiterhin Vorrang.
+  const [hovered, setHovered] = useState(false);
   const footprintColor = dragInvalid ? "#dc2626" : selected ? "#0284c7" : "#94a3b8";
-  const footprintOpacity = dragInvalid ? 0.6 : dragging || selected ? 0.4 : 0.12;
+  const footprintOpacity = dragInvalid ? 0.6 : dragging || selected ? 0.4 : hovered ? 0.24 : 0.12;
 
   const worldSectionPlane = useMemo(() => {
     if (!sectionPlane) return null;
@@ -672,6 +679,15 @@ const InstanceGroup = memo(function InstanceGroup({
         onPointerDown={(e) => onPointerEvent(instance.id, e, "down")}
         onPointerMove={(e) => onPointerEvent(instance.id, e, "move")}
         onPointerUp={(e) => onPointerEvent(instance.id, e, "up")}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          setPointerCursor();
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          resetPointerCursor();
+        }}
         onDoubleClick={(e) => {
           e.stopPropagation();
           onOpenDetail(instance.id);
