@@ -5,6 +5,7 @@ import { KonfiguratorPage } from "./KonfiguratorPage";
 import { InternalProjectViewer } from "./InternalProjectViewer";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
+import { usePageSubtitle } from "../context/PageTitleContext";
 
 // Oeffentlicher, schreibgeschuetzter Baugruppen-Viewer fuer die Handy-Variante
 // (Jonas' Vorgabe 2026-07-28: "das Ding soll auf dem Handy nur ein Viewer
@@ -17,6 +18,7 @@ import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 // immer per Navigations-State von StartPage.tsx, nie durch eigenes Laden auf
 // dieser Seite).
 export function ProjectViewerPage() {
+  usePageSubtitle("Ansicht");
   const location = useLocation();
   const navigate = useNavigate();
   const routeProject = (location.state as { project?: ProjectConfig } | null)?.project;

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { getHistoryEntries, MAX_HISTORY_ENTRIES, type ProjectHistoryEntry } from "../config/projectHistoryStore";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
+import { usePageSubtitle } from "../context/PageTitleContext";
 
 // "?"-Menü -> "Verlauf" (Jonas' Vorgabe 2026-07-28: "unter dem ?-Button soll
 // man dann den Verlauf aufrufen können"). Zeigt die bis zu MAX_HISTORY_ENTRIES
@@ -9,6 +10,7 @@ import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 // mit der jeweiligen Eintrags-id zurück ins editierbare /projekt, sodass
 // WEITER in genau diesen Eintrag geschrieben wird statt einen neuen anzulegen.
 export function HistoryPage() {
+  usePageSubtitle("Verlauf");
   const navigate = useNavigate();
   const entries = getHistoryEntries();
 

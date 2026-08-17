@@ -13,6 +13,7 @@ import { TrashIcon } from "../components/icons/TrashIcon";
 import { CONTACT_URL } from "../config/contactLink";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { PageTitleProvider, usePageTitleContext } from "../context/PageTitleContext";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -28,7 +29,20 @@ import { ThemeToggle } from "../components/ThemeToggle";
 // Gastseite zeigen. Im Embed-Modus faellt nur diese Kopfzeile weg, der
 // "?"-Button (Tutorial/Hilfe) bleibt als kleiner schwebender Button
 // erhalten, weil er auch eingebettet nuetzlich ist.
+// Umschliesst den eigentlichen Shell-Inhalt mit PageTitleProvider (Jonas'
+// Vorgabe 2026-08-17: Kopfzeile soll den aktuellen Bereich anzeigen) - eigene
+// aeussere Funktion, weil der Titel-Link unten selbst usePageTitleContext()
+// lesen muss, das aber nur INNERHALB des Providers moeglich ist.
 export function AppShell() {
+  return (
+    <PageTitleProvider>
+      <AppShellContent />
+    </PageTitleProvider>
+  );
+}
+
+function AppShellContent() {
+  const { subtitle } = usePageTitleContext();
   const { start: startTour } = useTour();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -53,7 +67,7 @@ export function AppShell() {
           <div className="h-1.5 bg-brand-light" />
           <header className="flex items-center justify-between px-4 py-2.5">
             <Link to="/" className="font-heading text-sm font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
-              Container Studio
+              Container Studio{subtitle && <span className="text-slate-400 dark:text-slate-500"> – {subtitle}</span>}
             </Link>
 
             <div className="flex items-center gap-3">
