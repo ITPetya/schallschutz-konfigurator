@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 // Zeitfenster zwischen zwei Mausrad-Klicks, damit sie noch als "Doppelklick"
@@ -20,6 +20,16 @@ interface UseViewerShortcutsOptions {
   // wenn ueberhaupt onCreateDependency vorhanden ist (schreibgeschuetzter
   // Viewer sonst).
   onToggleAlignment?: () => void;
+  // Jonas' Vorgabe 2026-08-17: Escape soll ueberall hierarchisch wirken -
+  // erst die aktuell aktive Auswahl loeschen, beim naechsten Druck (nichts
+  // mehr ausgewaehlt) das aktive Werkzeug (Messen/Ausrichten/Schnitt)
+  // beenden. Anders als onToggleMeasure/onToggleAlignment MUSS dieser
+  // Callback aktuelle State-Werte LESEN (nicht nur eine setState-Updater-Form
+  // aufrufen), um zu entscheiden, welche Ebene gerade dran ist - deshalb
+  // ueber eine Ref immer auf dem neuesten Stand gehalten (siehe unten),
+  // statt wie onToggleMeasure/onToggleAlignment auf den stale-closure-sicheren
+  // Updater-Trick zu setzen.
+  onEscape?: () => void;
 }
 
 // Jonas' Vorgabe 2026-08-12: mehrere zusaetzliche, rein additive Bedienwege -
@@ -31,19 +41,30 @@ interface UseViewerShortcutsOptions {
 // Abkuerzungen. Gemeinsam in Scene.tsx UND ProjectScene3D.tsx verwendet
 // (beide haben ihre eigene controlsRef/handleToggleMeasure), deshalb hier
 // ausgelagert statt doppelt zu implementieren.
-export function useViewerShortcuts({ containerRef, controlsRef, onToggleMeasure, onToggleAlignment }: UseViewerShortcutsOptions) {
-  // "M"/"A" -> Messen/Ausrichten umschalten. Gleiche Editierbar-Feld-
-  // Ausnahme wie WorkspacePage.tsx's Strg+Z/Strg+Y-Handler (Jonas' Vorgabe
-  // 2026-07-xx), damit z. B. das Tippen von "Musterbezeichnung" nicht
-  // versehentlich ein Werkzeug umschaltet.
+export function useViewerShortcuts({ containerRef, controlsRef, onToggleMeasure, onToggleAlignment, onEscape }: UseViewerShortcutsOptions) {
+  // Immer der neueste onEscape-Callback (siehe Begruendung am Prop) - reine
+  // Zuweisung im Render-Koerper, kein Effekt noetig, wird vom unten einmalig
+  // registrierten Listener bei JEDEM Tastendruck frisch gelesen.
+  const escapeRef = useRef(onEscape);
+  escapeRef.current = onEscape;
+
+  // "M"/"A"/"Escape" -> Messen/Ausrichten umschalten bzw. Auswahl/Werkzeug
+  // hierarchisch beenden. Gleiche Editierbar-Feld-Ausnahme wie
+  // WorkspacePage.tsx's Strg+Z/Strg+Y-Handler (Jonas' Vorgabe 2026-07-xx),
+  // damit z. B. das Tippen von "Musterbezeichnung" nicht versehentlich ein
+  // Werkzeug umschaltet/eine Auswahl loescht.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const key = e.key.toLowerCase();
-      if (key !== "m" && key !== "a") return;
       const target = e.target as HTMLElement | null;
       const isEditable = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       if (isEditable) return;
+      if (e.key === "Escape") {
+        escapeRef.current?.();
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key !== "m" && key !== "a") return;
       if (key === "m") onToggleMeasure();
       else onToggleAlignment?.();
     }
@@ -54,7 +75,9 @@ export function useViewerShortcuts({ containerRef, controlsRef, onToggleMeasure,
     // Funktionen, die aber nur ueber setState-Updater-Formen ("(v) => !v")
     // wirken - unabhaengig davon, welche Render-Version des Closures hier
     // haengen bleibt, ist das Verhalten identisch, ein Neu-Registrieren bei
-    // jedem Rendern waere unnoetig.
+    // jedem Rendern waere unnoetig. onEscape braucht dafuer die Ref oben,
+    // weil es (anders als die beiden Toggles) tatsaechlich AKTUELLE
+    // State-Werte lesen muss, um die richtige Hierarchie-Ebene zu waehlen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

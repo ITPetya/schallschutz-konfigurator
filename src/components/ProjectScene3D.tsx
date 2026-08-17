@@ -349,14 +349,44 @@ export function ProjectScene3D({
     setAlignmentSelected([]);
   }
 
+  // Jonas' Vorgabe 2026-08-17: Klick ins Leere ODER Escape loescht die
+  // aktuell aktive Auswahl (Container/Mess-/Ausrichten-Punkte) - siehe
+  // gleichnamige Funktion in Scene.tsx fuer die volle Begruendung der
+  // Hierarchie. Escape beendet danach, falls nichts mehr ausgewaehlt ist,
+  // das aktive Werkzeug (Messen/Ausrichten).
+  function clearSelection(): boolean {
+    let cleared = false;
+    if (selectedId) {
+      onSelect(null);
+      cleared = true;
+    }
+    if (measureSelected.length > 0) {
+      setMeasureSelected([]);
+      cleared = true;
+    }
+    if (alignmentSelected.length > 0) {
+      handleClearAlignmentSelection();
+      cleared = true;
+    }
+    return cleared;
+  }
+
+  function handleEscape() {
+    if (clearSelection()) return;
+    if (measureActive) handleToggleMeasure();
+    if (alignmentActive) handleToggleAlignment();
+  }
+
   // Siehe Scene.tsx: Mausrad-Taste doppelt klicken = wie der Home-Button,
-  // "M" druecken = wie der Messen-Button (Jonas' Vorgabe 2026-08-12, siehe
+  // "M" druecken = wie der Messen-Button, Escape hierarchisch Auswahl/
+  // Werkzeug beenden (Jonas' Vorgabe 2026-08-12/2026-08-17, siehe
   // useViewerShortcuts.ts).
   useViewerShortcuts({
     containerRef: viewerContainerRef,
     controlsRef,
     onToggleMeasure: handleToggleMeasure,
     onToggleAlignment: onCreateDependency ? handleToggleAlignment : undefined,
+    onEscape: handleEscape,
   });
 
   // Jonas' Fehlerbericht 2026-08-10 ("Verschieben/Auswaehlen von Containern
@@ -407,7 +437,9 @@ export function ProjectScene3D({
         shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
-        onPointerMissed={() => onSelect(null)}
+        // Jonas' Vorgabe 2026-08-17: Klick ins Leere loescht die Auswahl -
+        // nur die Auswahl selbst, nicht ein aktives Werkzeug.
+        onPointerMissed={() => clearSelection()}
       >
         {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
@@ -468,7 +500,10 @@ export function ProjectScene3D({
           </>
         ) : (
           <>
-            <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} />
+            {/* raycast={() => null} - siehe Scene.tsx's gleiche Aenderung
+                (Jonas' Vorgabe 2026-08-17: Klick ins Leere loescht die
+                Auswahl, sonst wuerde das Gitter jeden Klick abfangen). */}
+            <Grid args={[60, 60]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={50} position={[0, 0, 0]} raycast={() => null} />
             <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}

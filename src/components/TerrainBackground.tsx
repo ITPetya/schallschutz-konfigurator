@@ -128,19 +128,26 @@ export function TerrainBackground({ detail = "low", extentM = 0 }: TerrainBackgr
         ))}
       </Clouds>
 
-      {/* Wiese - grosse mattgruene Flaeche statt/unter dem neutralen Grid. */}
-      <mesh geometry={groundGeometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+      {/* Wiese - grosse mattgruene Flaeche statt/unter dem neutralen Grid.
+          raycast={() => null} (Jonas' Vorgabe 2026-08-17: Klick ins Leere
+          soll die Auswahl loeschen) - ohne das wuerde r3f JEDEN Klick auf die
+          (den grössten Teil des Viewports einnehmende) Wiese als "getroffen"
+          statt als "verfehlt" werten, Canvas' onPointerMissed haette dann
+          praktisch nie ausgeloest, ausser bei Klicks weit oberhalb des
+          Horizonts in den blossen Himmel. */}
+      <mesh geometry={groundGeometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow raycast={() => null}>
         <meshStandardMaterial color="#5c8a4a" roughness={1} metalness={0} />
       </mesh>
 
-      {/* Baeume in ferner Distanz - einfache Kegel+Zylinder-Baeume ringsum. */}
+      {/* Baeume in ferner Distanz - einfache Kegel+Zylinder-Baeume ringsum.
+          Gleicher raycast={() => null}-Grund wie bei der Wiese oben. */}
       {trees.map((t, i) => (
         <group key={i} position={[t.x, 0, t.z]} scale={t.scale}>
-          <mesh position={[0, 1, 0]} castShadow>
+          <mesh position={[0, 1, 0]} castShadow raycast={() => null}>
             <cylinderGeometry args={[0.15, 0.2, 2, params.treeCylinderSegments]} />
             <meshStandardMaterial color="#6b4a2f" roughness={1} />
           </mesh>
-          <mesh position={[0, 2.6, 0]} castShadow>
+          <mesh position={[0, 2.6, 0]} castShadow raycast={() => null}>
             <coneGeometry args={[1.1, 2.6, params.treeConeSegments]} />
             <meshStandardMaterial color="#3f6b34" roughness={1} />
           </mesh>

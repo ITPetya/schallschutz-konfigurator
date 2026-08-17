@@ -83,10 +83,13 @@ interface SceneProps {
   // schreibgeschuetzte Konstrukteur-Viewer (KonfiguratorPage.tsx) keine
   // Bearbeitung anbietet und diese Props deshalb weglaesst.
   selectedOpeningId?: string | null;
-  onSelectOpening?: (id: string) => void;
+  // Nimmt auch null an (Jonas' Vorgabe 2026-08-17: Klick ins Leere/Escape
+  // soll die Auswahl loeschen koennen) - onOpenOpening bekommt nie null,
+  // Doppelklick waehlt immer eine konkrete Einbaute.
+  onSelectOpening?: (id: string | null) => void;
   onOpenOpening?: (id: string) => void;
   selectedPartitionWallId?: string | null;
-  onSelectPartitionWall?: (id: string) => void;
+  onSelectPartitionWall?: (id: string | null) => void;
   onOpenPartitionWall?: (id: string) => void;
 }
 
@@ -224,10 +227,43 @@ export function Scene({
     setMeasureSelected([]);
   }
 
+  // Jonas' Vorgabe 2026-08-17: Klick ins Leere ODER Escape soll die aktuell
+  // aktive Auswahl loeschen lassen - "die Auswahl soll verfallen", ueberall
+  // wo etwas auswaehlbar ist. Escape geht danach hierarchisch weiter: ist
+  // NICHTS mehr ausgewaehlt, beendet ein zweiter Druck stattdessen das
+  // aktive Werkzeug (Messen/Schnitt) - "wenn beim Schnitt etwas ausgewaehlt
+  // ist, erst das Ausgewaehlte, beim zweiten Mal den Schnitt". Bewusst OHNE
+  // die "Einbauten hinzufügen"/Trennwand-Assistenten (openingWizard/
+  // partitionDraft/partitionOpeningWizard) - die haben ihr eigenes explizites
+  // Schliessen-Kreuz und leben ausserhalb dieser Komponente in
+  // WorkspacePage.tsx, nicht Teil von Jonas' Vorgabe.
+  function clearSelection(): boolean {
+    let cleared = false;
+    if (selectedOpeningId) {
+      onSelectOpening?.(null);
+      cleared = true;
+    }
+    if (selectedPartitionWallId) {
+      onSelectPartitionWall?.(null);
+      cleared = true;
+    }
+    if (measureSelected.length > 0) {
+      setMeasureSelected([]);
+      cleared = true;
+    }
+    return cleared;
+  }
+
+  function handleEscape() {
+    if (clearSelection()) return;
+    if (measureActive) handleToggleMeasure();
+    if (section.sectionEnabled) section.setSectionEnabled(false);
+  }
+
   // Jonas' Vorgabe 2026-08-12: Mausrad-Taste doppelt klicken = wie der
-  // Home-Button, "M" druecken = wie der Messen-Button (siehe
-  // useViewerShortcuts.ts).
-  useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure });
+  // Home-Button, "M" druecken = wie der Messen-Button, Escape hierarchisch
+  // Auswahl/Werkzeug beenden (siehe useViewerShortcuts.ts).
+  useViewerShortcuts({ containerRef: viewerContainerRef, controlsRef, onToggleMeasure: handleToggleMeasure, onEscape: handleEscape });
 
   // Jonas' Vorgabe 2026-08-14 (Trennwand-Drill-in): beim Fokussieren einer
   // Trennwand automatisch auf ihre C-Schienen-Seite blicken + einen Schnitt
@@ -305,6 +341,10 @@ export function Scene({
         shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
+        // Jonas' Vorgabe 2026-08-17: Klick ins Leere loescht die Auswahl -
+        // nur die Auswahl selbst, nicht ein aktives Werkzeug (das beendet
+        // ausschliesslich Escape, siehe handleEscape oben).
+        onPointerMissed={() => clearSelection()}
       >
         {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
@@ -381,7 +421,11 @@ export function Scene({
           </>
         ) : (
           <>
-            <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} />
+            {/* raycast={() => null} (Jonas' Vorgabe 2026-08-17): sonst wuerde
+                JEDER Klick auf das Gitter als "getroffen" statt "verfehlt"
+                zaehlen und Canvas' onPointerMissed (Klick ins Leere loescht
+                die Auswahl) praktisch nie ausloesen. */}
+            <Grid args={[40, 40]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} position={[0, 0, 0]} raycast={() => null} />
             <Environment files="/hdri/studio_small_03_1k.hdr" />
           </>
         )}
