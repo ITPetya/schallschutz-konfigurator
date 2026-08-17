@@ -10,6 +10,7 @@ import { ViewerLoadingOverlay } from "./ViewerLoadingOverlay";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { MeasureMarkers } from "./MeasureMarkers";
 import { WallFaceMarkers } from "./WallFaceMarkers";
+import { SelectableFaceMarkers, type SelectableFace } from "./SelectableFaceMarkers";
 import { SpaceMouseCameraRig } from "./SpaceMouseCameraRig";
 import { useSectionPlane } from "./SectionAndViewPanel";
 import { useUnitPreferences } from "../hooks/useUnitPreferences";
@@ -22,6 +23,7 @@ import type { Opening, PanelId } from "../types/openings";
 import type { PartitionWallConfig } from "../types/partitionWall";
 import { computeMeasurePoints, type MeasurePoint } from "../utils/measurePoints";
 import { computeWallFaces } from "../utils/wallFaces";
+import { computeOpeningFaces } from "../utils/openingFaces";
 import { computePartitionWallFocus } from "../utils/partitionWallFocus";
 import { DEFAULT_FLOOR_THICKNESS } from "../constants/lcStandard";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
@@ -75,6 +77,17 @@ interface SceneProps {
   // computePartitionWallFocus). null = normale Container-Ansicht, der vorher
   // aktive Schnitt-Zustand wird wiederhergestellt.
   focusPartitionWall?: PartitionWallConfig | null;
+  // Jonas' Vorgabe 2026-08-17: bereits platzierte Einbauten/Trennwaende
+  // sollen im 3D-Viewer anklickbar sein (Hervorhebung) und per Doppelklick
+  // die passende Seitenleisten-Ansicht oeffnen - alle optional, weil der
+  // schreibgeschuetzte Konstrukteur-Viewer (KonfiguratorPage.tsx) keine
+  // Bearbeitung anbietet und diese Props deshalb weglaesst.
+  selectedOpeningId?: string | null;
+  onSelectOpening?: (id: string) => void;
+  onOpenOpening?: (id: string) => void;
+  selectedPartitionWallId?: string | null;
+  onSelectPartitionWall?: (id: string) => void;
+  onOpenPartitionWall?: (id: string) => void;
 }
 
 const MM_TO_M = 1 / 1000;
@@ -106,6 +119,12 @@ export function Scene({
   onPickPanel,
   draftPartitionWall,
   focusPartitionWall,
+  selectedOpeningId,
+  onSelectOpening,
+  onOpenOpening,
+  selectedPartitionWallId,
+  onSelectPartitionWall,
+  onOpenPartitionWall,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -173,6 +192,28 @@ export function Scene({
     [size, wallThickness, resolvedFloorThickness, openings],
   );
   const { prefs: unitPrefs, setPrefs: setUnitPrefs } = useUnitPreferences();
+
+  // Welt-Rechtecke fuer die Klick-/Hover-Markierungen bereits platzierter
+  // Einbauten (Jonas' Vorgabe 2026-08-17) - siehe openingFaces.ts.
+  const openingFaces = useMemo(
+    () => computeOpeningFaces(openings, size, wallThickness, resolvedFloorThickness),
+    [openings, size, wallThickness, resolvedFloorThickness],
+  );
+  // Eine Trennwand als GANZE Flaeche (Container-Breite x -Hoehe an ihrer
+  // positionU) - anders als bei Einbauten braucht es dafuer keinen eigenen
+  // Helfer (siehe partitionWallFocus.ts's Kommentar zur selben Herleitung:
+  // Rotation [0, PI/2, 0] identisch zu Vorne/Hinten).
+  const partitionWallFaces = useMemo<SelectableFace[]>(
+    () =>
+      partitionWalls.map((pw) => ({
+        id: pw.id,
+        position: [pw.positionU * MM_TO_M, (size.height * MM_TO_M) / 2, 0],
+        rotation: [0, Math.PI / 2, 0],
+        width: size.width * MM_TO_M,
+        height: size.height * MM_TO_M,
+      })),
+    [partitionWalls, size],
+  );
 
   function handleMeasurePick(p: MeasurePoint) {
     setMeasureSelected((prev) => (prev.length >= 2 ? [p] : prev.some((s) => s.id === p.id) ? prev : [...prev, p]));
@@ -302,6 +343,29 @@ export function Scene({
             faces={computeWallFaces(size, wallThickness, resolvedFloorThickness)}
             selected={selectedPanel ?? null}
             onPick={onPickPanel}
+            sectionPlane={section.sectionPlane}
+          />
+        )}
+
+        {/* Jonas' Vorgabe 2026-08-17: Einbauten/Trennwaende nur ausserhalb
+            der Anlegen-/Mess-Werkzeuge anklickbar - sonst Konflikt mit deren
+            eigenen Klick-Overlays an derselben Stelle (gleiches Gating-
+            Prinzip wie WallFaceMarkers/MeasureMarkers oben). */}
+        {!wallPickActive && !measureActive && onSelectOpening && onOpenOpening && (
+          <SelectableFaceMarkers
+            faces={openingFaces}
+            selectedId={selectedOpeningId ?? null}
+            onSelect={onSelectOpening}
+            onOpen={onOpenOpening}
+            sectionPlane={section.sectionPlane}
+          />
+        )}
+        {!wallPickActive && !measureActive && !focusPartitionWall && onSelectPartitionWall && onOpenPartitionWall && (
+          <SelectableFaceMarkers
+            faces={partitionWallFaces}
+            selectedId={selectedPartitionWallId ?? null}
+            onSelect={onSelectPartitionWall}
+            onOpen={onOpenPartitionWall}
             sectionPlane={section.sectionPlane}
           />
         )}

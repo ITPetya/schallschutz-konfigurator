@@ -27,6 +27,7 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { LoadingIcon } from "../components/LoadingIcon";
 import { ThreeOptionConfirmDialog } from "../components/ThreeOptionConfirmDialog";
 import { GrundeinstellungenOverlay, type GrundeinstellungenResult } from "../components/GrundeinstellungenOverlay";
+import { usePageSubtitle } from "../context/PageTitleContext";
 import { isLengthSpanningPanel, type Opening, type PanelId } from "../types/openings";
 import type { PartitionWallConfig, PartitionOpening, PartitionOpeningKind, PartitionWallCreateDraft } from "../types/partitionWall";
 import {
@@ -291,6 +292,32 @@ export function WorkspacePage() {
   // weiter unten, falls die Wand anderweitig geloescht wird).
   const [editingPartitionWallId, setEditingPartitionWallId] = useState<string | null>(null);
   const editingPartitionWall = editingInstance?.config.partitionWalls?.find((pw) => pw.id === editingPartitionWallId) ?? null;
+
+  // Jonas' Vorgabe 2026-08-17: Kopfzeile soll den aktuellen Bereich zeigen -
+  // drei moegliche Unterbereiche dieser einen Seite, je nach Drill-in-Tiefe.
+  usePageSubtitle(editingPartitionWall ? "Trennwand-Konfiguration" : editingInstance ? "Container-Konfiguration" : "Baugruppen-Konfiguration");
+  // Jonas' Vorgabe 2026-08-17: Einbauten/Trennwaende im 3D-Viewer anklickbar
+  // machen - Klick markiert nur (Hervorhebung, 3D<->Sidebar synchron),
+  // Doppelklick oeffnet die Bearbeitung. expandedOpeningId steuert sowohl
+  // OpeningsPanel (Container-Ebene) als auch PartitionOpeningsPanel
+  // (innerhalb einer fokussierten Trennwand) - beide Panels sind nie
+  // gleichzeitig sichtbar, eine gemeinsame Variable reicht.
+  const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
+  const [expandedOpeningId, setExpandedOpeningId] = useState<string | null>(null);
+  const [selectedPartitionWallId, setSelectedPartitionWallId] = useState<string | null>(null);
+  // Aufklappen (egal ob per Sidebar-Klick oder per Doppelklick im 3D-Viewer)
+  // markiert dieselbe Einbaute automatisch auch als ausgewaehlt, damit die
+  // 3D-Hervorhebung mitzieht, ohne dafuer extra Klick-Handler zu brauchen.
+  // Bumpt zusaetzlich einbautenOpenSignal, wenn per 3D-Doppelklick geoeffnet
+  // wird (id !== null) - sonst bliebe die AEUSSERE "Einbauten"-
+  // AccordionSection (unabhaengig von OpeningRow's eigenem Auf-/Zuklappen)
+  // zu, falls sie noch nie manuell geoeffnet wurde, und die aufgeklappte
+  // Zeile waere unsichtbar (bestaetigt per Playwright-Screenshot).
+  function handleExpandedOpeningChange(id: string | null) {
+    setExpandedOpeningId(id);
+    setSelectedOpeningId(id);
+    if (id) setEinbautenOpenSignal((v) => v + 1);
+  }
   // Lichte Breite EINER Trennwand (spannt wie Vorne/Hinten zwischen
   // Links/Rechts, siehe Container.tsx's endWallWidth/PartitionWall.tsx) -
   // Naeherung ohne Eckbeschlag-Recess, reicht fuers UI-Clamping der
@@ -392,6 +419,15 @@ export function WorkspacePage() {
   useEffect(() => {
     if (editingPartitionWallId && !editingPartitionWall) setEditingPartitionWallId(null);
   }, [editingPartitionWallId, editingPartitionWall]);
+  // Jonas' Vorgabe 2026-08-17: 3D-Auswahl (Einbaute/Trennwand) darf nicht
+  // stehen bleiben, wenn der Container gewechselt oder die Detailansicht
+  // verlassen wird - sonst waere z. B. bei erneutem Betreten scheinbar noch
+  // eine Einbaute markiert, die zu einem ANDEREN Container gehoert.
+  useEffect(() => {
+    setSelectedOpeningId(null);
+    setExpandedOpeningId(null);
+    setSelectedPartitionWallId(null);
+  }, [editingInstanceId]);
 
   // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
   // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
@@ -953,6 +989,8 @@ export function WorkspacePage() {
                         containerHeight={editingInstance.config.size.height}
                         onUpdate={handleUpdatePartitionOpening}
                         onRemove={handleRemovePartitionOpening}
+                        expandedId={expandedOpeningId}
+                        onExpandedChange={handleExpandedOpeningChange}
                       />
                     </AccordionSection>
                   </Fragment>
@@ -1053,6 +1091,8 @@ export function WorkspacePage() {
                     openings={editingInstance.config.openings}
                     onUpdate={handleUpdateOpening}
                     onRemove={handleRemoveOpening}
+                    expandedId={expandedOpeningId}
+                    onExpandedChange={setExpandedOpeningId}
                   />
                   {(editingInstance.config.partitionWalls?.length ?? 0) > 0 && (
                     <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
@@ -1358,6 +1398,15 @@ export function WorkspacePage() {
                 wallPickActive={!editingPartitionWall && !!openingWizard && !openingWizard.family}
                 selectedPanel={openingWizard?.panel ?? null}
                 onPickPanel={handleWizardPanelChange}
+                selectedOpeningId={selectedOpeningId}
+                onSelectOpening={setSelectedOpeningId}
+                onOpenOpening={handleExpandedOpeningChange}
+                selectedPartitionWallId={selectedPartitionWallId}
+                onSelectPartitionWall={setSelectedPartitionWallId}
+                onOpenPartitionWall={(id) => {
+                  const pw = editingInstance.config.partitionWalls?.find((p) => p.id === id);
+                  if (pw) handleEditPartitionWall(pw);
+                }}
               />
               <div className="absolute left-4 top-4">
                 {editingPartitionWall ? (

@@ -13,6 +13,11 @@ interface OpeningsPanelProps {
   openings: Opening[];
   onUpdate: (id: string, patch: Partial<Opening>) => void;
   onRemove: (id: string) => void;
+  // Jonas' Vorgabe 2026-08-17: ein Klick auf eine Einbaute im 3D-Viewer soll
+  // dieselbe Zeile hier aufklappen - optional, damit ohne diese Props
+  // (bisheriges Verhalten) jede Zeile weiterhin rein lokal auf-/zuklappt.
+  expandedId?: string | null;
+  onExpandedChange?: (id: string | null) => void;
 }
 
 // Reine Liste der platzierten Durchbrueche (Jonas' Vorgabe 2026-07-24: "bei
@@ -21,14 +26,22 @@ interface OpeningsPanelProps {
 // (siehe KonfiguratorPage.tsx), nicht mehr hier in der Seitenleiste. Jeder
 // Eintrag ist einzeln auf-/zuklappbar (Jonas' Vorgabe 2026-07-25, bewusst
 // OHNE eigenes Icon dafuer - die Kopfzeile selbst ist der Klickbereich).
-export function OpeningsPanel({ size, openings, onUpdate, onRemove }: OpeningsPanelProps) {
+export function OpeningsPanel({ size, openings, onUpdate, onRemove, expandedId, onExpandedChange }: OpeningsPanelProps) {
   return (
     <div className="space-y-2">
       {openings.length === 0 && (
         <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Durchbrüche platziert.</p>
       )}
       {openings.map((o) => (
-        <OpeningRow key={o.id} opening={o} size={size} onUpdate={onUpdate} onRemove={onRemove} />
+        <OpeningRow
+          key={o.id}
+          opening={o}
+          size={size}
+          onUpdate={onUpdate}
+          onRemove={onRemove}
+          expandedId={expandedId}
+          onExpandedChange={onExpandedChange}
+        />
       ))}
     </div>
   );
@@ -39,10 +52,19 @@ interface OpeningRowProps {
   size: ContainerSize;
   onUpdate: (id: string, patch: Partial<Opening>) => void;
   onRemove: (id: string) => void;
+  expandedId?: string | null;
+  onExpandedChange?: (id: string | null) => void;
 }
 
-function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
-  const [expanded, setExpanded] = useState(false);
+function OpeningRow({ opening: o, size, onUpdate, onRemove, expandedId, onExpandedChange }: OpeningRowProps) {
+  // Extern gesteuert (3D-Auswahl, siehe Scene.tsx/WorkspacePage.tsx), sobald
+  // onExpandedChange gesetzt ist - sonst unveraendert rein lokal, wie zuvor.
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const expanded = onExpandedChange ? expandedId === o.id : localExpanded;
+  function setExpanded(next: boolean) {
+    if (onExpandedChange) onExpandedChange(next ? o.id : null);
+    else setLocalExpanded(next);
+  }
   const typeDef = OPENING_TYPES[o.kind];
 
   return (
@@ -50,7 +72,7 @@ function OpeningRow({ opening: o, size, onUpdate, onRemove }: OpeningRowProps) {
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => setExpanded(!expanded)}
           // Jonas' Vorgabe 2026-08-11: Doppelklick auf einen Bauteil-Eintrag
           // soll dessen Detail-/Editierpanel "ausklappen" - Einzelklick tut
           // das (als Auf-/Zuklapp-TOGGLE) bereits, es gibt hier keine andere,

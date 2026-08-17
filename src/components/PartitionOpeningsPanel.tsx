@@ -11,17 +11,37 @@ interface PartitionOpeningsPanelProps {
   containerHeight: number;
   onUpdate: (id: string, patch: Partial<PartitionOpening>) => void;
   onRemove: (id: string) => void;
+  // Siehe OpeningsPanel.tsx's gleichnamige Props.
+  expandedId?: string | null;
+  onExpandedChange?: (id: string | null) => void;
 }
 
 // Liste der in EINER Trennwand platzierten Durchbrüche - gleiches Karten-/
 // Auf-zu-Klapp-Muster wie OpeningsPanel.tsx, hier im Drill-in-Editor der
 // Trennwand (WorkspacePage.tsx) unter "Einbauten" gerendert.
-export function PartitionOpeningsPanel({ openings, partitionSpan, containerHeight, onUpdate, onRemove }: PartitionOpeningsPanelProps) {
+export function PartitionOpeningsPanel({
+  openings,
+  partitionSpan,
+  containerHeight,
+  onUpdate,
+  onRemove,
+  expandedId,
+  onExpandedChange,
+}: PartitionOpeningsPanelProps) {
   return (
     <div className="space-y-2">
       {openings.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Noch keine Durchbrüche in dieser Trennwand.</p>}
       {openings.map((o) => (
-        <PartitionOpeningRow key={o.id} opening={o} partitionSpan={partitionSpan} containerHeight={containerHeight} onUpdate={onUpdate} onRemove={onRemove} />
+        <PartitionOpeningRow
+          key={o.id}
+          opening={o}
+          partitionSpan={partitionSpan}
+          containerHeight={containerHeight}
+          onUpdate={onUpdate}
+          onRemove={onRemove}
+          expandedId={expandedId}
+          onExpandedChange={onExpandedChange}
+        />
       ))}
     </div>
   );
@@ -33,10 +53,17 @@ interface PartitionOpeningRowProps {
   containerHeight: number;
   onUpdate: (id: string, patch: Partial<PartitionOpening>) => void;
   onRemove: (id: string) => void;
+  expandedId?: string | null;
+  onExpandedChange?: (id: string | null) => void;
 }
 
-function PartitionOpeningRow({ opening: o, partitionSpan, containerHeight, onUpdate, onRemove }: PartitionOpeningRowProps) {
-  const [expanded, setExpanded] = useState(false);
+function PartitionOpeningRow({ opening: o, partitionSpan, containerHeight, onUpdate, onRemove, expandedId, onExpandedChange }: PartitionOpeningRowProps) {
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const expanded = onExpandedChange ? expandedId === o.id : localExpanded;
+  function setExpanded(next: boolean) {
+    if (onExpandedChange) onExpandedChange(next ? o.id : null);
+    else setLocalExpanded(next);
+  }
   const typeDef = OPENING_TYPES[o.kind];
 
   return (
@@ -44,7 +71,7 @@ function PartitionOpeningRow({ opening: o, partitionSpan, containerHeight, onUpd
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => setExpanded(!expanded)}
           onDoubleClick={() => setExpanded(true)}
           className="flex flex-1 cursor-pointer items-center justify-between text-left"
         >
