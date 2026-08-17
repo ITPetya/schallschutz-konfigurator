@@ -38,7 +38,7 @@ export function PartitionWallSettings({ pw, size, wallThickness, onUpdate }: Par
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
-          Position auf der Länge (mm)
+          Längsposition (mm)
           <NumberInput
             step={10}
             min={-positionHalfRange}

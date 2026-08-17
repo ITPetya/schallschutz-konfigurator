@@ -25,7 +25,7 @@ export function PartitionWallCreateFields({ size, wallThickness, draft, onChange
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
-          Position auf der Länge (mm)
+          Längsposition (mm)
           <NumberInput
             step={10}
             min={-positionHalfRange}
