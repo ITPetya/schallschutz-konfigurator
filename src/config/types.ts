@@ -2,6 +2,7 @@ import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { SoundClass } from "../constants/lcStandard";
 import type { PartitionWallConfig } from "../types/partitionWall";
+import type { KundenverlaufEintrag } from "./kundenverlauf";
 
 // Kompletter Konfigurator-Zustand, wie er in eine .sszkonfig-Datei
 // geschrieben/aus ihr gelesen wird (Jonas' Vorgabe 2026-07-23: kein Server,
@@ -53,4 +54,12 @@ export interface ContainerConfig {
   // Altdatei-Kompatibilitaetsgrund - alte Dateien haben das Feld nicht, faellt
   // dann auf eine leere Liste zurueck (keine Trennwaende).
   partitionWalls?: PartitionWallConfig[];
+  // Jonas' Vorgabe 2026-08-17: beim Download/Anfragen automatisch eingebetter
+  // lokaler Verlauf frueherer Konfigurationen dieses Browsers (siehe
+  // kundenverlauf.ts) - NUR fuer den internen Viewer relevant
+  // (showKundenverlauf-Prop in KonfiguratorPage.tsx/InternalProjectViewer.tsx),
+  // in der normalen Bearbeitung (WorkspacePage.tsx) weder gesetzt noch
+  // gelesen. Optional wie alle nachtraeglichen Felder - alte Dateien haben es
+  // nicht.
+  kundenverlauf?: KundenverlaufEintrag[];
 }

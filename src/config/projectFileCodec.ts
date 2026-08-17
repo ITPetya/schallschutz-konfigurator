@@ -1,5 +1,6 @@
 import type { ProjectConfig } from "./projectTypes";
 import { decryptJson, encryptJson } from "./fileCrypto";
+import { buildKundenverlauf } from "./kundenverlauf";
 
 // .sszprojekt - Baugruppen-Projektdatei, gleiches Prinzip wie .sszkonfig
 // (siehe configFileCodec.ts und fileCrypto.ts fuer den Ehrlichkeitshinweis
@@ -10,8 +11,10 @@ import { decryptJson, encryptJson } from "./fileCrypto";
 // Abhaengigkeiten").
 export const PROJECT_FILE_EXTENSION = ".sszprojekt";
 
+// Siehe configFileCodec.ts's encodeConfig: gleiche Kundenverlauf-Einbettung
+// auf einer Kopie, hier auf Projekt-Ebene statt pro Container-Instanz.
 export function encodeProject(project: ProjectConfig): Promise<Blob> {
-  return encryptJson(project);
+  return encryptJson({ ...project, kundenverlauf: buildKundenverlauf() });
 }
 
 export function decodeProject(file: File): Promise<ProjectConfig> {

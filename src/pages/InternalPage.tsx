@@ -5,6 +5,7 @@ import type { ContainerConfig } from "../config/types";
 import type { ProjectConfig } from "../config/projectTypes";
 import { KonfiguratorPage } from "./KonfiguratorPage";
 import { InternalProjectViewer } from "./InternalProjectViewer";
+import { usePageSubtitle } from "../context/PageTitleContext";
 
 // "Interne" Seite fuer Mitarbeiter (Jonas' Vorgabe 2026-07-23) - NICHT in
 // Menü/Navigation verlinkt, nur ueber die direkte URL (/intern) erreichbar.
@@ -15,6 +16,7 @@ import { InternalProjectViewer } from "./InternalProjectViewer";
 // .sszprojekt-Datei erscheint dieselbe schreibgeschuetzte Detailansicht wie
 // frueher der Konstrukteur-Viewer.
 export function InternalPage() {
+  usePageSubtitle("Interner Viewer");
   const [config, setConfig] = useState<ContainerConfig | null>(null);
   // Baugruppen jetzt gleichwertig ladbar (Jonas' Vorgabe 2026-07-25: "soll
   // man Baugruppen auch genauso gleichwertig wie einzelne Container laden
@@ -88,11 +90,19 @@ export function InternalPage() {
           projectName={`${fileName ?? project.name} – ${drillInInstance.label}`}
           onBack={() => setDrillInInstanceId(null)}
           backLabel="Zurück zur Baugruppe"
+          kundenverlauf={project.kundenverlauf}
         />
       );
     }
-    return <InternalProjectViewer project={project} fileName={fileName ?? undefined} onOpenInstance={setDrillInInstanceId} />;
+    return (
+      <InternalProjectViewer
+        project={project}
+        fileName={fileName ?? undefined}
+        onOpenInstance={setDrillInInstanceId}
+        kundenverlauf={project.kundenverlauf}
+      />
+    );
   }
 
-  return <KonfiguratorPage initialConfig={config!} projectName={fileName ?? "Kundenkonfiguration"} />;
+  return <KonfiguratorPage initialConfig={config!} projectName={fileName ?? "Kundenkonfiguration"} kundenverlauf={config!.kundenverlauf} />;
 }

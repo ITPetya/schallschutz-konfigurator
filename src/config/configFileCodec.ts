@@ -1,5 +1,6 @@
 import type { ContainerConfig } from "./types";
 import { decryptJson, encryptJson } from "./fileCrypto";
+import { buildKundenverlauf } from "./kundenverlauf";
 
 // Datei-Format fuer heruntergeladene/eingelesene Konfigurationen (Jonas'
 // Vorgabe 2026-07-23: "ohne Server", die Konfiguration wird stattdessen als
@@ -10,8 +11,12 @@ import { decryptJson, encryptJson } from "./fileCrypto";
 // den Ehrlichkeitshinweis zur Schluesselverwaltung.
 export const CONFIG_FILE_EXTENSION = ".sszkonfig";
 
+// Jonas' Vorgabe 2026-08-17: beim Herunterladen wird der lokale
+// Kundenverlauf (kundenverlauf.ts) auf einer KOPIE eingebettet, nie am
+// Live-Objekt - der Verlauf soll nicht Teil des editierten Zustands/der
+// Undo-Historie werden, nur des tatsaechlich exportierten Snapshots.
 export function encodeConfig(config: ContainerConfig): Promise<Blob> {
-  return encryptJson(config);
+  return encryptJson({ ...config, kundenverlauf: buildKundenverlauf() });
 }
 
 export function decodeConfig(file: File): Promise<ContainerConfig> {

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { AccordionSection } from "../components/AccordionSection";
+import { KundenverlaufSection } from "../components/KundenverlaufSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import type { ProjectConfig } from "../config/projectTypes";
+import type { KundenverlaufEintrag } from "../config/kundenverlauf";
 
 interface InternalProjectViewerProps {
   project: ProjectConfig;
@@ -13,6 +15,10 @@ interface InternalProjectViewerProps {
   // Detail-Viewer (Jonas' Vorgabe 2026-07-25: "man soll auch die einzelnen
   // Container aus den Baugruppen öffnen können") - siehe InternalPage.tsx.
   onOpenInstance: (instanceId: string) => void;
+  // Siehe KonfiguratorPage.tsx's gleichnamiges Prop - nur InternalPage.tsx
+  // setzt es (mit project.kundenverlauf), ProjectViewerPage.tsx
+  // (oeffentliches /ansehen) laesst es weg.
+  kundenverlauf?: KundenverlaufEintrag[];
 }
 
 // Schreibgeschuetzter Baugruppen-Viewer fuer den Konstrukteur-Bereich (Jonas'
@@ -21,7 +27,7 @@ interface InternalProjectViewerProps {
 // (Sidebar links, 3D-Viewer rechts), aber mit der Baugruppen-Instanzliste
 // statt Groesse/Farbe/Einbauten, und ohne Ziehen/Ausrichten/Ansicht-Editieren
 // (ProjectScene3D bekommt hier bewusst nur No-Op-Handler fuer Drag/Undo).
-export function InternalProjectViewer({ project, fileName, onOpenInstance }: InternalProjectViewerProps) {
+export function InternalProjectViewer({ project, fileName, onOpenInstance, kundenverlauf }: InternalProjectViewerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -79,6 +85,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance }: Int
                 </div>
               )}
             </AccordionSection>
+            {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
           </>
         }
       >

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Scene } from "../components/Scene";
 import { OpeningsSummary } from "../components/OpeningsSummary";
+import { KundenverlaufSection } from "../components/KundenverlaufSection";
 import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
@@ -8,6 +9,7 @@ import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
+import type { KundenverlaufEintrag } from "../config/kundenverlauf";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
 import { getRalNameForHex } from "../constants/ralColors";
 
@@ -27,13 +29,21 @@ interface KonfiguratorPageProps {
   // "Zurück zur Baugruppe" in WorkspacePage.tsx fuer denselben Stil.
   onBack?: () => void;
   backLabel?: string;
+  // Jonas' Vorgabe 2026-08-17: der eingebettete Kundenverlauf (siehe
+  // config/kundenverlauf.ts) darf NUR im internen Bereich sichtbar sein -
+  // deshalb explizit von aussen uebergeben statt selbst aus initialConfig
+  // gelesen (beim Drill-in aus einem Projekt heraus sitzt der Verlauf auf
+  // der ProjectConfig, nicht auf der einzelnen ContainerConfig der Instanz,
+  // siehe InternalPage.tsx). ProjectViewerPage.tsx (oeffentliches /ansehen)
+  // laesst das Prop bewusst weg.
+  kundenverlauf?: KundenverlaufEintrag[];
 }
 
 // Reiner schreibgeschuetzter Detail-Viewer fuer eine geladene .sszkonfig
 // (siehe InternalPage.tsx) - zeigt Groesse, Farben und Einbauten als reine
 // Auflistung statt editierbarer Felder, ohne eigene Speicher-/Reset-/
 // Moduswechsel-Logik (die gibt es nur im editierbaren WorkspacePage.tsx).
-export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel }: KonfiguratorPageProps) {
+export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel, kundenverlauf }: KonfiguratorPageProps) {
   const config = initialConfig;
 
   const [size] = useState<ContainerSize>(config.size);
@@ -129,6 +139,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
             <AccordionSection title="Einbauten">
               <OpeningsSummary openings={openings} />
             </AccordionSection>
+            {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
           </>
         }
       >

@@ -1,4 +1,5 @@
 import type { ContainerConfig } from "./types";
+import type { KundenverlaufEintrag } from "./kundenverlauf";
 
 // Baugruppen-Datenmodell (siehe docs/baugruppen-architektur.md) - eine
 // ContainerInstance buendelt eine VOLLSTAENDIGE, unveraenderte ContainerConfig
@@ -64,4 +65,9 @@ export interface ProjectConfig {
   // dieser Aenderung gespeicherte Dateien haben das Feld nicht. Ueberall beim
   // Lesen mit "?? []" behandeln, nicht direkt indizieren.
   dependencies?: AlignmentDependency[];
+  // Jonas' Vorgabe 2026-08-17: siehe types.ts's gleichnamiges Feld - hier auf
+  // Projekt-Ebene EINMAL statt pro Instanz eingebettet (ein Projekt kann
+  // mehrere Container enthalten, der Verlauf ist aber immer derselbe fuer den
+  // ganzen Download).
+  kundenverlauf?: KundenverlaufEintrag[];
 }
