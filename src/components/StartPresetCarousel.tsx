@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { StartPresetCard } from "./StartPresetCard";
 import { AnimatedButton } from "./AnimatedButton";
 import { ArrowLeftIcon } from "./icons/ArrowLeftIcon";
@@ -15,6 +15,16 @@ const VISIBLE_COUNT = 4;
 // einem Klick stehen, zwei sind neu - "laeuft wie in einem Karussell".
 const STEP = 2;
 
+// Motion's "dynamic variants" (Funktionen statt fester Objekte, gelesen
+// ueber die "custom"-Prop unten) - horizontale Verschiebung statt der
+// vorherigen vertikalen Fade (Jonas' Fehlerbericht 2026-08-18, siehe
+// motion.div weiter unten fuer die volle Begruendung).
+const SLIDE_VARIANTS: Variants = {
+  enter: (dir: number) => ({ x: dir >= 0 ? 48 : -48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir >= 0 ? -48 : 48, opacity: 0 }),
+};
+
 // Startseiten-Preset-Karussell (Jonas' Vorgabe 2026-08-18). Acht Presets
 // (startPresets.ts), vier gleichzeitig sichtbar, Pfeile verschieben das
 // Fenster um je zwei Karten und wickeln am Ende/Anfang herum (modulo statt
@@ -25,12 +35,22 @@ const STEP = 2;
 // reine Icon-Vorschau).
 export function StartPresetCarousel() {
   const [startIndex, setStartIndex] = useState(0);
+  // Jonas' Fehlerbericht 2026-08-18: die Uebergangs-Animation wirkte "wie
+  // ein Flipboard" statt wie ein Karussell/ein auf dem Boden liegendes,
+  // gedrehtes Rad - direction haelt fest, ob zuletzt "weiter" (1, neue
+  // Karten kommen von rechts, alte gehen nach links) oder "zurueck" (-1,
+  // umgekehrt) gedrueckt wurde, damit die neuen Karten aus genau der
+  // Richtung hereinrollen, in die auch die Pfeiltaste zeigt - siehe
+  // motion.div unten (initial/exit als Funktionen von direction).
+  const [direction, setDirection] = useState(1);
   const total = START_PRESETS.length;
 
   function next() {
+    setDirection(1);
     setStartIndex((i) => (i + STEP) % total);
   }
   function prev() {
+    setDirection(-1);
     setStartIndex((i) => (i - STEP + total) % total);
   }
 
@@ -53,14 +73,25 @@ export function StartPresetCarousel() {
           <ArrowLeftIcon size={16} />
         </AnimatedButton>
 
+        {/* mode="popLayout" statt "wait" (Jonas' Fehlerbericht 2026-08-18):
+            "wait" liesse die alte Kartenreihe erst KOMPLETT verschwinden,
+            bevor die neue erscheint - genau der abrupte "Flipboard"-Effekt,
+            den er nicht wollte. "popLayout" nimmt die austretende Reihe
+            sofort aus dem normalen Layout-Fluss heraus (verhindert das
+            sonst uebliche Stapeln zweier normal fliessender Kartenreihen
+            uebereinander), waehrend sie weiter sichtbar herausgleitet UND
+            gleichzeitig die neue hereinrollt - wie ein durchgehend
+            drehendes Rad statt eines Umblaetterns. */}
         <div className="overflow-hidden">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.div
               key={startIndex}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+              custom={direction}
+              variants={SLIDE_VARIANTS}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.35, ease: "easeInOut" }}
               className="flex gap-4"
             >
               {visiblePresets.map((preset) => (

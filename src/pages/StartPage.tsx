@@ -15,6 +15,18 @@ import { schedulePreload } from "../utils/idlePreload";
 const LOAD_BUTTON_CLASSNAME =
   "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
 
+// Jonas' Vorgabe 2026-08-18: die Glimm-Animation soll "laufen" - erst
+// "Konfiguration starten" (links), dann direkt im Anschluss "Projekt laden"
+// (rechts), "als wuerde die Animation in den anderen Button uebergehen"
+// statt beide (wie bisher) gleichzeitig/unabhaengig voneinander zu blinken.
+// Shine.tsx's `delay`-Prop verzoegert nur den ALLERERSTEN Durchlauf, danach
+// uebernimmt loopDelay - da beide Buttons dieselbe duration (Shine.tsx-
+// Default 1200ms) UND denselben loopDelay=2000 haben, bleibt der einmal
+// gesetzte Versatz (SHINE_HANDOFF_DELAY_MS = duration des ersten Buttons)
+// bei JEDEM weiteren Loop-Durchlauf automatisch erhalten - Button 2 startet
+// dadurch dauerhaft immer genau dann, wenn Button 1 fertig ist.
+const SHINE_HANDOFF_DELAY_MS = 1200;
+
 // Zentrierter Startbildschirm: "Konfiguration starten" + "Projekt laden".
 // Seit dem Zusammenlegen von Einzel-/Ensemble-Modus (siehe WorkspacePage.tsx)
 // gibt es nur noch EINEN Einstieg - ein Projekt, in dem beliebig viele
@@ -122,7 +134,12 @@ export function StartPage() {
     // gap-6/py-8 reduziert (wirkt gleichmaessig auf alle Top-Level-
     // Geschwister, straffe also sowohl den Abstand vor als auch nach dem
     // Karussell).
-    <div className="relative z-0 flex h-full flex-col items-center gap-6 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
+    // Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): Presets sollen
+    // naeher an der Mittellinie sitzen, ohne Scrollen sichtbar sein -
+    // gap-6 -> gap-2 (der Hauptabstand zur Mittellinie kommt jetzt ohnehin
+    // aus dem h-1/2-Block/justify-end unten, dieser Rest-Abstand soll nur
+    // noch minimal sein).
+    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand
@@ -146,7 +163,14 @@ export function StartPage() {
           auch wenn der Preset-Bereich darunter die Seite scrollbar macht.
           shrink-0, damit ein spaeter waechst Karussell diesen Block nicht
           zusammendrueckt. */}
-      <div className="flex h-1/2 w-full shrink-0 flex-col items-center justify-center gap-6">
+      {/* Jonas' Vorgabe 2026-08-18 (Nachbesserung): "Presets naeher an der
+          Mittellinie" - justify-center haette Titel+Buttons in der MITTE
+          der 50%-Zone belassen, mit ebenso viel Leerraum ueber dem Titel wie
+          UNTER den Buttons (bis zur Mittellinie) - justify-end schiebt den
+          Inhalt stattdessen an den UNTEREN Rand der Zone, die Buttons sitzen
+          dadurch direkt an der Mittellinie, Presets koennen direkt
+          darunter anschliessen. */}
+      <div className="flex h-1/2 w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
             Container Studio
@@ -193,7 +217,7 @@ export function StartPage() {
         {hasCache ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Shine asChild loop loopDelay={2000}>
+              <Shine asChild loop loopDelay={2000} delay={SHINE_HANDOFF_DELAY_MS}>
                 <AnimatedButton type="button" className={LOAD_BUTTON_CLASSNAME}>
                   <UploadIcon size={18} />
                   Projekt laden
@@ -220,7 +244,7 @@ export function StartPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Shine asChild loop loopDelay={2000}>
+          <Shine asChild loop loopDelay={2000} delay={SHINE_HANDOFF_DELAY_MS}>
             <AnimatedButton type="button" onClick={() => fileInputRef.current?.click()} className={LOAD_BUTTON_CLASSNAME}>
               <UploadIcon size={18} />
               Projekt laden

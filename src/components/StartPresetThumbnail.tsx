@@ -7,6 +7,22 @@ import type { ContainerConfig } from "../config/types";
 
 const MM_TO_M = 1 / 1000;
 
+// Jonas' Fehlerbericht 2026-08-18: "die groesseren Container sehen kleiner
+// aus, es soll aber alles zueinander passen" - eine PRO Preset berechnete
+// Kameradistanz (fruehere Version: an lengthM/widthM DIESES Presets
+// angepasst) zoomt bei einem kurzen Preset automatisch NAEHER heran und bei
+// einem langen automatisch WEITER weg, damit beide gleich viel vom eigenen
+// Bildausschnitt fuellen - das macht sie zwar einzeln gut lesbar, zerstoert
+// aber jeden Groessenvergleich ZWISCHEN den Karten (ein 40-Fuß-Container
+// wirkte dadurch kleiner als ein 10-Fuß-Container). Fix: EINE feste,
+// geteilte Distanz fuer ALLE Presets, kalibriert auf das laengste Preset der
+// Familie (18m, siehe constants/startPresets.ts) - kuerzere Presets erscheinen
+// dadurch bewusst kleiner im Bild, aber alle acht Karten zueinander im
+// richtigen Groessenverhaeltnis (10 Fuß sichtbar kleiner als 40 Fuß, wie in
+// echt). Gleiche Formel wie zuvor (Scene.tsx-Herleitung), nur einmalig fuer
+// max(18, 2.99) statt pro Instanz ausgewertet.
+const SHARED_CAMERA_DISTANCE = 18 * 1.5 + 3;
+
 interface StartPresetThumbnailProps {
   config: ContainerConfig;
   // Live gewaehlte Aussenfarbe der Karte (siehe StartPresetCard.tsx) -
@@ -33,12 +49,7 @@ export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: Sta
     setSnapshot(null);
   }, [config, outsideColor]);
 
-  const lengthM = config.size.length * MM_TO_M;
-  const widthM = config.size.width * MM_TO_M;
   const heightM = config.size.height * MM_TO_M;
-  // Gleiche Herleitung wie Scene.tsx's cameraDistance - Kamera weit genug
-  // weg, um das jeweilige Preset (2,99m bis 18m Laenge) komplett einzufangen.
-  const cameraDistance = Math.max(lengthM, widthM) * 1.5 + 3;
 
   const handleCaptured = useCallback((dataUrl: string) => setSnapshot(dataUrl), []);
 
@@ -55,7 +66,7 @@ export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: Sta
           // ohne AdaptiveDpr/PerformanceMonitor fuer eine derart kurzlebige
           // Szene extra bemuehen zu muessen.
           dpr={2}
-          camera={{ position: [cameraDistance, cameraDistance * 0.55, cameraDistance], fov: 40 }}
+          camera={{ position: [SHARED_CAMERA_DISTANCE, SHARED_CAMERA_DISTANCE * 0.55, SHARED_CAMERA_DISTANCE], fov: 40 }}
           style={{ width: sizePx, height: sizePx }}
         >
           <ambientLight intensity={0.9} />
