@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Container } from "./Container";
 import { DisplaySettingsProvider } from "../context/DisplaySettingsContext";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
+import { GeometryCacheScopeContext } from "../utils/geometryCache";
 import { getCachedThumbnail, setCachedThumbnail } from "../utils/presetThumbnailCache";
 import type { ContainerConfig } from "../config/types";
 
@@ -93,6 +94,14 @@ interface StartPresetThumbnailProps {
 // eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
 // nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
 export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 216, onDone }: StartPresetThumbnailProps) {
+  // Jonas' Fehlerbericht 2026-08-18 ("Container laden vollstaendig und dann
+  // verschwinden Bauteile wieder") - siehe GeometryCacheScopeContext-
+  // Kommentar in geometryCache.ts fuer die volle Begruendung: eine pro Mount
+  // eindeutige ID isoliert den CSG-Geometrie-Cache dieser kurzlebigen
+  // Vorschau-Instanz komplett vom app-weit geteilten Cache, damit ihr
+  // schnelles Mounten/Einfangen/Unmounten nie mit echten, dauerhaften
+  // Containern anderswo in der App interferieren kann.
+  const geometryScope = useId();
   const [snapshot, setSnapshot] = useState<string | null>(() => getCachedThumbnail(cacheKey) ?? null);
 
   // Meldet echte Fertigstellung nach oben (siehe onDone-Kommentar oben) -
@@ -159,22 +168,24 @@ export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 
               zeichnet zusaetzlich die Aussenkontur/Durchbruch-Umrandungen
               als eigene Linien (siehe Wall.tsx's edgeGeometry), das macht
               Form/Tueren/Oeffnungen auch klein noch erkennbar. */}
-          <DisplaySettingsProvider
-            value={{ viewStyle: "shaded_edges", insideColor: config.insideColor, outsideColor, insideUnpainted: config.insideUnpainted ?? false }}
-          >
-            <SectionPlaneProvider value={null}>
-              <group position={[0, -heightM / 2, 0]}>
-                <Container
-                  size={config.size}
-                  wallThickness={config.wallThickness}
-                  openings={config.openings}
-                  floorThickness={config.floorThickness}
-                  floorInsulated={config.floorInsulated}
-                  partitionWalls={config.partitionWalls}
-                />
-              </group>
-            </SectionPlaneProvider>
-          </DisplaySettingsProvider>
+          <GeometryCacheScopeContext.Provider value={geometryScope}>
+            <DisplaySettingsProvider
+              value={{ viewStyle: "shaded_edges", insideColor: config.insideColor, outsideColor, insideUnpainted: config.insideUnpainted ?? false }}
+            >
+              <SectionPlaneProvider value={null}>
+                <group position={[0, -heightM / 2, 0]}>
+                  <Container
+                    size={config.size}
+                    wallThickness={config.wallThickness}
+                    openings={config.openings}
+                    floorThickness={config.floorThickness}
+                    floorInsulated={config.floorInsulated}
+                    partitionWalls={config.partitionWalls}
+                  />
+                </group>
+              </SectionPlaneProvider>
+            </DisplaySettingsProvider>
+          </GeometryCacheScopeContext.Provider>
           <SnapshotCapture onCaptured={handleCaptured} />
         </Canvas>
       )}

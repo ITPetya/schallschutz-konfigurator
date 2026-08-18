@@ -1,6 +1,27 @@
-import { useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import type { BufferGeometry } from "three";
 import type { Opening } from "../types/openings";
+
+// Jonas' Fehlerbericht 2026-08-18 ("Container laden vollstaendig und dann
+// verschwinden Bauteile wieder - Dach, Boden, vordere Wand usw."): staerkster
+// Verdacht ist die Preset-Vorschau (StartPresetThumbnail.tsx) - die baut
+// denselben <Container>/<Wall>/<CornerCasting> auf, faengt EINEN Snapshot
+// ein und wird dann sofort wieder abgebaut (mounten-einfangen-unmounten in
+// schneller Folge, seit den "weniger Lag"-Anpassungen sogar noch haeufiger).
+// Weil dieser Cache MODUL-WEIT und damit APP-WEIT geteilt ist (v. a.
+// CornerCasting.tsx's nur 8 feste Schluessel, die JEDER Container ueberall
+// in der App benutzt), teilt sich eine kurzlebige Vorschau denselben
+// Cache-Eintrag mit echten, dauerhaft sichtbaren Containern anderswo in der
+// App. Obwohl das Ref-Counting fuer sich genommen korrekt aussieht (siehe
+// useCachedGeometry unten), liess sich der genaue Ausloeser in dieser
+// Umgebung nicht abschliessend nachstellen (kein funktionierendes WebGL) -
+// statt weiter zu raten: dieser Scope-Context isoliert die Vorschau-Vorbauten
+// komplett vom geteilten Cache, damit ihr schnelles Mounten/Unmounten NIE
+// mehr mit echten, dauerhaften Containern interferieren kann, unabhaengig
+// vom genauen Mechanismus. StartPresetThumbnail.tsx setzt ihn auf eine pro
+// Mount eindeutige ID (useId()); ausserhalb einer Vorschau bleibt er null,
+// das Verhalten fuer den echten Konfigurator ist dadurch unveraendert.
+export const GeometryCacheScopeContext = createContext<string | null>(null);
 
 // Modul-weiter, referenzgezaehlter Cache fuer CSG-berechnete Geometrien
 // (Jonas' Vorgabe 2026-08-18: "Lags ohne Detailverlust fixen"). Mehrere
@@ -30,28 +51,33 @@ const cache = new Map<string, CacheEntry>();
 // Cleanup (baut den alten Eintrag ab) - dadurch wird eine Geometrie NIE
 // disposed, waehrend sie noch (auch nur kurzzeitig) in Benutzung ist.
 export function useCachedGeometry<T extends BufferGeometry>(key: string, factory: () => T): T {
+  // Siehe GeometryCacheScopeContext-Kommentar oben - ausserhalb einer
+  // Vorschau ist scope null, scopedKey === key (unveraendertes Verhalten).
+  const scope = useContext(GeometryCacheScopeContext);
+  const scopedKey = scope ? `${scope}:${key}` : key;
+
   const geometry = useMemo(() => {
-    let entry = cache.get(key);
+    let entry = cache.get(scopedKey);
     if (!entry) {
       entry = { geometry: factory(), refCount: 0 };
-      cache.set(key, entry);
+      cache.set(scopedKey, entry);
     }
     entry.refCount += 1;
     return entry.geometry as T;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [scopedKey]);
 
   useEffect(() => {
     return () => {
-      const entry = cache.get(key);
+      const entry = cache.get(scopedKey);
       if (!entry) return;
       entry.refCount -= 1;
       if (entry.refCount <= 0) {
-        cache.delete(key);
+        cache.delete(scopedKey);
         entry.geometry.dispose();
       }
     };
-  }, [key]);
+  }, [scopedKey]);
 
   return geometry;
 }
