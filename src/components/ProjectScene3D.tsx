@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
+import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport, PerformanceMonitor, AdaptiveDpr } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
@@ -437,10 +437,27 @@ export function ProjectScene3D({
         shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
+        // Siehe Scene.tsx fuer die Begruendung (PerformanceMonitor/
+        // AdaptiveDpr/AdaptiveEvents unten) - hier besonders relevant, weil
+        // eine Baugruppe aus vielen Containern die Framerate staerker
+        // belasten kann als ein einzelner.
+        dpr={[1, 2]}
         // Jonas' Vorgabe 2026-08-17: Klick ins Leere loescht die Auswahl -
         // nur die Auswahl selbst, nicht ein aktives Werkzeug.
         onPointerMissed={() => clearSelection()}
       >
+        {/* Siehe Scene.tsx fuer die volle Begruendung (Jonas' Vorgabe
+            2026-08-18, "Lags fixen ohne Detailgrad zu verlieren") inkl. der
+            bewussten Entscheidung GEGEN AdaptiveEvents (wuerde das
+            Container-Ziehen unten, das exakt ueber r3f's Pointer-Event-
+            System laeuft, bei einem Framerate-Einbruch mitten im Drag
+            einfrieren koennen). Reagiert automatisch auf jeden Framerate-
+            Einbruch (CSG-Neuaufbau, Orbit, viele Container gleichzeitig),
+            reduziert kurzzeitig die Aufloesung, erholt sich automatisch
+            wieder - keine Geometrie-Detailreduktion. */}
+        <PerformanceMonitor>
+          <AdaptiveDpr pixelated={false} />
+        </PerformanceMonitor>
         {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight

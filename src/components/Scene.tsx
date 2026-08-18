@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
+import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewcube, GizmoViewport, PerformanceMonitor, AdaptiveDpr } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Container } from "./Container";
 import { TerrainBackground } from "./TerrainBackground";
@@ -341,11 +341,35 @@ export function Scene({
         shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
         camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
+        // Bandbreite fuer PerformanceMonitor/AdaptiveDpr unten (Jonas'
+        // Vorgabe 2026-08-18, "Lags fixen ohne Detailgrad zu verlieren") -
+        // deckt sich mit r3f's eigenem Default, hier explizit benannt.
+        dpr={[1, 2]}
         // Jonas' Vorgabe 2026-08-17: Klick ins Leere loescht die Auswahl -
         // nur die Auswahl selbst, nicht ein aktives Werkzeug (das beendet
         // ausschliesslich Escape, siehe handleEscape oben).
         onPointerMissed={() => clearSelection()}
       >
+        {/* Jonas' Vorgabe 2026-08-18 ("Lags fixen, ohne Detailgrad zu
+            verlieren"): PerformanceMonitor misst die tatsaechliche
+            Frame-Zeit JEDEN Frame - faellt sie unter Budget (z. B. waehrend
+            eines schweren CSG-Neuaufbaus oder starken Zooms/Orbits), wird
+            AdaptiveDpr die Aufloesung kurzzeitig automatisch reduzieren
+            (zwischen dpr={[1,2]} oben interpoliert) - sobald sich die
+            Framerate erholt, geht es automatisch wieder auf volle
+            Aufloesung zurueck. Bewusst OHNE drei's AdaptiveEvents: das
+            wuerde r3f's Pointer-Event-Dispatch kurzzeitig komplett
+            abschalten, wovon auch das Ziehen eines Containers (InstanceGroup
+            in ProjectScene3D.tsx, laeuft ausschliesslich ueber genau dieses
+            Event-System mit bereits gesetzter setPointerCapture) getroffen
+            waere - ein Framerate-Einbruch MITTEN in einem Drag koennte den
+            Drag dadurch einfrieren, bis sich die Framerate wieder erholt.
+            Detailgrad der GEOMETRIE bleibt von AdaptiveDpr komplett
+            unberuehrt, nur die Bildschirmaufloesung schwankt kurzzeitig -
+            im Ruhezustand immer volle Qualitaet. */}
+        <PerformanceMonitor>
+          <AdaptiveDpr pixelated={false} />
+        </PerformanceMonitor>
         {!isTerrain && <color attach="background" args={[theme === "dark" ? "#1e293b" : "#eef2f5"]} />}
         <ambientLight intensity={0.7} />
         <directionalLight
