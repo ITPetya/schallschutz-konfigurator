@@ -20,23 +20,26 @@ const MM_TO_M = 1 / 1000;
 //    massstabsgetreu", aber das kuerzeste Preset (10 Fuß, ~3m) wurde dadurch
 //    ca. 6x kleiner dargestellt als das laengste (exaktes Realverhaeltnis
 //    18m/2,99m) - "die Vorschau ist dort viel viel zu klein".
-// Fix Runde 2 (hier): bewusster Kompromiss statt eines der beiden Extreme -
-// wieder PRO Preset berechnet, aber mit einem GROSSEN festen Sockelbetrag
-// (9.5) gegenueber einer nur noch flachen Laengen-Steigung (1.25 statt
-// vorher 1.5 als voller Multiplikator ohne Sockel) - dadurch faellt der
-// Grossteil der Distanz auf den fuer ALLE Presets GLEICHEN Sockel, nur ein
-// kleinerer Teil variiert noch mit der tatsaechlichen Laenge. Ergebnis:
-// das laengste Preset (18m) bleibt bei ca. 32 (Scene.tsx-aehnliche
-// Sicherheitsmarge, damit nichts am Bildrand abgeschnitten wird), das
-// kuerzeste (10 Fuß, ~3m) landet bei ca. 13 statt vorher ~30 (Runde 1) oder
-// ~7,5 (Original) - sichtbar kleiner als 18m (Groessenverhaeltnis bleibt
-// erkennbar, ca. 2,4x statt des extremen echten 6x), aber nicht mehr auf
-// einen kaum erkennbaren Punkt zusammengeschrumpft. Feste Werte, kein
-// Zusammenhang mehr mit Scene.tsx's Formel - falls sich das
-// Preset-Groessenspektrum spaeter aendert (z.B. ein Preset >18m), ggf. neu
-// kalibrieren.
-const THUMBNAIL_DISTANCE_BASE = 9.5;
-const THUMBNAIL_DISTANCE_SLOPE = 1.25;
+// Fix Runde 2: bewusster Kompromiss statt eines der beiden Extreme - wieder
+// PRO Preset berechnet, aber mit einem GROSSEN festen Sockelbetrag
+// gegenueber einer nur noch flachen Laengen-Steigung - dadurch faellt der
+// Grossteil der Distanz auf einen fuer ALLE Presets AEHNLICHEN Sockel, nur
+// ein kleinerer Teil variiert noch mit der tatsaechlichen Laenge.
+// Fix Runde 3 (Jonas' Fehlerbericht 2026-08-18: "nein, die Container sollen
+// nur groesser sein, nicht die ganzen Fenster" - Runde 2 hatte
+// faelschlicherweise den ganzen Vorschau-RAHMEN vergroessert, sizePx
+// 216->324px in StartPresetCard.tsx, das war NICHT gemeint, siehe dortige
+// Rueck-Korrektur): Rahmen/Karte bleiben jetzt unveraendert bei 216px, das
+// GEWUENSCHTE "ca. 50% groesser" wird stattdessen ausschliesslich ueber
+// staerkeres Heranzoomen (kleinere Kameradistanz) erreicht - Sockel und
+// Steigung beide reduziert, das laengste Preset (18m) bewusst bei
+// UNVERAENDERTEN ca. 32 belassen (bleibt die sichere obere Grenze, ab der
+// nichts mehr am Bildrand abgeschnitten wird), das kuerzeste (10 Fuß) auf
+// ca. 9 statt vorher ca. 13 gebracht (Faktor ~1,47, nah an den gewuenschten
+// 50%) - je kleiner das Preset, desto staerker der Zoom-Zugewinn, das
+// laengste bleibt unangetastet/unveraendert sicher.
+const THUMBNAIL_DISTANCE_BASE = 4.4;
+const THUMBNAIL_DISTANCE_SLOPE = 1.53;
 
 interface StartPresetThumbnailProps {
   config: ContainerConfig;
@@ -65,7 +68,7 @@ interface StartPresetThumbnailProps {
 // Presets gleichzeitig als volle r3f-Szenen (inkl. CSG-Aufbau) waeren fuer
 // eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
 // nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
-export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 324 }: StartPresetThumbnailProps) {
+export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 216 }: StartPresetThumbnailProps) {
   const [snapshot, setSnapshot] = useState<string | null>(() => getCachedThumbnail(cacheKey) ?? null);
 
   // Neu einfangen, sobald sich der Cache-Schluessel (Aussenfarbe-Klick auf

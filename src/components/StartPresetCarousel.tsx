@@ -9,7 +9,7 @@ import { START_PRESETS } from "../constants/startPresets";
 // Groesse muss exakt der visible-card-Groesse entsprechen (StartPresetCard.tsx),
 // sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
 // tatsaechliche Anzeigegroesse zwischengespeichert.
-const PRELOAD_SIZE_PX = 324;
+const PRELOAD_SIZE_PX = 216;
 
 // Wie viele Karten gleichzeitig sichtbar sind (Jonas' Vorgabe 2026-08-18,
 // nach Skizze: vier volle Karten in der Reihe).

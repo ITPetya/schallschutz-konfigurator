@@ -60,13 +60,18 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
   const cacheKey = `${preset.id}:${outsideColor}`;
 
   return (
-    // Jonas' Vorgabe 2026-08-18: Vorschau nochmal ca. 50% groesser
-    // (216 -> 324px, siehe sizePx unten) - Karte dafuer entsprechend breiter
-    // (w-60 -> w-[350px]).
-    <div className="flex w-[350px] shrink-0 flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+    // Jonas' Fehlerbericht 2026-08-18: "nein, die Container sollen nur
+    // groesser sein, nicht die ganzen Fenster" - Rahmen/Karte zurueck auf
+    // 216px/w-60 (die vorherige Vergroesserung auf 324px/w-[350px] hat
+    // faelschlich den ganzen Vorschau-RAHMEN mitvergroessert). Das eigentlich
+    // gewuenschte "Container groesser" kommt jetzt ausschliesslich aus
+    // StartPresetThumbnail.tsx's Kameradistanz (staerker herangezoomt),
+    // sizePx bleibt hier deshalb unveraendert bei 216 (= Komponenten-Default,
+    // explizit trotzdem gesetzt fuer den Suspense-Fallback nebenan).
+    <div className="flex w-60 shrink-0 flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
       <p className="font-heading text-sm font-bold text-brand-dark dark:text-brand-light">{preset.label} Container</p>
-      <Suspense fallback={<div className="h-[324px] w-[324px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
-        <LazyStartPresetThumbnail config={preset.config} outsideColor={outsideColor} cacheKey={cacheKey} sizePx={324} />
+      <Suspense fallback={<div className="h-[216px] w-[216px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
+        <LazyStartPresetThumbnail config={preset.config} outsideColor={outsideColor} cacheKey={cacheKey} sizePx={216} />
       </Suspense>
       <div className="flex items-center gap-2.5">
         {/* Jonas' Fehlerbericht 2026-08-18: Signalgrau (RAL 7004) zuerst,

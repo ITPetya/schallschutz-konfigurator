@@ -116,50 +116,37 @@ export function StartPage() {
     // dessen normalem (nicht positioniertem) bg-white gemalt, das faelschlich
     // "spaeter" gezeichnet wird (Debugging-Fund 2026-07-22).
     //
-    // Jonas' Fehlerbericht 2026-08-18 ("permanente Scrollbar, beim Scrollen
-    // kommt noch ein Stueck graue/im Darkmode weisse Leiste"): das Karussell
-    // zeigt inzwischen (siehe StartPresetCarousel.tsx) immer nur ein festes
-    // Fenster von 4 Karten, waechst also NICHT mehr mit der Gesamtzahl der
-    // Presets - der urspruengliche Grund fuer overflow-y-auto ("acht
-    // Preset-Karten koennen die Seite hoeher als den Viewport machen")
-    // entfaellt damit. Zurueck auf overflow-hidden (wie vor dem Karussell):
-    // faengt zugleich einen kleinen, sonst schwer zu lokalisierenden
-    // Hoehen-Ueberschuss ab, der die Seite geringfuegig ueber 100% wachsen
-    // liess - absolut positionierte Elemente (die Hintergrund-Ebenen unten)
-    // sind IMMER exakt so gross wie die eigene (statische) Box dieses
-    // Wurzel-Elements, wachsen NICHT mit dessen Scroll-Inhalt mit; beim
-    // Herunterscrollen wurde deshalb ein Stueck OHNE jede eigene
-    // Hintergrund-Ebene sichtbar - darunter liegt nichts Themenfarbiges mehr,
-    // nur noch der nackte (nie explizit gesetzte, immer weisse) <body>-
-    // Hintergrund, daher weiss im Darkmode statt dunkelgrau. overflow-hidden
-    // schneidet diesen Rest jetzt einfach ab, unabhaengig von der genauen
-    // Pixel-Ursache. justify-center bewusst weiterhin nicht auf dieser
-    // obersten Ebene (siehe Kommentar am flex-1-Bereich weiter unten fuer die
-    // Zentrierung).
-    //
-    // Jonas' Vorgabe 2026-08-18 (Nachbesserung): der obere "Konfiguration
-    // starten"-Bereich soll nur noch ca. 40-45% der Seite einnehmen, der
-    // gesamte Preset-Bereich insgesamt kompakter wirken - gap-8/py-10 auf
-    // gap-6/py-8 reduziert (wirkt gleichmaessig auf alle Top-Level-
-    // Geschwister, straffe also sowohl den Abstand vor als auch nach dem
-    // Karussell).
-    // Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): Presets sollen
-    // naeher an der Mittellinie sitzen, ohne Scrollen sichtbar sein -
-    // gap-6 -> gap-2 (der Hauptabstand zur Mittellinie kommt jetzt ohnehin
-    // aus dem h-1/2-Block/justify-end unten, dieser Rest-Abstand soll nur
-    // noch minimal sein).
-    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-hidden px-6 py-8 text-center">
+    // Jonas' Fehlerbericht 2026-08-18, dritte Runde ("beim sehr duennen
+    // Fenster buggen die beiden Bereiche hintereinander - erst Freiraeume
+    // komprimieren, dann scrollbar werden"): overflow-y-auto ist wieder da
+    // (Grund fuer overflow-hidden im vorherigen Commit - ein kleiner
+    // Hoehen-Ueberschuss liess einen unbedeckten Rest durchscheinen, siehe
+    // "weiss im Darkmode"-Fund - ist nicht mehr noetig, siehe die
+    // Hintergrund-Ebenen unten: jetzt fixed statt absolute, decken dadurch
+    // IMMER exakt den sichtbaren Viewport ab, unabhaengig vom Scroll-Zustand
+    // dieses Elements - ein durchscheinender Rest kann so gar nicht mehr
+    // auftreten, unabhaengig davon ob/wie viel gescrollt wird). Der
+    // Hero-Block weiter unten bekommt zusaetzlich ein min-h, das verhindert,
+    // dass sein Inhalt (Titel+Buttons) bei einem sehr niedrigen Fenster unter
+    // sein eigenes h-[35%] schrumpft und optisch in den Preset-Bereich
+    // hineinragt (genau das war der gemeldete Bug) - reicht der Platz trotz
+    // bereits komprimierter Abstaende (gap-2/py-8 unten) am Ende nicht mehr,
+    // wird jetzt zuverlaessig gescrollt statt ueberlappt.
+    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand
           durchscheinen laesst; das halbtransparente weisse Overlay erzeugt
-          den Milchglas-Effekt und haelt den Text darueber lesbar. */}
+          den Milchglas-Effekt und haelt den Text darueber lesbar.
+          fixed statt absolute (Jonas' Fehlerbericht 2026-08-18, siehe
+          Begruendung oben) - deckt dadurch IMMER den kompletten sichtbaren
+          Viewport ab, unabhaengig vom Scroll-Zustand des Wurzel-Elements. */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
+        className="fixed inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
         style={{ backgroundImage: "url(/start-background.svg)" }}
       />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
+      <div aria-hidden className="fixed inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
 
       {/* Jonas' Vorgabe 2026-08-18: "50% der Seite soll der Bereich mit
           Konfiguration Starten und Projekt Laden sein, darunter soll die
@@ -181,8 +168,14 @@ export function StartPage() {
           darunter anschliessen. */}
       {/* Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): Mittellinie auf
           35% (statt 50%) - h-[35%] statt h-1/2, Rest der Begruendung siehe
-          Kommentar oben (justify-end/gap-2 zur Praesets-Reihe). */}
-      <div className="flex h-[35%] w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
+          Kommentar oben (justify-end/gap-2 zur Praesets-Reihe).
+          min-h-[280px] (Fehlerbericht 2026-08-18, dritte Runde): verhindert,
+          dass dieser Block bei einem sehr niedrigen Fenster unter die
+          tatsaechlich benoetigte Hoehe von Titel+Buttons(+Handy-Hinweistext)
+          schrumpft - ohne dieses Minimum ragte der Inhalt sichtbar in den
+          Preset-Bereich darunter hinein (280px deckt Titelblock + Button-
+          Zeile [ggf. auf dem Handy gestapelt] + Hinweistext komfortabel ab). */}
+      <div className="flex h-[35%] min-h-[280px] w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
             Container Studio
