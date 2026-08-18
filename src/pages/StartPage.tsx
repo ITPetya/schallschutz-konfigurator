@@ -170,7 +170,10 @@ export function StartPage() {
           Inhalt stattdessen an den UNTEREN Rand der Zone, die Buttons sitzen
           dadurch direkt an der Mittellinie, Presets koennen direkt
           darunter anschliessen. */}
-      <div className="flex h-1/2 w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
+      {/* Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): Mittellinie auf
+          35% (statt 50%) - h-[35%] statt h-1/2, Rest der Begruendung siehe
+          Kommentar oben (justify-end/gap-2 zur Praesets-Reihe). */}
+      <div className="flex h-[35%] w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
             Container Studio

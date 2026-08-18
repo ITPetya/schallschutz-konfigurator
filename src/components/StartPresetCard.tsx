@@ -49,7 +49,16 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
         },
       ],
     };
-    navigate("/projekt", { state: { project } });
+    // Jonas' Vorgabe 2026-08-18: "trotzdem Projektname und Standort
+    // abfragen wie beim Erstellen jedes Projekts" - fresh:true zusaetzlich
+    // zu project (bisher schloss sich das gegenseitig aus: project kam
+    // sonst nur vom Datei-/Cache-/Demo-Laden, WO das Ueberspringen der Frage
+    // richtig ist, weil der Name schon feststeht; fresh:true kam sonst nur
+    // von "Konfiguration starten" OHNE project). WorkspacePage.tsx prueft
+    // jetzt fresh VOR project, zeigt das Grundeinstellungen-Overlay also
+    // auch hier, behaelt aber den mitgegebenen Container (siehe dortige
+    // showGrundeinstellungen-Initialisierung).
+    navigate("/projekt", { state: { project, fresh: true } });
   }
 
   return (

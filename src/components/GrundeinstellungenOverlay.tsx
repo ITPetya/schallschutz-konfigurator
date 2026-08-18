@@ -11,6 +11,12 @@ export interface GrundeinstellungenResult {
 interface GrundeinstellungenOverlayProps {
   open: boolean;
   onSubmit: (result: GrundeinstellungenResult) => void;
+  // Jonas' Vorgabe 2026-08-18: eine Preset-Karte auf der Startseite bringt
+  // bereits einen sinnvollen Namen mit (z.B. "20 Fuß") - der schlaegt hier
+  // als editierbarer Startwert vor, statt immer bei "Neues Projekt" zu
+  // beginnen. Optional, faellt ohne Angabe (normaler "Konfiguration
+  // starten"-Einstieg) weiter auf "Neues Projekt" zurueck.
+  initialName?: string;
 }
 
 // Overlay beim ERSTEN Einstieg in ein neues Projekt (Jonas' Vorgabe
@@ -25,8 +31,8 @@ interface GrundeinstellungenOverlayProps {
 // daneben schliessen es bewusst NICHT (siehe onEscapeKeyDown/
 // onPointerDownOutside unten), weil eine Bezeichnung Pflicht ist, bevor es
 // weitergeht.
-export function GrundeinstellungenOverlay({ open, onSubmit }: GrundeinstellungenOverlayProps) {
-  const [name, setName] = useState("Neues Projekt");
+export function GrundeinstellungenOverlay({ open, onSubmit, initialName }: GrundeinstellungenOverlayProps) {
+  const [name, setName] = useState(initialName ?? "Neues Projekt");
   const [standort, setStandort] = useState("");
 
   function handleSubmit() {

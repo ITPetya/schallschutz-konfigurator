@@ -432,12 +432,18 @@ export function WorkspacePage() {
   // Grundeinstellungen-Overlay beim Einstieg (Jonas' Vorgabe 2026-07-25:
   // "wenn man auf Konfiguration starten geht, soll ein Overlay-Fenster
   // aufploppen, welches ein paar Grundeinstellungen abfragt") - erscheint
-  // NICHT, wenn ein konkretes Projekt geladen wurde (routeProject), IMMER bei
-  // "fresh" (bewusster Neustart), sonst nur wenn noch kein sinnvolles
-  // (nicht-leeres) Projekt im Cache liegt.
+  // IMMER bei "fresh" (bewusster Neustart - das gilt seit 2026-08-18 AUCH
+  // fuer die Preset-Karten der Startseite: StartPresetCard.tsx setzt fresh
+  // zusaetzlich zu einem bereits befuellten project, damit trotz
+  // vorausgewaehltem Container weiterhin nach Projektname/Standort gefragt
+  // wird, siehe dortiger Kommentar - forceFresh deshalb VOR routeProject
+  // geprueft, nicht mehr danach), sonst NICHT bei einem konkret geladenen
+  // Projekt (routeProject, z.B. Datei-/Cache-/Demo-Laden - der Name steht
+  // dort schon fest), sonst nur wenn noch kein sinnvolles (nicht-leeres)
+  // Projekt im Cache liegt.
   const [showGrundeinstellungen, setShowGrundeinstellungen] = useState(() => {
-    if (routeProject) return false;
     if (forceFresh) return true;
+    if (routeProject) return false;
     return !hasMeaningfulProjectDraft();
   });
 
@@ -1493,7 +1499,7 @@ export function WorkspacePage() {
         </main>
       </SidebarProvider>
 
-      <GrundeinstellungenOverlay open={showGrundeinstellungen} onSubmit={handleGrundeinstellungenSubmit} />
+      <GrundeinstellungenOverlay open={showGrundeinstellungen} onSubmit={handleGrundeinstellungenSubmit} initialName={routeProject?.name} />
 
       <ThreeOptionConfirmDialog
         open={showResetConfirm}

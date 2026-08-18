@@ -7,21 +7,35 @@ import type { ContainerConfig } from "../config/types";
 
 const MM_TO_M = 1 / 1000;
 
-// Jonas' Fehlerbericht 2026-08-18: "die groesseren Container sehen kleiner
-// aus, es soll aber alles zueinander passen" - eine PRO Preset berechnete
-// Kameradistanz (fruehere Version: an lengthM/widthM DIESES Presets
-// angepasst) zoomt bei einem kurzen Preset automatisch NAEHER heran und bei
-// einem langen automatisch WEITER weg, damit beide gleich viel vom eigenen
-// Bildausschnitt fuellen - das macht sie zwar einzeln gut lesbar, zerstoert
-// aber jeden Groessenvergleich ZWISCHEN den Karten (ein 40-Fuß-Container
-// wirkte dadurch kleiner als ein 10-Fuß-Container). Fix: EINE feste,
-// geteilte Distanz fuer ALLE Presets, kalibriert auf das laengste Preset der
-// Familie (18m, siehe constants/startPresets.ts) - kuerzere Presets erscheinen
-// dadurch bewusst kleiner im Bild, aber alle acht Karten zueinander im
-// richtigen Groessenverhaeltnis (10 Fuß sichtbar kleiner als 40 Fuß, wie in
-// echt). Gleiche Formel wie zuvor (Scene.tsx-Herleitung), nur einmalig fuer
-// max(18, 2.99) statt pro Instanz ausgewertet.
-const SHARED_CAMERA_DISTANCE = 18 * 1.5 + 3;
+// Kameradistanz-Herleitung, zweite Runde (Jonas' Fehlerbericht 2026-08-18,
+// zwei aufeinanderfolgende, gegenlaeufige Rueckmeldungen):
+// 1. Urspruenglich (Scene.tsx-Formel) PRO Preset an dessen eigener Laenge
+//    berechnet - zoomte kurze Presets automatisch NAEHER heran, lange
+//    automatisch WEITER weg, bis beide gleich viel vom eigenen Ausschnitt
+//    fuellten. Einzeln gut lesbar, aber jeder Groessenvergleich ZWISCHEN
+//    Karten ging verloren ("die groesseren Container sehen kleiner aus").
+// 2. Fix Runde 1: EINE feste, geteilte Distanz fuer alle acht Presets,
+//    kalibriert auf das laengste (18m) - jetzt technisch "echt
+//    massstabsgetreu", aber das kuerzeste Preset (10 Fuß, ~3m) wurde dadurch
+//    ca. 6x kleiner dargestellt als das laengste (exaktes Realverhaeltnis
+//    18m/2,99m) - "die Vorschau ist dort viel viel zu klein".
+// Fix Runde 2 (hier): bewusster Kompromiss statt eines der beiden Extreme -
+// wieder PRO Preset berechnet, aber mit einem GROSSEN festen Sockelbetrag
+// (9.5) gegenueber einer nur noch flachen Laengen-Steigung (1.25 statt
+// vorher 1.5 als voller Multiplikator ohne Sockel) - dadurch faellt der
+// Grossteil der Distanz auf den fuer ALLE Presets GLEICHEN Sockel, nur ein
+// kleinerer Teil variiert noch mit der tatsaechlichen Laenge. Ergebnis:
+// das laengste Preset (18m) bleibt bei ca. 32 (Scene.tsx-aehnliche
+// Sicherheitsmarge, damit nichts am Bildrand abgeschnitten wird), das
+// kuerzeste (10 Fuß, ~3m) landet bei ca. 13 statt vorher ~30 (Runde 1) oder
+// ~7,5 (Original) - sichtbar kleiner als 18m (Groessenverhaeltnis bleibt
+// erkennbar, ca. 2,4x statt des extremen echten 6x), aber nicht mehr auf
+// einen kaum erkennbaren Punkt zusammengeschrumpft. Feste Werte, kein
+// Zusammenhang mehr mit Scene.tsx's Formel - falls sich das
+// Preset-Groessenspektrum spaeter aendert (z.B. ein Preset >18m), ggf. neu
+// kalibrieren.
+const THUMBNAIL_DISTANCE_BASE = 9.5;
+const THUMBNAIL_DISTANCE_SLOPE = 1.25;
 
 interface StartPresetThumbnailProps {
   config: ContainerConfig;
@@ -49,7 +63,10 @@ export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: Sta
     setSnapshot(null);
   }, [config, outsideColor]);
 
+  const lengthM = config.size.length * MM_TO_M;
+  const widthM = config.size.width * MM_TO_M;
   const heightM = config.size.height * MM_TO_M;
+  const cameraDistance = THUMBNAIL_DISTANCE_BASE + THUMBNAIL_DISTANCE_SLOPE * Math.max(lengthM, widthM);
 
   const handleCaptured = useCallback((dataUrl: string) => setSnapshot(dataUrl), []);
 
@@ -66,7 +83,7 @@ export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: Sta
           // ohne AdaptiveDpr/PerformanceMonitor fuer eine derart kurzlebige
           // Szene extra bemuehen zu muessen.
           dpr={2}
-          camera={{ position: [SHARED_CAMERA_DISTANCE, SHARED_CAMERA_DISTANCE * 0.55, SHARED_CAMERA_DISTANCE], fov: 40 }}
+          camera={{ position: [cameraDistance, cameraDistance * 0.55, cameraDistance], fov: 40 }}
           style={{ width: sizePx, height: sizePx }}
         >
           <ambientLight intensity={0.9} />
