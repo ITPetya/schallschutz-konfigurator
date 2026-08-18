@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { StartPresetCard } from "./StartPresetCard";
+import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
 import { AnimatedButton } from "./AnimatedButton";
 import { ArrowLeftIcon } from "./icons/ArrowLeftIcon";
 import { ArrowRightIcon } from "./icons/ArrowRightIcon";
 import { START_PRESETS } from "../constants/startPresets";
+// Groesse muss exakt der visible-card-Groesse entsprechen (StartPresetCard.tsx),
+// sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
+// tatsaechliche Anzeigegroesse zwischengespeichert.
+const PRELOAD_SIZE_PX = 324;
 
 // Wie viele Karten gleichzeitig sichtbar sind (Jonas' Vorgabe 2026-08-18,
 // nach Skizze: vier volle Karten in der Reihe).
@@ -62,6 +67,34 @@ export function StartPresetCarousel() {
     // gap-4 -> gap-3 (Jonas' Vorgabe 2026-08-18: gesamter Preset-Bereich
     // soll kompakter wirken).
     <div className="flex flex-col items-center gap-3">
+      {/* Jonas' Vorgabe 2026-08-18 ("Presets pre-loaden, damit die Karussell-
+          Animation geschmeidig ist"): rendert alle acht Presets (nicht nur
+          die aktuell sichtbaren vier) EINMALIG in ihrer Standardfarbe
+          unsichtbar durch - jede schreibt ihren fertigen Snapshot in den
+          geteilten Cache (presetThumbnailCache.ts, siehe StartPresetThumbnail.tsx).
+          Ruckt eine Karte spaeter per Pfeiltaste neu ins Sichtfeld, findet
+          StartPresetCard/-Thumbnail dort meist schon einen fertigen Eintrag
+          und zeigt ihn SOFORT an, statt jedesmal einen neuen CSG-Aufbau +
+          Snapshot-Einfang abzuwarten (das war das gemeldete Ruckeln). Bewusst
+          unsichtbar statt display:none (ein WebGL-Canvas ohne echte
+          Layout-Groesse rendert nicht zuverlaessig) - opacity-0 behaelt die
+          echten Pixel-Masse, waehrend pointer-events-none/aria-hidden es aus
+          Interaktion und Screenreadern heraushalten. Kein eigener
+          Suspense-Fallback noetig (fallback={null}): diese Instanzen sollen
+          nirgends sichtbar etwas anzeigen, nur im Hintergrund den Cache
+          fuellen. */}
+      <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
+        {START_PRESETS.map((preset) => (
+          <Suspense key={preset.id} fallback={null}>
+            <LazyStartPresetThumbnail
+              config={preset.config}
+              outsideColor={preset.config.outsideColor}
+              cacheKey={`${preset.id}:${preset.config.outsideColor}`}
+              sizePx={PRELOAD_SIZE_PX}
+            />
+          </Suspense>
+        ))}
+      </div>
       <p className="font-heading text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Presets</p>
       <div className="flex items-center gap-3">
         <AnimatedButton

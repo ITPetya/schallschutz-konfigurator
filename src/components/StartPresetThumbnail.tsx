@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Container } from "./Container";
 import { DisplaySettingsProvider } from "../context/DisplaySettingsContext";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
+import { getCachedThumbnail, setCachedThumbnail } from "../utils/presetThumbnailCache";
 import type { ContainerConfig } from "../config/types";
 
 const MM_TO_M = 1 / 1000;
@@ -44,6 +45,16 @@ interface StartPresetThumbnailProps {
   // Farbwechsel den Snapshot neu ausloest, ohne das Preset selbst zu
   // mutieren.
   outsideColor: string;
+  // Jonas' Vorgabe 2026-08-18 ("Presets pre-loaden, damit die Karussell-
+  // Animation geschmeidig ist"): Schluessel in den geteilten Cache
+  // (presetThumbnailCache.ts) - eindeutig pro Preset+Farbe (StartPresetCard.tsx
+  // baut ihn aus preset.id + outsideColor). Ein bereits vorhandener Eintrag
+  // wird SOFORT angezeigt, kein neuer CSG-Aufbau/Snapshot noetig - das ist
+  // der eigentliche Beschleunigungseffekt, den StartPresetCarousel.tsx's
+  // Vorlade-Batch (siehe dort) ausnutzt: es rendert alle acht Presets
+  // einmalig unsichtbar durch, damit dieser Cache schon gefuellt ist, BEVOR
+  // eine Karte durchs Karussell ins Sichtfeld ruckt.
+  cacheKey: string;
   sizePx?: number;
 }
 
@@ -54,21 +65,30 @@ interface StartPresetThumbnailProps {
 // Presets gleichzeitig als volle r3f-Szenen (inkl. CSG-Aufbau) waeren fuer
 // eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
 // nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
-export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: StartPresetThumbnailProps) {
-  const [snapshot, setSnapshot] = useState<string | null>(null);
+export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 324 }: StartPresetThumbnailProps) {
+  const [snapshot, setSnapshot] = useState<string | null>(() => getCachedThumbnail(cacheKey) ?? null);
 
-  // Neu einfangen, sobald sich die Aussenfarbe (Klick auf einen der drei
-  // Farbpunkte) oder das Preset selbst aendert - siehe StartPresetCard.tsx.
+  // Neu einfangen, sobald sich der Cache-Schluessel (Aussenfarbe-Klick auf
+  // der Karte, oder ein anderes Preset) aendert - erst im Cache nachsehen
+  // (sofortige Anzeige bei Treffer, z.B. weil der Vorlade-Batch das schon
+  // erledigt hat oder dieselbe Karte vorher schon einmal sichtbar war),
+  // sonst auf null setzen und unten neu rendern/einfangen.
   useEffect(() => {
-    setSnapshot(null);
-  }, [config, outsideColor]);
+    setSnapshot(getCachedThumbnail(cacheKey) ?? null);
+  }, [cacheKey]);
 
   const lengthM = config.size.length * MM_TO_M;
   const widthM = config.size.width * MM_TO_M;
   const heightM = config.size.height * MM_TO_M;
   const cameraDistance = THUMBNAIL_DISTANCE_BASE + THUMBNAIL_DISTANCE_SLOPE * Math.max(lengthM, widthM);
 
-  const handleCaptured = useCallback((dataUrl: string) => setSnapshot(dataUrl), []);
+  const handleCaptured = useCallback(
+    (dataUrl: string) => {
+      setCachedThumbnail(cacheKey, dataUrl);
+      setSnapshot(dataUrl);
+    },
+    [cacheKey],
+  );
 
   return (
     <div style={{ width: sizePx, height: sizePx }} className="mx-auto flex items-center justify-center">

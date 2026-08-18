@@ -116,17 +116,26 @@ export function StartPage() {
     // dessen normalem (nicht positioniertem) bg-white gemalt, das faelschlich
     // "spaeter" gezeichnet wird (Debugging-Fund 2026-07-22).
     //
-    // Jonas' Vorgabe 2026-08-18 (Preset-Karussell): der Seiteninhalt kann
-    // jetzt hoeher als der Viewport werden (acht Preset-Karten) -
-    // overflow-y-auto statt overflow-hidden, damit die Seite dann scrollt
-    // statt Inhalt abzuschneiden (die horizontale Bleed-Begruendung fuer
-    // overflow-hidden oben gilt weiter, deshalb overflow-x bewusst separat
-    // weiter hidden). justify-center bewusst entfernt: bei ueberlaufendem
-    // Inhalt in einem scrollenden Flex-Container ist der Seitenanfang mit
-    // justify-center browseruebergreifend teils nicht mehr zuverlaessig
-    // erreichbar ("scroll to safe center"-Eigenheit) - grosszuegiges
-    // vertikales Padding wirkt bei kurzem Inhalt optisch aehnlich zentriert,
-    // bleibt aber bei langem Inhalt zuverlaessig durchscrollbar.
+    // Jonas' Fehlerbericht 2026-08-18 ("permanente Scrollbar, beim Scrollen
+    // kommt noch ein Stueck graue/im Darkmode weisse Leiste"): das Karussell
+    // zeigt inzwischen (siehe StartPresetCarousel.tsx) immer nur ein festes
+    // Fenster von 4 Karten, waechst also NICHT mehr mit der Gesamtzahl der
+    // Presets - der urspruengliche Grund fuer overflow-y-auto ("acht
+    // Preset-Karten koennen die Seite hoeher als den Viewport machen")
+    // entfaellt damit. Zurueck auf overflow-hidden (wie vor dem Karussell):
+    // faengt zugleich einen kleinen, sonst schwer zu lokalisierenden
+    // Hoehen-Ueberschuss ab, der die Seite geringfuegig ueber 100% wachsen
+    // liess - absolut positionierte Elemente (die Hintergrund-Ebenen unten)
+    // sind IMMER exakt so gross wie die eigene (statische) Box dieses
+    // Wurzel-Elements, wachsen NICHT mit dessen Scroll-Inhalt mit; beim
+    // Herunterscrollen wurde deshalb ein Stueck OHNE jede eigene
+    // Hintergrund-Ebene sichtbar - darunter liegt nichts Themenfarbiges mehr,
+    // nur noch der nackte (nie explizit gesetzte, immer weisse) <body>-
+    // Hintergrund, daher weiss im Darkmode statt dunkelgrau. overflow-hidden
+    // schneidet diesen Rest jetzt einfach ab, unabhaengig von der genauen
+    // Pixel-Ursache. justify-center bewusst weiterhin nicht auf dieser
+    // obersten Ebene (siehe Kommentar am flex-1-Bereich weiter unten fuer die
+    // Zentrierung).
     //
     // Jonas' Vorgabe 2026-08-18 (Nachbesserung): der obere "Konfiguration
     // starten"-Bereich soll nur noch ca. 40-45% der Seite einnehmen, der
@@ -139,7 +148,7 @@ export function StartPage() {
     // gap-6 -> gap-2 (der Hauptabstand zur Mittellinie kommt jetzt ohnehin
     // aus dem h-1/2-Block/justify-end unten, dieser Rest-Abstand soll nur
     // noch minimal sein).
-    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
+    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-hidden px-6 py-8 text-center">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand

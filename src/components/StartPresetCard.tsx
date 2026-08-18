@@ -1,21 +1,13 @@
-import { lazy, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedButton } from "./AnimatedButton";
 import { ArrowRightIcon } from "./icons/ArrowRightIcon";
 import { PlusIcon } from "./icons/PlusIcon";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./primitives/DropdownMenu";
+import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
 import { RAL_STANDARD_COLORS, RAL_SPECIAL_COLORS } from "../constants/ralColors";
 import type { StartPreset } from "../constants/startPresets";
 import type { ProjectConfig } from "../config/projectTypes";
-
-// Eigener lazy Chunk (Jonas' Vorgabe 2026-08-18, siehe App.tsx-Kommentar zum
-// selben Prinzip bei WorkspacePage/InternalPage): StartPresetThumbnail.tsx
-// zieht ueber Container.tsx den kompletten three.js/r3f/three-bvh-csg-Stack
-// nach (>1MB minifiziert) - StartPage.tsx wird (anders als WorkspacePage)
-// bewusst NICHT lazy geladen (sie ist die allererste Seite, die jeder Nutzer
-// sieht), ein direkter Eager-Import hier wuerde also GENAU den 2026-07-23
-// behobenen Fehler wiederholen (voller 3D-Stack schon auf der Startseite).
-const StartPresetThumbnail = lazy(() => import("./StartPresetThumbnail").then((m) => ({ default: m.StartPresetThumbnail })));
 
 interface StartPresetCardProps {
   preset: StartPreset;
@@ -61,15 +53,20 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
     navigate("/projekt", { state: { project, fresh: true } });
   }
 
+  // Jonas' Vorgabe 2026-08-18 ("Presets pre-loaden"): eindeutiger Schluessel
+  // in den geteilten Vorschau-Cache (presetThumbnailCache.ts) - derselbe
+  // Schluessel, den der Vorlade-Batch in StartPresetCarousel.tsx fuer die
+  // Standardfarbe jedes Presets befuellt, siehe dort.
+  const cacheKey = `${preset.id}:${outsideColor}`;
+
   return (
-    // Jonas' Vorgabe 2026-08-18: Vorschau ca. 50% groesser (144 -> 216px,
-    // siehe sizePx unten) - Karte dafuer entsprechend breiter (w-52 -> w-60),
-    // aber mit knapperem Innenabstand/Abstand (p-4->p-3, gap-3->gap-2), da
-    // der gesamte Preset-Bereich gleichzeitig kompakter werden soll.
-    <div className="flex w-60 shrink-0 flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+    // Jonas' Vorgabe 2026-08-18: Vorschau nochmal ca. 50% groesser
+    // (216 -> 324px, siehe sizePx unten) - Karte dafuer entsprechend breiter
+    // (w-60 -> w-[350px]).
+    <div className="flex w-[350px] shrink-0 flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
       <p className="font-heading text-sm font-bold text-brand-dark dark:text-brand-light">{preset.label} Container</p>
-      <Suspense fallback={<div className="h-[216px] w-[216px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
-        <StartPresetThumbnail config={preset.config} outsideColor={outsideColor} sizePx={216} />
+      <Suspense fallback={<div className="h-[324px] w-[324px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
+        <LazyStartPresetThumbnail config={preset.config} outsideColor={outsideColor} cacheKey={cacheKey} sizePx={324} />
       </Suspense>
       <div className="flex items-center gap-2.5">
         {/* Jonas' Fehlerbericht 2026-08-18: Signalgrau (RAL 7004) zuerst,
