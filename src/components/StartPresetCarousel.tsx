@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { StartPresetCard } from "./StartPresetCard";
 import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
@@ -11,6 +11,11 @@ import { schedulePreload } from "../utils/idlePreload";
 // sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
 // tatsaechliche Anzeigegroesse zwischengespeichert.
 const PRELOAD_SIZE_PX = 216;
+// Breite des Rand-Verlaufs in Pixeln (Jonas' Fehlerbericht 2026-08-18,
+// fuenfte Runde - siehe Kommentar am Karussell-Wrapper weiter unten fuer die
+// volle Begruendung, warum das ein fester Pixel-Puffer statt eines
+// Prozentsatzes der Gesamtbreite sein muss).
+const FADE_ZONE_PX = 32;
 
 // Wie viele Karten gleichzeitig sichtbar sind (Jonas' Vorgabe 2026-08-18,
 // nach Skizze: vier volle Karten in der Reihe).
@@ -173,17 +178,29 @@ export function StartPresetCarousel() {
             beim Verlassen des Sichtbereichs zu ploetzlich weg, soll eine
             imaginaere Linie kurz vor dem Pfeil geben, hinter der sie
             Schritt fuer Schritt verschwinden"): mask-image mit einem
-            Verlauf zu transparent an beiden Raendern - eine Karte, die
-            durch den Rand-Bereich gleitet (egal ob im Ruhezustand am
-            aeussersten Platz oder waehrend der Schlitz-Animation), blendet
-            dadurch stufenlos aus, statt vom harten overflow-hidden-Rand
-            (siehe Begruendung oben) schlagartig gekappt zu werden. */}
+            Verlauf zu transparent an beiden Raendern.
+            Jonas' Fehlerbericht 2026-08-18, fuenfte Runde ("die beiden
+            Previews am Rand sind jetzt schon angeschnitten/nicht gut
+            sichtbar"): die erste Fassung liess den Verlauf ueber 10% der
+            GESAMTEN Wrapper-Breite laufen - da der Wrapper exakt auf die
+            vier Karten zugeschnitten ist, faerbte das auch die aeusserste
+            Karte im RUHEZUSTAND sichtbar an, nicht nur eine tatsaechlich
+            durchgleitende. Fix: fester Pixel-Puffer (FADE_ZONE_PX) als
+            Innenabstand des Wrappers PLUS ein Verlauf, der exakt in diesem
+            Puffer (nicht als Prozentsatz der Gesamtbreite) verlaeuft - die
+            Karten selbst sitzen dadurch immer vollstaendig im blickdichten
+            Mittelbereich, nur der leere Randstreifen (bzw. eine Karte, die
+            waehrend der Schlitz-Animation TATSAECHLICH durch genau diesen
+            Streifen faehrt) blendet aus. */}
         <div
-          className="overflow-hidden"
-          style={{
-            maskImage: "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-          }}
+          className="overflow-hidden px-[var(--fade-zone)]"
+          style={
+            {
+              "--fade-zone": `${FADE_ZONE_PX}px`,
+              maskImage: `linear-gradient(to right, transparent 0, black var(--fade-zone), black calc(100% - var(--fade-zone)), transparent 100%)`,
+              WebkitMaskImage: `linear-gradient(to right, transparent 0, black var(--fade-zone), black calc(100% - var(--fade-zone)), transparent 100%)`,
+            } as CSSProperties
+          }
         >
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.div
