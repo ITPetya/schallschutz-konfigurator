@@ -53,6 +53,14 @@ export function WallFaceMarkers({ faces, selected, onPick, sectionPlane }: WallF
           <group key={f.panel} position={f.position} rotation={f.rotation}>
             {/* Klick-/Hover-Bereich - deckt die GESAMTE Flaeche ab, unsichtbar. */}
             <mesh
+              // Siehe MeasureMarkers.tsx fuer die volle Begruendung (Jonas'
+              // Fehlerbericht 2026-08-18): onPointerDown MUSS separat
+              // gestoppt werden, sonst laeuft das Event zur Container-
+              // Grundflaeche dahinter durch (Auswahl/Drag), auch wenn
+              // onClick bereits gestoppt ist. Betrifft hier zwar nur den
+              // "Einbauten hinzufügen"-Assistenten (kein Baugruppen-
+              // Kontext), aus Konsistenz/Robustheit trotzdem ergaenzt.
+              onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
               onClick={(e: ThreeEvent<MouseEvent>) => {
                 e.stopPropagation();
                 onPick(f.panel);

@@ -51,6 +51,13 @@ export function SelectableFaceMarkers({ faces, selectedId, onSelect, onOpen, sec
         return (
           <group key={f.id} position={f.position} rotation={f.rotation}>
             <mesh
+              // Siehe MeasureMarkers.tsx fuer die volle Begruendung (Jonas'
+              // Fehlerbericht 2026-08-18): ohne eigenen onPointerDown-Handler
+              // lief das pointerdown-Event ungehindert zur Baugruppen-
+              // Container-Grundflaeche dahinter durch (die darauf mit
+              // Auswahl/Drag reagiert), auch wenn onClick bereits korrekt
+              // gestoppt wurde - r3f behandelt jeden Event-Typ unabhaengig.
+              onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
               onClick={(e: ThreeEvent<MouseEvent>) => {
                 e.stopPropagation();
                 onSelect(f.id);

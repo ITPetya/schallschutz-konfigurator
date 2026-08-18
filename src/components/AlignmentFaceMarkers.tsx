@@ -69,6 +69,12 @@ export function AlignmentFaceMarkers({ faces, selected, onPick, sectionPlane, se
           <group key={key} position={position} rotation={[0, rotationY, 0]}>
             {/* Klick-/Hover-Bereich - deckt die GESAMTE Flaeche ab, unsichtbar. */}
             <mesh
+              // Siehe MeasureMarkers.tsx fuer die volle Begruendung (Jonas'
+              // Fehlerbericht 2026-08-18): onPointerDown MUSS separat
+              // gestoppt werden, sonst laeuft das Event zur Container-
+              // Grundflaeche dahinter durch (Auswahl/Drag), auch wenn
+              // onClick bereits gestoppt ist.
+              onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
               onClick={(e: ThreeEvent<MouseEvent>) => {
                 e.stopPropagation();
                 onPick(f);

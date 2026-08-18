@@ -122,6 +122,18 @@ export function MeasureMarkers({ points, selected, onPick, unit, sectionPlane }:
           <mesh
             key={p.id}
             position={p.position}
+            // Jonas' Fehlerbericht 2026-08-18 ("Punkte auswaehlen waehlt/
+            // entwaehlt dabei Container, als wuerde man durchklicken"):
+            // onClick allein stoppt nur DIESES eine Event - r3f dispatcht
+            // pointerdown/pointerup/click als GETRENNTE Events an ALLE
+            // getroffenen Objekte entlang des Rays (naeheste zuerst), bis
+            // eines davon fuer GENAU DIESEN Event-Typ stopPropagation()
+            // ruft. Die Baugruppen-Container-Grundflaeche (InstanceGroup in
+            // ProjectScene3D.tsx) startet Auswahl+Drag ueber onPointerDown,
+            // NICHT onClick - ohne einen eigenen onPointerDown-Handler HIER
+            // lief das pointerdown ungehindert an dieser Kugel vorbei zur
+            // Grundflaeche dahinter durch.
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation();
               onPick(p);

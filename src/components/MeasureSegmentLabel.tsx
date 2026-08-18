@@ -41,7 +41,44 @@ export function MeasureSegmentLabel({ from, to, meters, prefix, unit, onToggle }
       <div
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onClick={onToggle}
+        // Jonas' Fehlerbericht 2026-08-18 ("Direkt/XYZ-Umschalter geht
+        // nicht mehr, Container werden dabei aus-/abgewaehlt"): drei's
+        // <Html> haengt dieses <div> als ECHTES DOM-Geschwisterelement
+        // neben den <canvas> (in denselben Wrapper, den r3f per
+        // events.connect() fuer sein EIGENES natives Pointer-Event-System
+        // benutzt - siehe react-three-fiber/dist/events-*.js: connect()
+        // haengt die Listener an GENAU dieses Wrapper-Element, nicht an
+        // den <canvas> selbst). Ein Klick HIER bubbelt deshalb ganz normal
+        // (natives DOM-Bubbling) zu diesem Wrapper hoch und wird von r3f's
+        // Listener MIT VERARBEITET, obwohl er gar nicht auf dem Canvas
+        // stattfand - r3f berechnet die Klick-Position dabei ueber
+        // event.offsetX/offsetY, die (per Browser-Spezifikation) relativ
+        // zu event.target sind, hier also relativ zu DIESEM kleinen
+        // Label statt zum Canvas - das ergibt voellig verzerrte
+        // Bildschirmkoordinaten, mit denen r3f trotzdem einen echten
+        // Raycast in die Szene schiesst. Landet der dabei zufaellig auf
+        // NICHTS Sinnvollem (haeufigster Fall), feuert seit dem "Klick ins
+        // Leere loescht Auswahl"-Feature (2026-08-17) Canvas'
+        // onPointerMissed -> clearSelection() -> die gerade gewaehlten
+        // Messpunkte verschwinden im selben Klick wieder, WAEHREND der
+        // Umschalter selbst (das setMode() unten) tatsaechlich ganz normal
+        // feuert - sieht dadurch aus wie "der Wechsel klappt nicht",
+        // obwohl er kurz VOR dem Verschwinden der ganzen Bemassung
+        // durchaus passiert. Landet der Geister-Raycast stattdessen auf
+        // einem Baugruppen-Container, waehlt/entwaehlt er ihn - "Container
+        // werden dabei ausgewaehlt, als wuerde man durchklicken". Fix:
+        // stopPropagation auf JEDEM nativen Pointer-Event dieses Labels,
+        // damit gar nichts mehr bis zu r3f's Listener hochblubbert - der
+        // reine React-onClick-Handler (setMode) funktioniert davon
+        // unabhaengig weiterhin normal (React ruft ihn synchron beim
+        // Erreichen dieses Elements auf, nicht erst am Ende der nativen
+        // Bubble-Kette).
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
         className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-brand bg-white/95 px-2.5 py-1 text-xs font-semibold text-brand-dark shadow-md dark:bg-slate-800/95 dark:text-brand-light"
       >
         {prefix && <span className="text-brand-light">{prefix}</span>}
