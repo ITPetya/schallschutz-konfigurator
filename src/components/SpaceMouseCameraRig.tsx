@@ -72,9 +72,20 @@ interface SpaceMouseCameraRigProps {
  * vertauscht, siehe unten): Translation x (links/rechts kippen) -> Schwenk
  * horizontal, Translation z (Kappe hoch/runter druecken) -> Schwenk
  * vertikal, Translation y (Kappe vor/zurueck kippen) -> Zoom (Dolly),
- * Rotation -> Orbit. Die Roll-Achse (rz) hat in OrbitControls'
- * Kugelkoordinaten-Modell keine Entsprechung (keine Kamera-Rollachse um die
- * Blickrichtung) und bleibt deshalb ungenutzt.
+ * Rotation rx (Kappe vor/zurueck neigen) -> vertikale Umkreisung. Die
+ * Roll-Achse (rz) hat in OrbitControls' Kugelkoordinaten-Modell ohnehin
+ * keine Entsprechung (keine Kamera-Rollachse um die Blickrichtung) und
+ * bleibt deshalb ungenutzt.
+ *
+ * Jonas' Fehlerbericht 2026-08-18: ry (Kappe seitlich drehen/"twisten",
+ * bisher horizontale Umkreisung) ENTFERNT - auf seiner Hardware loest das
+ * Kippen der Kappe nach rechts/links (physisch naeher an Roll als an Twist)
+ * ebenfalls ein ry-Signal aus, obwohl der Viewer diese Drehung gar nicht
+ * zulaesst (OrbitControls kennt keine Rollachse, siehe oben) - fuehlte sich
+ * an wie eine Drehung, die "eigentlich gesperrt" sein sollte. Da Maus-Drag
+ * horizontales Umkreisen weiterhin uneingeschraenkt bietet, bewusst OHNE
+ * Ersatz-Zuordnung auf eine andere Achse - ry wird unten (wie rz) nicht
+ * mehr gelesen/geglaettet.
  *
  * Jonas' Fehlerbericht 2026-08-12: y (vor/zurueck) und z (hoch/runter) waren
  * vertauscht - Vor/Zurueck-Druck bewegte das Objekt hoch/runter (Pan) statt
@@ -119,7 +130,9 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
     // Geglaettete Achsenwerte (Jonas' Fehlerbericht 2026-08-12: "es ruckelt
     // an Stellen noch") - siehe SMOOTHING_TAU_S weiter oben. Persistiert
     // ueber Frames hinweg in diesem Ref, nicht neu angelegt pro Aufruf.
-    smoothed: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
+    // Kein ry mehr (Jonas' Fehlerbericht 2026-08-18, siehe Funktionskommentar
+    // oben) - genau wie rz wird es unten gar nicht mehr gelesen.
+    smoothed: { x: 0, y: 0, z: 0, rx: 0 },
   }).current;
 
   useFrame((_state, delta) => {
@@ -138,28 +151,26 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
     s.y += (normalizeAxis(a.y) - s.y) * alpha;
     s.z += (normalizeAxis(a.z) - s.z) * alpha;
     s.rx += (normalizeAxis(a.rx) - s.rx) * alpha;
-    s.ry += (normalizeAxis(a.ry) - s.ry) * alpha;
 
     // Erst NACH dem Glaetten pruefen, ob ueberhaupt noch etwas zu tun ist -
     // sonst wuerde ein frisch losgelassener Griff die Kamera mit dem
     // zuletzt geglaetteten (noch nicht auf 0 abgeklungenen) Wert
     // einfrieren, statt sanft auszurollen.
     const EPS = 1e-4;
-    if (Math.abs(s.x) < EPS && Math.abs(s.y) < EPS && Math.abs(s.z) < EPS && Math.abs(s.rx) < EPS && Math.abs(s.ry) < EPS) return;
+    if (Math.abs(s.x) < EPS && Math.abs(s.y) < EPS && Math.abs(s.z) < EPS && Math.abs(s.rx) < EPS) return;
 
     const x = s.x;
     const y = s.y;
     const z = s.z;
     const rx = s.rx;
-    const ry = s.ry;
     const target = controls.target;
 
-    // Orbit (Rotation): ry -> horizontale Umkreisung (theta), rx -> vertikale
-    // Umkreisung (phi), um das aktuelle target.
-    if (rx !== 0 || ry !== 0) {
+    // Orbit (Rotation): rx -> vertikale Umkreisung (phi) um das aktuelle
+    // target. Keine horizontale Umkreisung (theta) mehr ueber die SpaceMouse
+    // (Jonas' Fehlerbericht 2026-08-18, siehe Funktionskommentar oben).
+    if (rx !== 0) {
       scratch.offset.copy(camera.position).sub(target);
       scratch.spherical.setFromVector3(scratch.offset);
-      scratch.spherical.theta -= ry * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
       scratch.spherical.phi -= rx * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
       const EPS_POLE = 1e-3;
       scratch.spherical.phi = THREE.MathUtils.clamp(scratch.spherical.phi, EPS_POLE, Math.PI - EPS_POLE);
@@ -198,7 +209,7 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
       // gleich danach nochmal (mit identischem Ergebnis) macht - hier nur
       // vorgezogen, damit die folgende Rechts-/Auf-Achsen-Extraktion aus
       // camera.matrix bereits aktuell ist.
-      if (rx !== 0 || ry !== 0) {
+      if (rx !== 0) {
         camera.lookAt(target);
         camera.updateMatrix();
       }
