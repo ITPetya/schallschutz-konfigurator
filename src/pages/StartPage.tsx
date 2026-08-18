@@ -7,6 +7,7 @@ import { UploadIcon } from "../components/icons/UploadIcon";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { Shine } from "../components/primitives/Shine";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
+import { StartPresetCarousel } from "../components/StartPresetCarousel";
 import { useTour } from "../tour/TourContext";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
 import { schedulePreload } from "../utils/idlePreload";
@@ -122,7 +123,19 @@ export function StartPage() {
     // bis zum naechsten Vorfahren, der einen aufmacht, und werden dort HINTER
     // dessen normalem (nicht positioniertem) bg-white gemalt, das faelschlich
     // "spaeter" gezeichnet wird (Debugging-Fund 2026-07-22).
-    <div className="relative z-0 flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-6 text-center">
+    //
+    // Jonas' Vorgabe 2026-08-18 (Preset-Karussell): der Seiteninhalt kann
+    // jetzt hoeher als der Viewport werden (acht Preset-Karten) -
+    // overflow-y-auto statt overflow-hidden, damit die Seite dann scrollt
+    // statt Inhalt abzuschneiden (die horizontale Bleed-Begruendung fuer
+    // overflow-hidden oben gilt weiter, deshalb overflow-x bewusst separat
+    // weiter hidden). justify-center bewusst entfernt: bei ueberlaufendem
+    // Inhalt in einem scrollenden Flex-Container ist der Seitenanfang mit
+    // justify-center browseruebergreifend teils nicht mehr zuverlaessig
+    // erreichbar ("scroll to safe center"-Eigenheit) - grosszuegiges
+    // vertikales Padding wirkt bei kurzem Inhalt optisch aehnlich zentriert,
+    // bleibt aber bei langem Inhalt zuverlaessig durchscrollbar.
+    <div className="relative z-0 flex h-full flex-col items-center gap-8 overflow-y-auto overflow-x-hidden px-6 py-10 text-center">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand
@@ -229,6 +242,10 @@ export function StartPage() {
           bereits gespeicherte Projekte angeschaut werden.
         </p>
       )}
+      {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
+          starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
+          oben: Konfigurieren bleibt dem Handy vorbehalten). */}
+      {!isPhone && <StartPresetCarousel />}
       {/* TEMPORAER, siehe handleOpenDemo oben. */}
       <button
         type="button"
