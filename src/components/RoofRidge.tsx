@@ -1,10 +1,10 @@
-import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, SUBTRACTION } from "three-bvh-csg";
 import type { Opening, OpeningTypeDef } from "../types/openings";
 import { OPENING_TYPES } from "../constants/openingTypes";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { useSectionPlane } from "../context/SectionPlaneContext";
+import { useCachedGeometry, openingsCacheKey } from "../utils/geometryCache";
 
 interface RoofRidgeProps {
   lengthM: number;
@@ -182,7 +182,13 @@ export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) 
   const clippingPlanes = sectionPlane ? [sectionPlane] : [];
   const shaded = viewStyle === "shaded_edges";
 
-  const geometry = useMemo(() => {
+  // Jonas' Vorgabe 2026-08-18 ("Lags fixen, ohne Detailgrad zu verlieren"):
+  // gleiches Cache-Prinzip wie Wall.tsx/CornerCasting.tsx - identische
+  // Container-Instanzen in einer Baugruppe teilen sich diese First-Kappen-
+  // Geometrie statt sie pro Instanz per CSG neu zu berechnen.
+  const geometryKey = `ridge:${lengthM}:${widthM}:${openingsCacheKey(openings)}`;
+
+  const geometry = useCachedGeometry(geometryKey, () => {
     const halfW = widthM / 2;
     const peak = halfW * Math.tan((SLOPE_DEG * Math.PI) / 180);
 
@@ -234,9 +240,11 @@ export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) 
     }
 
     return result.geometry;
-  }, [lengthM, widthM, openings]);
+  });
 
-  const edgeGeometry = useMemo(() => {
+  const edgeGeometryKey = `ridge-edge:${lengthM}:${widthM}:${openingsCacheKey(openings)}`;
+
+  const edgeGeometry = useCachedGeometry(edgeGeometryKey, () => {
     const halfW = widthM / 2;
     const peak = halfW * Math.tan((SLOPE_DEG * Math.PI) / 180);
     const positions = buildWedgeContourEdges(lengthM, halfW, peak, openings, widthM);
@@ -246,7 +254,7 @@ export function RoofRidge({ lengthM, widthM, baseY, openings }: RoofRidgeProps) 
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     return geom;
-  }, [lengthM, widthM, openings]);
+  });
 
   const materialProps = shaded ? { roughness: 1, metalness: 0 } : { roughness: 0.6, metalness: 0.4 };
 

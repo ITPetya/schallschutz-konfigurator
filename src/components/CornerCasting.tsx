@@ -1,9 +1,9 @@
-import { useMemo } from "react";
 import * as THREE from "three";
 import { Brush, Evaluator, ADDITION, SUBTRACTION } from "three-bvh-csg";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useSectionPlane } from "../context/SectionPlaneContext";
 import { useDisplaySettings } from "../context/DisplaySettingsContext";
+import { useCachedGeometry } from "../utils/geometryCache";
 
 interface CornerCastingProps {
   position: [number, number, number];
@@ -204,7 +204,15 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
   // IMMER ein konkretes Array, nie undefined - siehe Wall.tsx-Kommentar dazu.
   const clippingPlanes = sectionPlane ? [sectionPlane] : [];
 
-  const geometry = useMemo(() => {
+  // Jonas' Vorgabe 2026-08-18 ("Lags fixen, ohne Detailgrad zu verlieren"):
+  // diese Geometrie haengt NUR von outwardX/Y/Z ab (siehe Props oben) - der
+  // Eckbeschlag sieht an JEDER der 8 moeglichen Ecken-Ausrichtungen fuer
+  // JEDEN Container identisch aus, unabhaengig von dessen Groesse. Es gibt
+  // also app-weit nur 8 tatsaechlich unterschiedliche Eckbeschlag-Formen -
+  // useCachedGeometry (siehe utils/geometryCache.ts) sorgt dafuer, dass die
+  // teure CSG-Berechnung (3 SUBTRACTION-Aufrufe) pro Kombination nur EINMAL
+  // insgesamt laeuft, nicht einmal pro Container x 8 Ecken.
+  const geometry = useCachedGeometry(`corner:${outwardX},${outwardY},${outwardZ}`, () => {
     let result: Brush = new Brush(new THREE.BoxGeometry(HALF_X * 2, HALF_Y * 2, HALF_Z * 2));
     result.updateMatrixWorld();
 
@@ -237,13 +245,13 @@ export function CornerCasting({ position, outwardX, outwardY, outwardZ }: Corner
     result = evaluator.evaluate(result, sideZBrush, SUBTRACTION);
 
     return mergeVertices(result.geometry);
-  }, [outwardX, outwardY, outwardZ]);
+  });
 
-  const edgeGeometry = useMemo(() => {
+  const edgeGeometry = useCachedGeometry(`corner-edge:${outwardX},${outwardY},${outwardZ}`, () => {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(buildEdgePositions(outwardX, outwardY, outwardZ), 3));
     return geom;
-  }, [outwardX, outwardY, outwardZ]);
+  });
 
   const shaded = viewStyle === "shaded_edges";
   const materialProps = shaded ? { roughness: 1, metalness: 0 } : { roughness: 0.6, metalness: 0.4 };

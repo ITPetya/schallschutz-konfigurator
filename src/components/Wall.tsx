@@ -13,6 +13,7 @@ import { useDisplaySettings } from "../context/DisplaySettingsContext";
 import { UNPAINTED_INSIDE_COLOR, UNPAINTED_MATERIAL_PROPS } from "../constants/unpaintedMaterial";
 import { computeRailLayout } from "../utils/railLayout";
 import { C_RAIL_WIDTH_M, getWallCutDepthM } from "../utils/cRailProfile";
+import { useCachedGeometry, openingsCacheKey } from "../utils/geometryCache";
 
 interface WallProps {
   position: [number, number, number];
@@ -223,7 +224,19 @@ export function Wall({
     [interiorCladding, claddingWidth, panelHeight, openings, claddingInsetV],
   );
 
-  const geometry = useMemo(() => {
+  // Jonas' Vorgabe 2026-08-18 ("Lags fixen, ohne Detailgrad zu verlieren"):
+  // zwei Container-Instanzen mit IDENTISCHER Wand-Konfiguration (Baugruppen-
+  // Ansicht, z. B. mehrfach derselbe Container) erzeugen exakt dieselbe
+  // CSG-Ausschnittgeometrie - useCachedGeometry (utils/geometryCache.ts)
+  // teilt das Ergebnis ueber alle Instanzen, statt es pro Instanz erneut per
+  // Evaluator.evaluate() zu berechnen. Schluessel deckt ALLE Groessen, die
+  // in die Geometrie eingehen, ab (siehe geometry-useMemo-Deps weiter unten,
+  // vor diesem Umbau) - insideColorOverride/paintBothSidesInside bewusst
+  // NICHT im Schluessel, die wirken nur auf Material-FARBEN, nicht auf die
+  // Geometrie selbst.
+  const geometryKey = `wall:${panelWidth}:${panelHeight}:${thickness}:${outwardSign}:${interiorCladding ? 1 : 0}:${claddingInsetU}:${claddingInsetV}:${openingsCacheKey(openings)}`;
+
+  const geometry = useCachedGeometry(geometryKey, () => {
     const wallGeom = new THREE.BoxGeometry(panelWidth, panelHeight, thickness);
     let result: Brush = new Brush(wallGeom);
     result.updateMatrixWorld();
@@ -292,7 +305,7 @@ export function Wall({
     // fuer die Diagonallinien im "Schattiert mit Kanten"-Modus - siehe
     // buildOpeningRimEdges oben fuer den echten Grund und Fix.
     return splitByOutward(mergeVertices(result.geometry), outwardSign);
-  }, [panelWidth, panelHeight, thickness, openings, outwardSign, interiorCladding, railSegments]);
+  });
 
   // Kantenlinien fuer "Schattiert mit Kanten" werden bewusst NICHT mehr aus
   // der CSG-Restgeometrie abgeleitet (siehe buildOpeningRimEdges), sondern
@@ -319,7 +332,11 @@ export function Wall({
   // nur noch bis zur echten Innenecke (wo sie sich mit der ebenso
   // verkleinerten Innenkontur der Nachbarwand trifft), nicht mehr bis in
   // deren Aussenflaeche hinein.
-  const edgeGeometry = useMemo(() => {
+  // Gleiches Cache-Prinzip wie geometryKey oben, eigener Schluessel (reines
+  // Linien-Objekt statt Solid-Mesh, unabhaengiger Cache-Eintrag).
+  const edgeGeometryKey = `wall-edge:${panelWidth}:${panelHeight}:${thickness}:${outwardSign}:${interiorCladding ? 1 : 0}:${claddingInsetU}:${claddingInsetV}:${openingsCacheKey(openings)}`;
+
+  const edgeGeometry = useCachedGeometry(edgeGeometryKey, () => {
     const rectangleEdges = (halfWidth: number, halfHeight: number, z: number): number[] => {
       const corners: [number, number][] = [
         [-halfWidth, -halfHeight],
@@ -375,7 +392,7 @@ export function Wall({
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     return geom;
-  }, [panelWidth, panelHeight, thickness, openings, outwardSign, railSegments]);
+  });
 
   const protrusions = openings.filter((o) => OPENING_TYPES[o.kind].protrusionDepth);
   const doors = openings.filter((o) => OPENING_TYPES[o.kind].isDoor);
