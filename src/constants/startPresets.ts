@@ -54,17 +54,12 @@ function baseConfig(openings: Opening[]): ContainerConfig {
 // naechstliegenden echten Referenz derselben Familie, bewusst schlicht
 // gehalten (keine erfundenen Sonderdurchbrueche) - reine Startpunkte, die
 // beim Klick auf "Konfigurieren" ohnehin voll editierbar sind.
+// Jonas' Vorgabe 2026-08-18 ("die Presets sollen wirklich in der
+// Reihenfolge sein, in der ich sie vorhin angegeben habe"): Array-Reihenfolge
+// entspricht jetzt exakt der Liste aus der urspruenglichen Anfrage ("20 Fuß,
+// 40 Fuß, 7m, 12m, 9,6m, 15m, 18m, 10 Fuß") statt der vorher nach Familie
+// (erst Fuß, dann Meter, jeweils klein->gross) sortierten Reihenfolge.
 export const START_PRESETS: StartPreset[] = [
-  {
-    id: "10ft",
-    label: "10 Fuß",
-    config: {
-      ...baseConfig([
-        { id: "preset-10ft-door", kind: "door_custom_single", panel: "front", u: 0, v: 170, width: 904, height: 1918, hinge: "left" },
-      ]),
-      size: { length: 2991, width: 2438, height: 2591 },
-    },
-  },
   {
     id: "20ft",
     label: "20 Fuß",
@@ -105,6 +100,18 @@ export const START_PRESETS: StartPreset[] = [
     },
   },
   {
+    id: "12m",
+    label: "12m",
+    config: {
+      ...baseConfig([
+        { id: "preset-12m-door", kind: "door_double", panel: "front", u: 0, v: 170, width: 2234, height: 2530 },
+        { id: "preset-12m-side-door-1", kind: "door_single_1918", panel: "left", u: 3000, v: 170, width: 904, height: 1918 },
+        { id: "preset-12m-side-door-2", kind: "door_single_1918", panel: "left", u: 0, v: 170, width: 904, height: 1918 },
+      ]),
+      size: { length: 12000, width: 2990, height: 2990 },
+    },
+  },
+  {
     id: "9_6m",
     label: "9,6m",
     // Exakt aus 8eb8121c-96m.sszprojekt uebernommen.
@@ -117,18 +124,6 @@ export const START_PRESETS: StartPreset[] = [
         { id: "preset-96m-cable", kind: "cable", panel: "back", u: -1000, v: 2500, width: 250, height: 250 },
       ]),
       size: { length: 9600, width: 2990, height: 2990 },
-    },
-  },
-  {
-    id: "12m",
-    label: "12m",
-    config: {
-      ...baseConfig([
-        { id: "preset-12m-door", kind: "door_double", panel: "front", u: 0, v: 170, width: 2234, height: 2530 },
-        { id: "preset-12m-side-door-1", kind: "door_single_1918", panel: "left", u: 3000, v: 170, width: 904, height: 1918 },
-        { id: "preset-12m-side-door-2", kind: "door_single_1918", panel: "left", u: 0, v: 170, width: 904, height: 1918 },
-      ]),
-      size: { length: 12000, width: 2990, height: 2990 },
     },
   },
   {
@@ -153,6 +148,16 @@ export const START_PRESETS: StartPreset[] = [
         { id: "preset-18m-side-door-2", kind: "door_single_1918", panel: "left", u: 0, v: 170, width: 904, height: 1918 },
       ]),
       size: { length: 18000, width: 2990, height: 2990 },
+    },
+  },
+  {
+    id: "10ft",
+    label: "10 Fuß",
+    config: {
+      ...baseConfig([
+        { id: "preset-10ft-door", kind: "door_custom_single", panel: "front", u: 0, v: 170, width: 904, height: 1918, hinge: "left" },
+      ]),
+      size: { length: 2991, width: 2438, height: 2591 },
     },
   },
 ];

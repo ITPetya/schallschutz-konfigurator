@@ -165,7 +165,14 @@ export function StartPage() {
             Kollisions-Fix liegt aber in der Preset-Zone weiter unten:
             justify-center dort liess ueberlaufenden Inhalt hier HINEIN
             bluten, siehe dortiger Kommentar). */}
-        <div className="flex h-[35%] min-h-[180px] w-full shrink-0 flex-col items-center justify-end gap-[clamp(0.75rem,3vh,1.5rem)] pb-[clamp(0.25rem,1.5vh,1rem)]">
+        {/* Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): "Platz
+            oberhalb/unterhalb der Mittellinie darf mehr sein, nach oben
+            2,5% und nach unten 2,5% geschoben" - pb-[2.5vh] hier schiebt
+            den Hero-Inhalt 2,5% der Viewport-Hoehe VOR die Mittellinie
+            zurueck, das spiegelbildliche pt-[2.5vh] auf der Preset-Zone
+            weiter unten schiebt SIE 2,5% hinter die Mittellinie - zusammen
+            ein 5vh breiter Puffer, mittig auf der 35%-Linie. */}
+        <div className="flex h-[35%] min-h-[180px] w-full shrink-0 flex-col items-center justify-end gap-[clamp(0.75rem,3vh,1.5rem)] pb-[2.5vh]">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
             Container Studio
@@ -279,7 +286,9 @@ export function StartPage() {
             ueberlaufenden Inhalt nur noch NACH UNTEN (in die scrollbare
             Zone) ueberlaufen, nie nach oben - genau das behebt die
             gemeldete Kollision. */}
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-start gap-2">
+        {/* pt-[2.5vh] - siehe Kommentar am Hero-Block oben (spiegelbildlicher
+            Puffer auf der anderen Seite der Mittellinie). */}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-start gap-2 pt-[2.5vh]">
           {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
               starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
               oben: Konfigurieren bleibt dem Handy vorbehalten). */}

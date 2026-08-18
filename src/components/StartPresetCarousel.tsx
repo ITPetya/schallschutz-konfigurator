@@ -28,14 +28,31 @@ const VISIBLE_COUNT = 4;
 // einem Klick stehen, zwei sind neu - "laeuft wie in einem Karussell".
 const STEP = 2;
 
+// Wie weit eine Kartenreihe seitlich faehrt, bevor/nachdem sie im
+// ueberlaufenden Rand (overflow-hidden am umschliessenden Wrapper, direkt
+// neben den Pfeil-Buttons) verschwindet (Jonas' Fehlerbericht 2026-08-18:
+// "die Elemente sollen wirklich sich bewegen und auf Hoehe des Buttons dann
+// wie in einen Schlitz verschwinden" - die vorherigen 48px waren kaum als
+// echte Bewegung wahrnehmbar, eher ein Zittern). Ein voller Kartenbreite
+// plus Abstand entsprechender Wert laesst die Reihe tatsaechlich sichtbar
+// über den Rand hinaus fahren, bevor der harte Clip (kein Fade, siehe
+// SLIDE_VARIANTS unten) sie am Wrapper-Rand kappt - genau der "Schlitz"-
+// Effekt statt eines weichen Verblassens.
+const SLIDE_DISTANCE_PX = 260;
+
 // Motion's "dynamic variants" (Funktionen statt fester Objekte, gelesen
 // ueber die "custom"-Prop unten) - horizontale Verschiebung statt der
 // vorherigen vertikalen Fade (Jonas' Fehlerbericht 2026-08-18, siehe
-// motion.div weiter unten fuer die volle Begruendung).
+// motion.div weiter unten fuer die volle Begruendung). Bewusst OHNE
+// opacity-Animation (Fehlerbericht 2026-08-18, zweite Runde): ein Fade
+// kaschierte die Bewegung selbst - jetzt bleibt die Reihe waehrend der
+// gesamten Fahrt voll sichtbar, das "Verschwinden" passiert ausschliesslich
+// durch den harten overflow-hidden-Clip am Wrapper-Rand (siehe dortiger
+// Kommentar), nicht durch Ausblenden - genau der gewuenschte "Schlitz"-Effekt.
 const SLIDE_VARIANTS: Variants = {
-  enter: (dir: number) => ({ x: dir >= 0 ? 48 : -48, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir >= 0 ? -48 : 48, opacity: 0 }),
+  enter: (dir: number) => ({ x: dir >= 0 ? SLIDE_DISTANCE_PX : -SLIDE_DISTANCE_PX }),
+  center: { x: 0 },
+  exit: (dir: number) => ({ x: dir >= 0 ? -SLIDE_DISTANCE_PX : SLIDE_DISTANCE_PX }),
 };
 
 // Startseiten-Preset-Karussell (Jonas' Vorgabe 2026-08-18). Acht Presets
