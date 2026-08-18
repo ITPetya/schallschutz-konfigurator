@@ -97,26 +97,6 @@ export function StartPage() {
     navigate(loadedProjectRoute, { state: { project: cached, historyId: getActiveHistoryId() ?? undefined } });
   }
 
-  // TEMPORAER (Jonas' Vorgabe 2026-07-28: "unter den Buttons soll temporär
-  // ein Schriftzug sein 'Demo-Projekt öffnen hier klicken'") - laedt eine
-  // fest hinterlegte Demo-Projektdatei (public/demo/demo-projekt.sszprojekt,
-  // von Jonas per Upload bereitgestellt) direkt per fetch() statt ueber den
-  // Datei-Dialog. Wieder entfernen, sobald der Demo-Zweck erfuellt ist -
-  // kein Teil des regulaeren Ladeflusses.
-  async function handleOpenDemo() {
-    try {
-      const response = await fetch("/demo/demo-projekt.sszprojekt");
-      if (!response.ok) throw new Error("Demo-Datei nicht gefunden");
-      const blob = await response.blob();
-      const file = new File([blob], "demo-projekt.sszprojekt");
-      const project = await decodeProject(file);
-      setError(null);
-      navigate(loadedProjectRoute, { state: { project } });
-    } catch {
-      setError("Demo-Projekt konnte nicht geladen werden.");
-    }
-  }
-
   return (
     // z-0 (nicht nur "relative") ist noetig, damit dieses Element einen
     // EIGENEN Stacking-Context aufmacht - sonst "entkommen" die -z-10-Kinder
@@ -155,14 +135,26 @@ export function StartPage() {
       />
       <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
 
-      <div>
-        <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
-          Container Studio
-        </h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">3D-Konfigurator für individuelle Sondercontainer</p>
-      </div>
+      {/* Jonas' Vorgabe 2026-08-18: "50% der Seite soll der Bereich mit
+          Konfiguration Starten und Projekt Laden sein, darunter soll die
+          Mitte der Höhe verlaufen" - eigener h-1/2-Block statt nur einer
+          losen Abstands-Heuristik (siehe vorherige gap/py-Anpassung), damit
+          die Grenze exakt bei der halben Seitenhoehe liegt, unabhaengig
+          davon, wie viel Inhalt darunter (Presets) noch folgt. h-1/2 loest
+          gegen die Hoehe DIESES Wurzel-Elements auf (h-full, siehe oben) -
+          bleibt dadurch bei genau 50% des sichtbaren Viewport-Slots stehen,
+          auch wenn der Preset-Bereich darunter die Seite scrollbar macht.
+          shrink-0, damit ein spaeter waechst Karussell diesen Block nicht
+          zusammendrueckt. */}
+      <div className="flex h-1/2 w-full shrink-0 flex-col items-center justify-center gap-6">
+        <div>
+          <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
+            Container Studio
+          </h1>
+          <p className="mt-2 text-slate-500 dark:text-slate-400">3D-Konfigurator für individuelle Sondercontainer</p>
+        </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row">
         {/* Kein "Konfiguration starten" auf dem Handy (Jonas' Vorgabe
             2026-07-28: Konfigurieren bleibt Laptop/PC/Tablet vorbehalten) -
             der Hinweistext darunter erklaert, warum der Button fehlt, statt
@@ -243,24 +235,17 @@ export function StartPage() {
           className="hidden"
         />
       </div>
-      {isPhone && (
-        <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
-          Neue Konfigurationen können nur auf einem Laptop, PC oder Tablet erstellt werden. Auf dem Handy können
-          bereits gespeicherte Projekte angeschaut werden.
-        </p>
-      )}
+        {isPhone && (
+          <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
+            Neue Konfigurationen können nur auf einem Laptop, PC oder Tablet erstellt werden. Auf dem Handy können
+            bereits gespeicherte Projekte angeschaut werden.
+          </p>
+        )}
+      </div>
       {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
           starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
           oben: Konfigurieren bleibt dem Handy vorbehalten). */}
       {!isPhone && <StartPresetCarousel />}
-      {/* TEMPORAER, siehe handleOpenDemo oben. */}
-      <button
-        type="button"
-        onClick={handleOpenDemo}
-        className="text-sm font-bold uppercase tracking-wide text-brand underline hover:text-brand-dark"
-      >
-        Demo-Projekt öffnen hier klicken
-      </button>
       {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

@@ -14,6 +14,8 @@ import { CONTACT_URL } from "../config/contactLink";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/primitives/DropdownMenu";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { PageTitleProvider, usePageTitleContext } from "../context/PageTitleContext";
+import { decodeProject } from "../config/projectFileCodec";
+import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -47,14 +49,40 @@ function AppShellContent() {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletedMessage, setDeletedMessage] = useState(false);
+  const [demoError, setDemoError] = useState(false);
   const [searchParams] = useSearchParams();
   const embed = searchParams.get("embed") === "1";
+  // Auf dem Handy landet ein geladenes Projekt im schreibgeschuetzten
+  // /ansehen statt im editierbaren /projekt (siehe StartPage.tsx fuer die
+  // ausfuehrliche Begruendung - dieselbe Regel gilt hier fuers Demo-Projekt).
+  const isPhone = useIsPhoneViewport();
 
   function handleDeleteData() {
     clearProjectDraft();
     setShowDeleteConfirm(false);
     setDeletedMessage(true);
     window.setTimeout(() => setDeletedMessage(false), 4000);
+  }
+
+  // Jonas' Vorgabe 2026-08-18: aus der Startseite entfernt (war dort ein
+  // TEMPORAERER Textlink, siehe die jetzt geloeschte handleOpenDemo-Funktion
+  // in StartPage.tsx), soll aber weiterhin ueber das "?"-Menue erreichbar
+  // sein statt komplett zu verschwinden - unveraendert dieselbe Logik
+  // (fest hinterlegte Demo-Datei per fetch() + decodeProject()), nur jetzt
+  // hier global statt an die Startseite gebunden, damit sie ueberall (nicht
+  // nur auf "/") aufrufbar ist.
+  async function handleOpenDemo() {
+    try {
+      const response = await fetch("/demo/demo-projekt.sszprojekt");
+      if (!response.ok) throw new Error("Demo-Datei nicht gefunden");
+      const blob = await response.blob();
+      const file = new File([blob], "demo-projekt.sszprojekt");
+      const project = await decodeProject(file);
+      navigate(isPhone ? "/ansehen" : "/projekt", { state: { project } });
+    } catch {
+      setDemoError(true);
+      window.setTimeout(() => setDemoError(false), 4000);
+    }
   }
 
   return (
@@ -76,6 +104,7 @@ function AppShellContent() {
                 onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
                 onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
                 onVerlauf={() => navigate("/verlauf")}
+                onOpenDemo={handleOpenDemo}
                 onDeleteData={() => setShowDeleteConfirm(true)}
               />
             </div>
@@ -89,6 +118,7 @@ function AppShellContent() {
             onTutorial={() => startTour(CONFIGURATOR_TOUR_ID)}
             onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
             onVerlauf={() => navigate("/verlauf")}
+            onOpenDemo={handleOpenDemo}
             onDeleteData={() => setShowDeleteConfirm(true)}
           />
         </div>
@@ -118,6 +148,13 @@ function AppShellContent() {
           </p>
         </div>
       )}
+      {demoError && (
+        <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+          <p className="rounded-full bg-red-600 px-4 py-2 text-sm text-white shadow-lg">
+            Demo-Projekt konnte nicht geladen werden.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -126,6 +163,7 @@ interface HelpMenuProps {
   onTutorial: () => void;
   onHilfe: () => void;
   onVerlauf: () => void;
+  onOpenDemo: () => void;
   onDeleteData: () => void;
 }
 
@@ -133,7 +171,7 @@ interface HelpMenuProps {
 // siehe https://animate-ui.com/docs/components/radix/dropdown-menu) - der
 // Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
 // mehr selbst, das uebernimmt jetzt Radix intern.
-function HelpMenu({ onTutorial, onHilfe, onVerlauf, onDeleteData }: HelpMenuProps) {
+function HelpMenu({ onTutorial, onHilfe, onVerlauf, onOpenDemo, onDeleteData }: HelpMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -168,6 +206,15 @@ function HelpMenu({ onTutorial, onHilfe, onVerlauf, onDeleteData }: HelpMenuProp
           className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
         >
           Verlauf
+        </DropdownMenuItem>
+        {/* Jonas' Vorgabe 2026-08-18: von der Startseite hierher verschoben
+            (war dort ein temporaerer Textlink) - weiterhin dieselbe feste
+            Demo-Datei, jetzt global statt an "/" gebunden. */}
+        <DropdownMenuItem
+          onSelect={onOpenDemo}
+          className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          Demo-Projekt öffnen
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={onDeleteData}

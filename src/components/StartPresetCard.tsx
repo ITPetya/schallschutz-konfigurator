@@ -63,7 +63,14 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
         <StartPresetThumbnail config={preset.config} outsideColor={outsideColor} sizePx={216} />
       </Suspense>
       <div className="flex items-center gap-2.5">
-        {RAL_STANDARD_COLORS.map((c) => (
+        {/* Jonas' Fehlerbericht 2026-08-18: Signalgrau (RAL 7004) zuerst,
+            dann Moosgruen (RAL 6005) - vertauscht gegenueber der Reihenfolge
+            in RAL_STANDARD_COLORS (dort bewusst UNVERAENDERT gelassen, das
+            ist die app-weite Liste u.a. fuer DisplaySettingsPanel.tsx's
+            Dropdown, hier nur lokal fuer die Kartenpunkte umsortiert), damit
+            die jetzt vorausgewaehlte Standardfarbe (siehe startPresets.ts)
+            auch an erster Stelle steht. */}
+        {[RAL_STANDARD_COLORS[1], RAL_STANDARD_COLORS[0]].map((c) => (
           <button
             key={c.code}
             type="button"

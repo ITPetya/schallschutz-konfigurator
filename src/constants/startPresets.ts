@@ -8,16 +8,18 @@ export interface StartPreset {
   id: string;
   label: string;
   // Vorbelegte Farbe fuer die Vorschau/den ersten der drei Farbpunkte auf
-  // der Preset-Karte (siehe StartPresetCard.tsx) - identisch zur Aussenfarbe
-  // in ALLEN vier von Jonas bereitgestellten echten Referenzdateien
-  // (RAL 6005 Moosgruen). Innenfarbe bleibt bei jedem Preset fest auf
-  // RAL 7004 Signalgrau (ebenfalls durchgehend so in allen vier Referenzen) -
-  // die Kartenfarbpunkte steuern bewusst NUR die Aussenfarbe, siehe dort.
+  // der Preset-Karte (siehe StartPresetCard.tsx). Jonas' Fehlerbericht
+  // 2026-08-18: "das gruen sieht komisch aus" - obwohl ALLE vier von Jonas
+  // bereitgestellten echten Referenzdateien aussen RAL 6005 Moosgruen
+  // nutzen, soll die STANDARD-Vorauswahl auf der Karte stattdessen RAL 7004
+  // Signalgrau sein (deckt sich mit defaultContainerConfig.ts's Default fuer
+  // einen komplett neuen, leeren Container - dort ist Grau schon lange der
+  // Standard fuer Innen UND Aussen). Gruen bleibt als zweite, waehlbare
+  // Standardfarbe bestehen, nur nicht mehr vorausgewaehlt.
   config: ContainerConfig;
 }
 
-const MOOSGRUEN = RAL_STANDARD_COLORS[0].hex; // RAL 6005 - Standard-Aussenfarbe in allen vier Referenzdateien.
-const SIGNALGRAU = RAL_STANDARD_COLORS[1].hex; // RAL 7004 - Standard-Innenfarbe in allen vier Referenzdateien.
+const SIGNALGRAU = RAL_STANDARD_COLORS[1].hex; // RAL 7004 - jetzt Standard fuer Innen UND Aussen (siehe StartPreset-Kommentar oben).
 
 function baseConfig(openings: Opening[]): ContainerConfig {
   return {
@@ -25,7 +27,7 @@ function baseConfig(openings: Opening[]): ContainerConfig {
     wallThickness: DEFAULT_WALL_THICKNESS,
     openings,
     insideColor: SIGNALGRAU,
-    outsideColor: MOOSGRUEN,
+    outsideColor: SIGNALGRAU,
     insideUnpainted: false,
     outsideNotes: "",
     insideNotes: "",
