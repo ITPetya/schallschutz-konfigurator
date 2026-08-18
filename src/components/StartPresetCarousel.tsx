@@ -39,7 +39,9 @@ export function StartPresetCarousel() {
   const activePage = startIndex / STEP;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    // gap-4 -> gap-3 (Jonas' Vorgabe 2026-08-18: gesamter Preset-Bereich
+    // soll kompakter wirken).
+    <div className="flex flex-col items-center gap-3">
       <p className="font-heading text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Presets</p>
       <div className="flex items-center gap-3">
         <AnimatedButton

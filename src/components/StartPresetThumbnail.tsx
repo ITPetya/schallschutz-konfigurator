@@ -24,7 +24,7 @@ interface StartPresetThumbnailProps {
 // Presets gleichzeitig als volle r3f-Szenen (inkl. CSG-Aufbau) waeren fuer
 // eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
 // nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
-export function StartPresetThumbnail({ config, outsideColor, sizePx = 168 }: StartPresetThumbnailProps) {
+export function StartPresetThumbnail({ config, outsideColor, sizePx = 252 }: StartPresetThumbnailProps) {
   const [snapshot, setSnapshot] = useState<string | null>(null);
 
   // Neu einfangen, sobald sich die Aussenfarbe (Klick auf einen der drei
@@ -65,8 +65,15 @@ export function StartPresetThumbnail({ config, outsideColor, sizePx = 168 }: Sta
               Funktionskommentar oben, kein Hintergrund/keine Zusatz-Ladezeit
               fuer eine reine Icon-Vorschau). */}
           <directionalLight position={[-5, 3, -6]} intensity={0.4} />
+          {/* Jonas' Fehlerbericht 2026-08-18: "sonst erkennt man nichts" -
+              "realistic" lieferte bei Icon-Groesse ohne HDRI/Environment
+              (siehe Funktionskommentar oben, bewusst kein Hintergrund/keine
+              Ladezeit) einen fast konturlosen Farbklecks. "shaded_edges"
+              zeichnet zusaetzlich die Aussenkontur/Durchbruch-Umrandungen
+              als eigene Linien (siehe Wall.tsx's edgeGeometry), das macht
+              Form/Tueren/Oeffnungen auch klein noch erkennbar. */}
           <DisplaySettingsProvider
-            value={{ viewStyle: "realistic", insideColor: config.insideColor, outsideColor, insideUnpainted: config.insideUnpainted ?? false }}
+            value={{ viewStyle: "shaded_edges", insideColor: config.insideColor, outsideColor, insideUnpainted: config.insideUnpainted ?? false }}
           >
             <SectionPlaneProvider value={null}>
               <group position={[0, -heightM / 2, 0]}>

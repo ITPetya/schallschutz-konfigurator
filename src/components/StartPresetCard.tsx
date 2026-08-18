@@ -53,10 +53,14 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
   }
 
   return (
-    <div className="flex w-52 shrink-0 flex-col items-center gap-3 rounded-2xl border-2 border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+    // Jonas' Vorgabe 2026-08-18: Vorschau ca. 50% groesser (144 -> 216px,
+    // siehe sizePx unten) - Karte dafuer entsprechend breiter (w-52 -> w-60),
+    // aber mit knapperem Innenabstand/Abstand (p-4->p-3, gap-3->gap-2), da
+    // der gesamte Preset-Bereich gleichzeitig kompakter werden soll.
+    <div className="flex w-60 shrink-0 flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
       <p className="font-heading text-sm font-bold text-brand-dark dark:text-brand-light">{preset.label} Container</p>
-      <Suspense fallback={<div className="h-36 w-36 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
-        <StartPresetThumbnail config={preset.config} outsideColor={outsideColor} sizePx={144} />
+      <Suspense fallback={<div className="h-[216px] w-[216px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />}>
+        <StartPresetThumbnail config={preset.config} outsideColor={outsideColor} sizePx={216} />
       </Suspense>
       <div className="flex items-center gap-2.5">
         {RAL_STANDARD_COLORS.map((c) => (

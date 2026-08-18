@@ -135,7 +135,14 @@ export function StartPage() {
     // erreichbar ("scroll to safe center"-Eigenheit) - grosszuegiges
     // vertikales Padding wirkt bei kurzem Inhalt optisch aehnlich zentriert,
     // bleibt aber bei langem Inhalt zuverlaessig durchscrollbar.
-    <div className="relative z-0 flex h-full flex-col items-center gap-8 overflow-y-auto overflow-x-hidden px-6 py-10 text-center">
+    //
+    // Jonas' Vorgabe 2026-08-18 (Nachbesserung): der obere "Konfiguration
+    // starten"-Bereich soll nur noch ca. 40-45% der Seite einnehmen, der
+    // gesamte Preset-Bereich insgesamt kompakter wirken - gap-8/py-10 auf
+    // gap-6/py-8 reduziert (wirkt gleichmaessig auf alle Top-Level-
+    // Geschwister, straffe also sowohl den Abstand vor als auch nach dem
+    // Karussell).
+    <div className="relative z-0 flex h-full flex-col items-center gap-6 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand
