@@ -70,6 +70,19 @@ interface StartPresetThumbnailProps {
   // eine Karte durchs Karussell ins Sichtfeld ruckt.
   cacheKey: string;
   sizePx?: number;
+  // Jonas' Fehlerbericht 2026-08-18 ("Previews laden manchmal nicht mehr
+  // ganz korrekt, seit ich nach weniger Lag gefragt habe"): der Vorlade-
+  // Batch (StartPresetCarousel.tsx) startete den naechsten unsichtbaren
+  // Preset-Aufbau bisher zeitbasiert (erst fester Timer, dann
+  // requestIdleCallback) - beide Varianten koennen den naechsten Aufbau
+  // STARTEN, waehrend der vorherige (bzw. ein sichtbarer Karten-Aufbau)
+  // noch laeuft, wenn die geschaetzte Wartezeit/der vermeintliche Leerlauf
+  // nicht zur tatsaechlichen Bauzeit passt - zwei gleichzeitige CSG-Aufbauten
+  // koennen sich dann sichtbar gegenseitig stoeren. onDone feuert ECHT erst,
+  // wenn DIESE Instanz tatsaechlich fertig ist (frisch eingefangen ODER
+  // sofort per Cache-Treffer) - der Vorlade-Batch startet den naechsten
+  // Preset-Aufbau jetzt NUR noch darauf, nie mehr auf eine Zeitschaetzung.
+  onDone?: () => void;
 }
 
 // Rendert EINMALIG einen echten Snapshot des Presets (transparenter
@@ -79,8 +92,20 @@ interface StartPresetThumbnailProps {
 // Presets gleichzeitig als volle r3f-Szenen (inkl. CSG-Aufbau) waeren fuer
 // eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
 // nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
-export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 216 }: StartPresetThumbnailProps) {
+export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 216, onDone }: StartPresetThumbnailProps) {
   const [snapshot, setSnapshot] = useState<string | null>(() => getCachedThumbnail(cacheKey) ?? null);
+
+  // Meldet echte Fertigstellung nach oben (siehe onDone-Kommentar oben) -
+  // laeuft bei JEDEM Uebergang von "noch kein Bild" auf "Bild da", egal ob
+  // durch einen frischen Snapshot (handleCaptured) oder einen sofortigen
+  // Cache-Treffer (Initialwert oben, oder der Effekt weiter unten bei
+  // Cache-Key-Wechsel) ausgeloest - onDone bewusst NICHT in den Deps (kann
+  // bei jedem Render eine neue Funktionsreferenz vom Aufrufer sein), soll
+  // nur auf eine echte snapshot-Aenderung reagieren.
+  useEffect(() => {
+    if (snapshot) onDone?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot]);
 
   // Neu einfangen, sobald sich der Cache-Schluessel (Aussenfarbe-Klick auf
   // der Karte, oder ein anderes Preset) aendert - erst im Cache nachsehen

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState, type CSSProperties } from "react";
+import { Suspense, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { StartPresetCard } from "./StartPresetCard";
 import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
@@ -6,7 +6,6 @@ import { AnimatedButton } from "./AnimatedButton";
 import { ArrowLeftIcon } from "./icons/ArrowLeftIcon";
 import { ArrowRightIcon } from "./icons/ArrowRightIcon";
 import { START_PRESETS } from "../constants/startPresets";
-import { schedulePreload } from "../utils/idlePreload";
 // Groesse muss exakt der visible-card-Groesse entsprechen (StartPresetCard.tsx),
 // sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
 // tatsaechliche Anzeigegroesse zwischengespeichert.
@@ -97,28 +96,21 @@ export function StartPresetCarousel() {
   // (identische Farbe/Preset), die genau den sichtbaren Karten Rechenzeit
   // wegnimmt. .slice(VISIBLE_COUNT) ueberspringt sie deshalb bewusst.
   const presetsToPreload = START_PRESETS.slice(VISIBLE_COUNT);
-  // Jonas' Fehlerbericht 2026-08-18, dritte Runde ("Animationen laggen noch,
-  // solange die Previews laden"): ein fester PRELOAD_STAGGER_MS-Timer startet
-  // die naechste Hintergrund-Vorschau IMMER nach derselben Wartezeit, egal ob
-  // der Haupt-Thread gerade frei ist oder noch mit der vorherigen (bzw. mit
-  // einer laufenden Animation) beschaeftigt ist - bei einer laenger
-  // dauernden CSG-Vorschau ueberlappten sich dadurch zwei gleichzeitig
-  // laufende Aufbauten, deren gemeinsame Pro-Frame-Arbeit das Framebudget
-  // sprengte. schedulePreload (idlePreload.ts, bereits an anderer Stelle
-  // dieser Seite fuers Route-Vorladen im Einsatz) nutzt stattdessen
-  // requestIdleCallback: die naechste Vorschau startet erst, wenn der
-  // Haupt-Thread TATSAECHLICH frei ist (laufende Animationen/Interaktionen
-  // bekommen automatisch Vorrang), nicht nach einer festen Zeitspanne.
+  // Kameradistanz-Herleitung, dritte/vierte Runde: erst ein fester Timer,
+  // dann requestIdleCallback (idlePreload.ts) - Jonas' Fehlerbericht
+  // 2026-08-18, fuenfte Runde ("Previews laden manchmal nicht mehr ganz
+  // korrekt, seit ich nach weniger Lag gefragt habe"): BEIDE Varianten sind
+  // reine ZEITSCHAETZUNGEN, wann der vorherige Aufbau vermutlich fertig ist -
+  // passt die Schaetzung nicht zur tatsaechlichen Bauzeit (unterschiedlich
+  // grosse Presets brauchen unterschiedlich lang), koennen sich zwei
+  // CSG-Aufbauten trotzdem ueberlappen und sich sichtbar stoeren. Jetzt
+  // KEINE Zeitschaetzung mehr: preloadCount haelt nur noch fest, wie viele
+  // Presets BEREITS FERTIG sind (inkl. des gerade aktiven) - der Preset an
+  // Index preloadCount ist der einzige, der gerade tatsaechlich aufgebaut
+  // wird, sein onDone (siehe StartPresetThumbnail.tsx) zaehlt erst danach
+  // hoch. Es kann dadurch nie mehr als EIN Hintergrund-Aufbau gleichzeitig
+  // laufen, unabhaengig davon, wie lange er tatsaechlich braucht.
   const [preloadCount, setPreloadCount] = useState(0);
-  useEffect(() => {
-    if (preloadCount >= presetsToPreload.length) return;
-    return schedulePreload(() => setPreloadCount((n) => n + 1));
-    // presetsToPreload.length ist ueber die Lebensdauer dieser Komponente
-    // konstant (START_PRESETS/VISIBLE_COUNT aendern sich nie zur Laufzeit) -
-    // absichtlich nicht in den Deps, um bei jedem Render eine neue Array-
-    // Referenz zu ignorieren.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preloadCount]);
 
   return (
     // gap-4 -> gap-3 (Jonas' Vorgabe 2026-08-18: gesamter Preset-Bereich
@@ -126,30 +118,38 @@ export function StartPresetCarousel() {
     <div className="flex flex-col items-center gap-3">
       {/* Jonas' Vorgabe 2026-08-18 ("Presets pre-loaden, damit die Karussell-
           Animation geschmeidig ist"), Fehlerbericht 2026-08-18 zweite Runde
-          ("sichtbare Previews priorisieren, Rest danach im Hintergrund"):
-          rendert die uebrigen Presets (NICHT die anfangs sichtbaren vier,
-          siehe presetsToPreload oben) GESTAFFELT (siehe preloadCount/
-          PRELOAD_STAGGER_MS oben) in ihrer Standardfarbe unsichtbar durch -
-          jede schreibt ihren fertigen Snapshot in den geteilten Cache
+          ("sichtbare Previews priorisieren, Rest danach im Hintergrund"),
+          fuenfte Runde ("laedt manchmal nicht mehr ganz korrekt" - siehe
+          preloadCount-Kommentar oben, jetzt completion-basiert statt
+          zeitbasiert): rendert die uebrigen Presets (NICHT die anfangs
+          sichtbaren vier, siehe presetsToPreload oben) EINEN NACH DEM
+          ANDEREN in ihrer Standardfarbe unsichtbar durch - jede schreibt
+          ihren fertigen Snapshot in den geteilten Cache
           (presetThumbnailCache.ts, siehe StartPresetThumbnail.tsx). Ruckt
           eine Karte spaeter per Pfeiltaste neu ins Sichtfeld, findet
           StartPresetCard/-Thumbnail dort meist schon einen fertigen Eintrag
           und zeigt ihn SOFORT an, statt jedesmal einen neuen CSG-Aufbau +
-          Snapshot-Einfang abzuwarten. Bewusst unsichtbar statt display:none
-          (ein WebGL-Canvas ohne echte Layout-Groesse rendert nicht
-          zuverlaessig) - opacity-0 behaelt die echten Pixel-Masse, waehrend
-          pointer-events-none/aria-hidden es aus Interaktion und
-          Screenreadern heraushalten. Kein eigener Suspense-Fallback noetig
-          (fallback={null}): diese Instanzen sollen nirgends sichtbar etwas
-          anzeigen, nur im Hintergrund den Cache fuellen. */}
+          Snapshot-Einfang abzuwarten. slice(0, preloadCount + 1) zeigt alle
+          BEREITS fertigen (0..preloadCount-1, nur noch als gecachtes <img>,
+          kein aktiver Aufbau mehr) PLUS genau einen aktiven (Index
+          preloadCount) - nur DIESER eine bekommt onDone, das erst NACH
+          echtem Abschluss preloadCount hochzaehlt und damit den naechsten
+          startet. Bewusst unsichtbar statt display:none (ein WebGL-Canvas
+          ohne echte Layout-Groesse rendert nicht zuverlaessig) - opacity-0
+          behaelt die echten Pixel-Masse, waehrend pointer-events-none/
+          aria-hidden es aus Interaktion und Screenreadern heraushalten.
+          Kein eigener Suspense-Fallback noetig (fallback={null}): diese
+          Instanzen sollen nirgends sichtbar etwas anzeigen, nur im
+          Hintergrund den Cache fuellen. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
-        {presetsToPreload.slice(0, preloadCount).map((preset) => (
+        {presetsToPreload.slice(0, preloadCount + 1).map((preset, i) => (
           <Suspense key={preset.id} fallback={null}>
             <LazyStartPresetThumbnail
               config={preset.config}
               outsideColor={preset.config.outsideColor}
               cacheKey={`${preset.id}:${preset.config.outsideColor}`}
               sizePx={PRELOAD_SIZE_PX}
+              onDone={i === preloadCount ? () => setPreloadCount((n) => n + 1) : undefined}
             />
           </Suspense>
         ))}
