@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { StartPresetCard } from "./StartPresetCard";
 import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
@@ -10,6 +10,14 @@ import { START_PRESETS } from "../constants/startPresets";
 // sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
 // tatsaechliche Anzeigegroesse zwischengespeichert.
 const PRELOAD_SIZE_PX = 216;
+// Jonas' Fehlerbericht 2026-08-18 ("die Previews brauchen viel zu lange zum
+// Laden, sichtbare Previews sollten priorisiert werden, Rest danach im
+// Hintergrund"): Wartezeit zwischen dem Start je einer weiteren
+// Hintergrund-Vorschau (siehe preloadCount-Effekt unten) - verhindert, dass
+// alle unsichtbaren Presets gleichzeitig um GPU/Hauptthread konkurrieren und
+// dabei den sichtbaren vier (die parallel ihre EIGENEN, echten
+// StartPresetCard-Instanzen rendern) Rechenzeit wegnehmen.
+const PRELOAD_STAGGER_MS = 700;
 
 // Wie viele Karten gleichzeitig sichtbar sind (Jonas' Vorgabe 2026-08-18,
 // nach Skizze: vier volle Karten in der Reihe).
@@ -63,28 +71,53 @@ export function StartPresetCarousel() {
   const pageCount = Math.ceil(total / STEP);
   const activePage = startIndex / STEP;
 
+  // Jonas' Fehlerbericht 2026-08-18 ("sichtbare Previews priorisieren, Rest
+  // danach im Hintergrund"): das Karussell startet IMMER bei Index 0 (siehe
+  // useState oben), die anfangs sichtbaren vier (Indizes 0-3) rendern
+  // bereits ihre EIGENE echte StartPresetCard-Instanz - sie hier ZUSAETZLICH
+  // im unsichtbaren Vorlade-Batch zu rendern waere reine Doppelarbeit
+  // (identische Farbe/Preset), die genau den sichtbaren Karten Rechenzeit
+  // wegnimmt. .slice(VISIBLE_COUNT) ueberspringt sie deshalb bewusst.
+  const presetsToPreload = START_PRESETS.slice(VISIBLE_COUNT);
+  // Gestaffelt statt alle auf einmal (siehe PRELOAD_STAGGER_MS oben) - startet
+  // bei 0 (noch keine Hintergrund-Vorschau gemountet) und zaehlt alle
+  // PRELOAD_STAGGER_MS um eins hoch, bis alle uebrigen Presets erfasst sind.
+  const [preloadCount, setPreloadCount] = useState(0);
+  useEffect(() => {
+    if (preloadCount >= presetsToPreload.length) return;
+    const id = window.setTimeout(() => setPreloadCount((n) => n + 1), PRELOAD_STAGGER_MS);
+    return () => window.clearTimeout(id);
+    // presetsToPreload.length ist ueber die Lebensdauer dieser Komponente
+    // konstant (START_PRESETS/VISIBLE_COUNT aendern sich nie zur Laufzeit) -
+    // absichtlich nicht in den Deps, um bei jedem Render eine neue Array-
+    // Referenz zu ignorieren.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloadCount]);
+
   return (
     // gap-4 -> gap-3 (Jonas' Vorgabe 2026-08-18: gesamter Preset-Bereich
     // soll kompakter wirken).
     <div className="flex flex-col items-center gap-3">
       {/* Jonas' Vorgabe 2026-08-18 ("Presets pre-loaden, damit die Karussell-
-          Animation geschmeidig ist"): rendert alle acht Presets (nicht nur
-          die aktuell sichtbaren vier) EINMALIG in ihrer Standardfarbe
-          unsichtbar durch - jede schreibt ihren fertigen Snapshot in den
-          geteilten Cache (presetThumbnailCache.ts, siehe StartPresetThumbnail.tsx).
-          Ruckt eine Karte spaeter per Pfeiltaste neu ins Sichtfeld, findet
+          Animation geschmeidig ist"), Fehlerbericht 2026-08-18 zweite Runde
+          ("sichtbare Previews priorisieren, Rest danach im Hintergrund"):
+          rendert die uebrigen Presets (NICHT die anfangs sichtbaren vier,
+          siehe presetsToPreload oben) GESTAFFELT (siehe preloadCount/
+          PRELOAD_STAGGER_MS oben) in ihrer Standardfarbe unsichtbar durch -
+          jede schreibt ihren fertigen Snapshot in den geteilten Cache
+          (presetThumbnailCache.ts, siehe StartPresetThumbnail.tsx). Ruckt
+          eine Karte spaeter per Pfeiltaste neu ins Sichtfeld, findet
           StartPresetCard/-Thumbnail dort meist schon einen fertigen Eintrag
           und zeigt ihn SOFORT an, statt jedesmal einen neuen CSG-Aufbau +
-          Snapshot-Einfang abzuwarten (das war das gemeldete Ruckeln). Bewusst
-          unsichtbar statt display:none (ein WebGL-Canvas ohne echte
-          Layout-Groesse rendert nicht zuverlaessig) - opacity-0 behaelt die
-          echten Pixel-Masse, waehrend pointer-events-none/aria-hidden es aus
-          Interaktion und Screenreadern heraushalten. Kein eigener
-          Suspense-Fallback noetig (fallback={null}): diese Instanzen sollen
-          nirgends sichtbar etwas anzeigen, nur im Hintergrund den Cache
-          fuellen. */}
+          Snapshot-Einfang abzuwarten. Bewusst unsichtbar statt display:none
+          (ein WebGL-Canvas ohne echte Layout-Groesse rendert nicht
+          zuverlaessig) - opacity-0 behaelt die echten Pixel-Masse, waehrend
+          pointer-events-none/aria-hidden es aus Interaktion und
+          Screenreadern heraushalten. Kein eigener Suspense-Fallback noetig
+          (fallback={null}): diese Instanzen sollen nirgends sichtbar etwas
+          anzeigen, nur im Hintergrund den Cache fuellen. */}
       <div aria-hidden className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0">
-        {START_PRESETS.map((preset) => (
+        {presetsToPreload.slice(0, preloadCount).map((preset) => (
           <Suspense key={preset.id} fallback={null}>
             <LazyStartPresetThumbnail
               config={preset.config}

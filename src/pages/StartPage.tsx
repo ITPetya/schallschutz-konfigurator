@@ -110,72 +110,62 @@ export function StartPage() {
   }
 
   return (
-    // z-0 (nicht nur "relative") ist noetig, damit dieses Element einen
-    // EIGENEN Stacking-Context aufmacht - sonst "entkommen" die -z-10-Kinder
-    // bis zum naechsten Vorfahren, der einen aufmacht, und werden dort HINTER
-    // dessen normalem (nicht positioniertem) bg-white gemalt, das faelschlich
-    // "spaeter" gezeichnet wird (Debugging-Fund 2026-07-22).
-    //
-    // Jonas' Fehlerbericht 2026-08-18, dritte Runde ("beim sehr duennen
-    // Fenster buggen die beiden Bereiche hintereinander - erst Freiraeume
-    // komprimieren, dann scrollbar werden"): overflow-y-auto ist wieder da
-    // (Grund fuer overflow-hidden im vorherigen Commit - ein kleiner
-    // Hoehen-Ueberschuss liess einen unbedeckten Rest durchscheinen, siehe
-    // "weiss im Darkmode"-Fund - ist nicht mehr noetig, siehe die
-    // Hintergrund-Ebenen unten: jetzt fixed statt absolute, decken dadurch
-    // IMMER exakt den sichtbaren Viewport ab, unabhaengig vom Scroll-Zustand
-    // dieses Elements - ein durchscheinender Rest kann so gar nicht mehr
-    // auftreten, unabhaengig davon ob/wie viel gescrollt wird). Der
-    // Hero-Block weiter unten bekommt zusaetzlich ein min-h, das verhindert,
-    // dass sein Inhalt (Titel+Buttons) bei einem sehr niedrigen Fenster unter
-    // sein eigenes h-[35%] schrumpft und optisch in den Preset-Bereich
-    // hineinragt (genau das war der gemeldete Bug) - reicht der Platz trotz
-    // bereits komprimierter Abstaende (gap-2/py-8 unten) am Ende nicht mehr,
-    // wird jetzt zuverlaessig gescrollt statt ueberlappt.
-    <div className="relative z-0 flex h-full flex-col items-center gap-2 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
+    // Jonas' Fehlerbericht 2026-08-18, vierte Runde ("der Header fehlt jetzt
+    // komplett"): die vorherige Runde hatte den Hintergrund auf
+    // position:fixed umgestellt (inset-0 relativ zum kompletten Browser-
+    // Viewport statt zu diesem Wurzel-Element) - das deckte damit auch die
+    // Kopfzeile ab, die AppShell.tsx als GESCHWISTER dieser Seite oberhalb
+    // rendert. Root Cause jetzt anders geloest, siehe die zwei verschachtelten
+    // Ebenen unten: eine AEUSSERE, NIE scrollende Ebene haelt den
+    // Hintergrund (zurueck auf position:absolute, aber jetzt sicher, weil
+    // IHRE eigene Box sich nie durch Scrollen veraendert) und bleibt exakt
+    // auf den eigentlichen Seiteninhalt (unterhalb der Kopfzeile) beschraenkt
+    // - eine INNERE Ebene traegt das eigentliche overflow-y-auto/den
+    // scrollenden Inhalt. Der urspruengliche Leck-Bug (siehe Git-Historie:
+    // "weiss im Darkmode" - ein absolut positionierter Hintergrund deckt nur
+    // die STATISCHE Box seines Elternelements ab, nicht gescrollten
+    // Ueberschuss) kann so nicht mehr auftreten, weil die Hintergrund-Ebene
+    // an einem Element haengt, das selbst NIE scrollt.
+    <div className="relative z-0 h-full overflow-hidden">
       {/* Platzhalter-Hintergrund (Jonas' Vorgabe 2026-07-22: "wie hinter
           Milchglas", nicht extrem - Bild wird spaeter ersetzt). scale-110
           verhindert, dass der Weichzeichner am Bildrand einen harten Rand
           durchscheinen laesst; das halbtransparente weisse Overlay erzeugt
-          den Milchglas-Effekt und haelt den Text darueber lesbar.
-          fixed statt absolute (Jonas' Fehlerbericht 2026-08-18, siehe
-          Begruendung oben) - deckt dadurch IMMER den kompletten sichtbaren
-          Viewport ab, unabhaengig vom Scroll-Zustand des Wurzel-Elements. */}
+          den Milchglas-Effekt und haelt den Text darueber lesbar. z-0 auf
+          diesem AEUSSEREN Wrapper (nicht nur "relative") ist noetig, damit
+          er einen EIGENEN Stacking-Context aufmacht - sonst "entkommen" die
+          -z-10-Kinder bis zum naechsten Vorfahren, der einen aufmacht, und
+          werden dort HINTER dessen normalem bg-white gemalt (Debugging-Fund
+          2026-07-22). */}
       <div
         aria-hidden
-        className="fixed inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
+        className="absolute inset-0 -z-10 scale-110 bg-cover bg-center blur-md"
         style={{ backgroundImage: "url(/start-background.svg)" }}
       />
-      <div aria-hidden className="fixed inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
 
-      {/* Jonas' Vorgabe 2026-08-18: "50% der Seite soll der Bereich mit
-          Konfiguration Starten und Projekt Laden sein, darunter soll die
-          Mitte der Höhe verlaufen" - eigener h-1/2-Block statt nur einer
-          losen Abstands-Heuristik (siehe vorherige gap/py-Anpassung), damit
-          die Grenze exakt bei der halben Seitenhoehe liegt, unabhaengig
-          davon, wie viel Inhalt darunter (Presets) noch folgt. h-1/2 loest
-          gegen die Hoehe DIESES Wurzel-Elements auf (h-full, siehe oben) -
-          bleibt dadurch bei genau 50% des sichtbaren Viewport-Slots stehen,
-          auch wenn der Preset-Bereich darunter die Seite scrollbar macht.
-          shrink-0, damit ein spaeter waechst Karussell diesen Block nicht
-          zusammendrueckt. */}
-      {/* Jonas' Vorgabe 2026-08-18 (Nachbesserung): "Presets naeher an der
-          Mittellinie" - justify-center haette Titel+Buttons in der MITTE
-          der 50%-Zone belassen, mit ebenso viel Leerraum ueber dem Titel wie
-          UNTER den Buttons (bis zur Mittellinie) - justify-end schiebt den
-          Inhalt stattdessen an den UNTEREN Rand der Zone, die Buttons sitzen
-          dadurch direkt an der Mittellinie, Presets koennen direkt
-          darunter anschliessen. */}
-      {/* Jonas' Vorgabe 2026-08-18 (weitere Nachbesserung): Mittellinie auf
-          35% (statt 50%) - h-[35%] statt h-1/2, Rest der Begruendung siehe
-          Kommentar oben (justify-end/gap-2 zur Praesets-Reihe).
-          min-h-[280px] (Fehlerbericht 2026-08-18, dritte Runde): verhindert,
-          dass dieser Block bei einem sehr niedrigen Fenster unter die
-          tatsaechlich benoetigte Hoehe von Titel+Buttons(+Handy-Hinweistext)
-          schrumpft - ohne dieses Minimum ragte der Inhalt sichtbar in den
-          Preset-Bereich darunter hinein (280px deckt Titelblock + Button-
-          Zeile [ggf. auf dem Handy gestapelt] + Hinweistext komfortabel ab). */}
-      <div className="flex h-[35%] min-h-[280px] w-full shrink-0 flex-col items-center justify-end gap-6 pb-4">
+      {/* INNERE, scrollende Ebene (siehe Begruendung oben) - traegt den
+          kompletten sichtbaren Inhalt. */}
+      <div className="flex h-full flex-col items-center gap-2 overflow-y-auto overflow-x-hidden px-6 py-8 text-center">
+        {/* Jonas' Vorgabe 2026-08-18: Mittellinie bei 35% der Seite (h-[35%]),
+            Inhalt sitzt via justify-end am UNTEREN Rand dieser Zone (nicht
+            justify-center - sonst gleich viel Leerraum ueber dem Titel wie
+            unter den Buttons bis zur Mittellinie), Presets schliessen direkt
+            darunter an.
+            Jonas' Fehlerbericht 2026-08-18, vierte Runde ("Platz ueber der
+            Ueberschrift darf auch komprimiert werden, Abstaende sollen nur
+            im Verhaeltnis gleich bleiben, kollidiert bei duennem/niedrigem
+            Fenster immer noch"): das feste min-h-[280px] der letzten Runde
+            war ein harter Klotz, der bei wenig Platz nicht mitschrumpfte -
+            jetzt clamp()-basierte Abstaende (gap/pb skalieren mit der
+            Viewport-Hoehe zwischen einem kleinen und dem bisherigen Wert,
+            KEIN fixer Sprung) plus ein deutlich kleineres min-h-[180px] als
+            reine Sicherheitsuntergrenze (deckt nur noch Titel+eine
+            Button-Zeile ohne jeden Luftabstand ab - der eigentliche
+            Kollisions-Fix liegt aber in der Preset-Zone weiter unten:
+            justify-center dort liess ueberlaufenden Inhalt hier HINEIN
+            bluten, siehe dortiger Kommentar). */}
+        <div className="flex h-[35%] min-h-[180px] w-full shrink-0 flex-col items-center justify-end gap-[clamp(0.75rem,3vh,1.5rem)] pb-[clamp(0.25rem,1.5vh,1rem)]">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wide text-brand-dark dark:text-brand-light">
             Container Studio
@@ -271,25 +261,31 @@ export function StartPage() {
           </p>
         )}
       </div>
-      {/* Jonas' Fehlerbericht 2026-08-18 ("grauer Balken unten, wurde mit der
-          35%-Anpassung sogar noch groesser"): der Hero-Block oben ist fest
-          auf h-[35%] der Seite gesetzt, aber DIESER Bereich hier lag bisher
-          einfach lose im normalen Fluss darunter - bei natuerlicher (nicht
-          bis zum Seitenende reichender) Kartenhoehe blieb der GANZE Rest
-          zwischen dem Kartenende und dem unteren Seitenrand unbenutzter
-          Leerraum (zeigt dort einfach mehr vom Platzhalter-Hintergrundbild,
-          siehe dessen "wird spaeter ersetzt"-Kommentar oben - je kleiner der
-          Hero-Anteil, desto mehr wird davon sichtbar, exakt das beobachtete
-          "wird groesser"). flex-1 + justify-center macht diesen Bereich
-          jetzt selbst zur vollen verbleibenden Zone (100% - 35% Hero) und
-          zentriert seinen Inhalt DARIN, statt am oberen Rand dieser Zone
-          anzufangen und den Rest bis zum Seitenende ungenutzt zu lassen. */}
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2">
-        {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
-            starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
-            oben: Konfigurieren bleibt dem Handy vorbehalten). */}
-        {!isPhone && <StartPresetCarousel />}
-        {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {/* Jonas' Fehlerbericht 2026-08-18 ("grauer Balken unten, wurde mit
+            der 35%-Anpassung sogar noch groesser"): der Hero-Block oben ist
+            fest auf h-[35%] der Seite gesetzt, aber DIESER Bereich hier lag
+            bisher einfach lose im normalen Fluss darunter - bei natuerlicher
+            (nicht bis zum Seitenende reichender) Kartenhoehe blieb der GANZE
+            Rest zwischen Kartenende und unterem Seitenrand unbenutzter
+            Leerraum. flex-1 macht diesen Bereich zur vollen verbleibenden
+            Zone (100% - 35% Hero).
+            Jonas' Fehlerbericht 2026-08-18, vierte Runde ("kollidiert immer
+            noch", Screenshot zeigte die Buttons ueber den Preset-Karten-
+            Titeln): der Grund war justify-center HIER - bei einem sehr
+            niedrigen Fenster, wo der Karussell-Inhalt hoeher als diese Zone
+            ist, verteilt justify-center den Ueberlauf GLEICHMAESSIG nach
+            OBEN UND UNTEN - die obere Haelfte des Ueberlaufs blutete dadurch
+            sichtbar in den Hero-Bereich hinein. justify-start laesst
+            ueberlaufenden Inhalt nur noch NACH UNTEN (in die scrollbare
+            Zone) ueberlaufen, nie nach oben - genau das behebt die
+            gemeldete Kollision. */}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-start gap-2">
+          {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
+              starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
+              oben: Konfigurieren bleibt dem Handy vorbehalten). */}
+          {!isPhone && <StartPresetCarousel />}
+          {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
+        </div>
       </div>
     </div>
   );
