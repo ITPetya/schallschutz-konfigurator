@@ -24,6 +24,12 @@ interface LoadingIndicatorProps {
   // 3D-Aufbau) - faellt ohne explizite Angabe auf kind zurueck, da "saving"
   // schon eine sinnvolle eigene Gruppe ist.
   loadType?: string;
+  // Jonas' Vorgabe 2026-08-18: fuer Ladearten, bei denen "eigentlich immer
+  // eine hohe Ladezeit entsteht" (3D-Viewer-/CSG-Aufbau), soll das Symbol
+  // SOFORT erscheinen statt die uebliche 0,8s-Anlaufverzoegerung abzuwarten -
+  // siehe useLoadingPhase.ts. Default false (unveraendertes Verhalten fuer
+  // Ladearten, die meistens schnell sind, z. B. Route-Chunks).
+  immediate?: boolean;
 }
 
 // Einheitliches Lade-UI fuer JEDE Stelle im Projekt, an der Ladezeit
@@ -32,8 +38,8 @@ interface LoadingIndicatorProps {
 // Zeigt je nach Dauer (siehe useLoadingPhase.ts) nichts, ein einfaches
 // Ladesymbol, oder zusaetzlich eine Entschuldigung mit absteigender
 // Restzeit-Schaetzung.
-export function LoadingIndicator({ active = true, overlay = false, kind = "generic", loadType }: LoadingIndicatorProps) {
-  const { phase, etaSeconds } = useLoadingPhase(active, loadType ?? kind);
+export function LoadingIndicator({ active = true, overlay = false, kind = "generic", loadType, immediate = false }: LoadingIndicatorProps) {
+  const { phase, etaSeconds } = useLoadingPhase(active, loadType ?? kind, immediate);
   if (phase === "idle") return null;
 
   const Icon = kind === "saving" ? DiscIcon : OrbitIcon;

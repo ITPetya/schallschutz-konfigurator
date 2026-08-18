@@ -18,5 +18,11 @@ interface ViewerLoadingOverlayProps {
 // Viewer selbst zeigt den Ladezustand).
 export function ViewerLoadingOverlay({ contentNotReady }: ViewerLoadingOverlayProps) {
   const { active: assetsLoading } = useProgress();
-  return <LoadingIndicator active={contentNotReady || assetsLoading} overlay loadType="viewer" />;
+  // Jonas' Vorgabe 2026-08-18: der 3D-Aufbau (Wechsel Baugruppe <-> Detail-
+  // bearbeitung, Laden einer gespeicherten Baugruppe) braucht "eigentlich
+  // immer" spuerbar lange - hier soll das Ladesymbol deshalb sofort
+  // erscheinen statt die sonst uebliche 0,8s-Anlaufverzoegerung abzuwarten
+  // (die ist fuer Ladearten gedacht, die meistens SCHNELL sind, siehe
+  // useLoadingPhase.ts).
+  return <LoadingIndicator active={contentNotReady || assetsLoading} overlay loadType="viewer" immediate />;
 }

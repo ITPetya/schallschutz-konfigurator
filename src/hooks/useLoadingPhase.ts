@@ -66,7 +66,19 @@ export interface LoadingPhaseState {
 // Speichervorgang) - unterschiedliche Ladearten dauern grundsaetzlich
 // unterschiedlich lange, ein gemeinsamer Mittelwert waere fuer keine von
 // ihnen richtig gewesen.
-export function useLoadingPhase(active: boolean, loadType: string = "generic"): LoadingPhaseState {
+// Jonas' Vorgabe 2026-08-18: die 0,8s-Verzoegerung oben ist fuer Ladearten
+// gedacht, die MEISTENS schnell sind (ein aufblitzendes Symbol bei einem
+// 100ms-Route-Chunk waere stoerender als hilfreich) - fuer Ladearten, bei
+// denen "eigentlich immer eine hohe Ladezeit entsteht" (3D-Viewer-/CSG-Aufbau:
+// Wechsel zwischen Baugruppen-Uebersicht und Container-Detailbearbeitung,
+// Laden einer gespeicherten Baugruppe), soll das Ladesymbol dagegen SOFORT
+// erscheinen statt eine Verzoegerung abzuwarten, die bei diesen Ladearten
+// ohnehin fast nie greift, bevor es tatsaechlich lange dauert. `immediate`
+// ueberspringt deshalb gezielt nur die "idle"-Stufe (kein Symbol) - die
+// 3s-Schwelle fuer die Entschuldigung+Restzeit-Anzeige bleibt unveraendert,
+// die betrifft eine andere Frage (ab wann sich eine Wartezeit entschuldigen
+// laesst, nicht ab wann ueberhaupt ein Symbol erscheint).
+export function useLoadingPhase(active: boolean, loadType: string = "generic", immediate: boolean = false): LoadingPhaseState {
   const [elapsedMs, setElapsedMs] = useState(0);
   const startRef = useRef<number | null>(null);
   const assumedTotalRef = useRef(DEFAULT_ASSUMED_MS);
@@ -97,7 +109,7 @@ export function useLoadingPhase(active: boolean, loadType: string = "generic"): 
     return () => window.clearInterval(id);
   }, [active, loadType]);
 
-  if (!active || elapsedMs < SPINNER_AFTER_MS) return { phase: "idle", etaSeconds: 0 };
+  if (!active || (!immediate && elapsedMs < SPINNER_AFTER_MS)) return { phase: "idle", etaSeconds: 0 };
   if (elapsedMs < ETA_AFTER_MS) return { phase: "spinner", etaSeconds: 0 };
   const etaSeconds = Math.max(1, Math.round((assumedTotalRef.current - elapsedMs) / 1000));
   return { phase: "eta", etaSeconds };
