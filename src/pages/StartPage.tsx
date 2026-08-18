@@ -269,11 +269,26 @@ export function StartPage() {
           </p>
         )}
       </div>
-      {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
-          starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
-          oben: Konfigurieren bleibt dem Handy vorbehalten). */}
-      {!isPhone && <StartPresetCarousel />}
-      {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {/* Jonas' Fehlerbericht 2026-08-18 ("grauer Balken unten, wurde mit der
+          35%-Anpassung sogar noch groesser"): der Hero-Block oben ist fest
+          auf h-[35%] der Seite gesetzt, aber DIESER Bereich hier lag bisher
+          einfach lose im normalen Fluss darunter - bei natuerlicher (nicht
+          bis zum Seitenende reichender) Kartenhoehe blieb der GANZE Rest
+          zwischen dem Kartenende und dem unteren Seitenrand unbenutzter
+          Leerraum (zeigt dort einfach mehr vom Platzhalter-Hintergrundbild,
+          siehe dessen "wird spaeter ersetzt"-Kommentar oben - je kleiner der
+          Hero-Anteil, desto mehr wird davon sichtbar, exakt das beobachtete
+          "wird groesser"). flex-1 + justify-center macht diesen Bereich
+          jetzt selbst zur vollen verbleibenden Zone (100% - 35% Hero) und
+          zentriert seinen Inhalt DARIN, statt am oberen Rand dieser Zone
+          anzufangen und den Rest bis zum Seitenende ungenutzt zu lassen. */}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2">
+        {/* Preset-Karussell (Jonas' Vorgabe 2026-08-18) - wie "Konfiguration
+            starten" bewusst nur auf Laptop/PC/Tablet (siehe isPhone-Kommentar
+            oben: Konfigurieren bleibt dem Handy vorbehalten). */}
+        {!isPhone && <StartPresetCarousel />}
+        {error && <p className="max-w-sm text-sm text-red-600 dark:text-red-400">{error}</p>}
+      </div>
     </div>
   );
 }
