@@ -6,27 +6,23 @@ import { AnimatedButton } from "./AnimatedButton";
 import { ArrowLeftIcon } from "./icons/ArrowLeftIcon";
 import { ArrowRightIcon } from "./icons/ArrowRightIcon";
 import { START_PRESETS } from "../constants/startPresets";
+import { schedulePreload } from "../utils/idlePreload";
 // Groesse muss exakt der visible-card-Groesse entsprechen (StartPresetCard.tsx),
 // sonst waere der vorgeladene Snapshot in der falschen Aufloesung fuer die
 // tatsaechliche Anzeigegroesse zwischengespeichert.
 const PRELOAD_SIZE_PX = 216;
-// Jonas' Fehlerbericht 2026-08-18 ("die Previews brauchen viel zu lange zum
-// Laden, sichtbare Previews sollten priorisiert werden, Rest danach im
-// Hintergrund"): Wartezeit zwischen dem Start je einer weiteren
-// Hintergrund-Vorschau (siehe preloadCount-Effekt unten) - verhindert, dass
-// alle unsichtbaren Presets gleichzeitig um GPU/Hauptthread konkurrieren und
-// dabei den sichtbaren vier (die parallel ihre EIGENEN, echten
-// StartPresetCard-Instanzen rendern) Rechenzeit wegnehmen.
-const PRELOAD_STAGGER_MS = 700;
 
 // Wie viele Karten gleichzeitig sichtbar sind (Jonas' Vorgabe 2026-08-18,
 // nach Skizze: vier volle Karten in der Reihe).
 const VISIBLE_COUNT = 4;
-// "ein Klick soll dabei immer zwei weiter gehen" - eigenstaendig von
-// VISIBLE_COUNT, deshalb ein eigenes Fenster (sliding window, nicht
-// nicht-ueberlappende Seiten): zwei der vier sichtbaren Karten bleiben nach
-// einem Klick stehen, zwei sind neu - "laeuft wie in einem Karussell".
-const STEP = 2;
+// Jonas' Vorgabe 2026-08-18, urspruenglich "ein Klick soll dabei immer zwei
+// weiter gehen" (STEP=2) - Fehlerbericht 2026-08-18, vierte Runde: "besser
+// ist doch immer nur einer pro Klick, nicht immer direkt 2" - jetzt STEP=1.
+// Eigenstaendig von VISIBLE_COUNT, deshalb ein eigenes Fenster (sliding
+// window, nicht nicht-ueberlappende Seiten): drei der vier sichtbaren Karten
+// bleiben nach einem Klick stehen, nur eine ist neu - "laeuft wie in einem
+// Karussell".
+const STEP = 1;
 
 // Wie weit eine Kartenreihe seitlich faehrt, bevor/nachdem sie im
 // ueberlaufenden Rand (overflow-hidden am umschliessenden Wrapper, direkt
@@ -96,14 +92,22 @@ export function StartPresetCarousel() {
   // (identische Farbe/Preset), die genau den sichtbaren Karten Rechenzeit
   // wegnimmt. .slice(VISIBLE_COUNT) ueberspringt sie deshalb bewusst.
   const presetsToPreload = START_PRESETS.slice(VISIBLE_COUNT);
-  // Gestaffelt statt alle auf einmal (siehe PRELOAD_STAGGER_MS oben) - startet
-  // bei 0 (noch keine Hintergrund-Vorschau gemountet) und zaehlt alle
-  // PRELOAD_STAGGER_MS um eins hoch, bis alle uebrigen Presets erfasst sind.
+  // Jonas' Fehlerbericht 2026-08-18, dritte Runde ("Animationen laggen noch,
+  // solange die Previews laden"): ein fester PRELOAD_STAGGER_MS-Timer startet
+  // die naechste Hintergrund-Vorschau IMMER nach derselben Wartezeit, egal ob
+  // der Haupt-Thread gerade frei ist oder noch mit der vorherigen (bzw. mit
+  // einer laufenden Animation) beschaeftigt ist - bei einer laenger
+  // dauernden CSG-Vorschau ueberlappten sich dadurch zwei gleichzeitig
+  // laufende Aufbauten, deren gemeinsame Pro-Frame-Arbeit das Framebudget
+  // sprengte. schedulePreload (idlePreload.ts, bereits an anderer Stelle
+  // dieser Seite fuers Route-Vorladen im Einsatz) nutzt stattdessen
+  // requestIdleCallback: die naechste Vorschau startet erst, wenn der
+  // Haupt-Thread TATSAECHLICH frei ist (laufende Animationen/Interaktionen
+  // bekommen automatisch Vorrang), nicht nach einer festen Zeitspanne.
   const [preloadCount, setPreloadCount] = useState(0);
   useEffect(() => {
     if (preloadCount >= presetsToPreload.length) return;
-    const id = window.setTimeout(() => setPreloadCount((n) => n + 1), PRELOAD_STAGGER_MS);
-    return () => window.clearTimeout(id);
+    return schedulePreload(() => setPreloadCount((n) => n + 1));
     // presetsToPreload.length ist ueber die Lebensdauer dieser Komponente
     // konstant (START_PRESETS/VISIBLE_COUNT aendern sich nie zur Laufzeit) -
     // absichtlich nicht in den Deps, um bei jedem Render eine neue Array-
@@ -164,8 +168,23 @@ export function StartPresetCarousel() {
             sonst uebliche Stapeln zweier normal fliessender Kartenreihen
             uebereinander), waehrend sie weiter sichtbar herausgleitet UND
             gleichzeitig die neue hereinrollt - wie ein durchgehend
-            drehendes Rad statt eines Umblaetterns. */}
-        <div className="overflow-hidden">
+            drehendes Rad statt eines Umblaetterns.
+            Jonas' Fehlerbericht 2026-08-18, vierte Runde ("Karten ploppen
+            beim Verlassen des Sichtbereichs zu ploetzlich weg, soll eine
+            imaginaere Linie kurz vor dem Pfeil geben, hinter der sie
+            Schritt fuer Schritt verschwinden"): mask-image mit einem
+            Verlauf zu transparent an beiden Raendern - eine Karte, die
+            durch den Rand-Bereich gleitet (egal ob im Ruhezustand am
+            aeussersten Platz oder waehrend der Schlitz-Animation), blendet
+            dadurch stufenlos aus, statt vom harten overflow-hidden-Rand
+            (siehe Begruendung oben) schlagartig gekappt zu werden. */}
+        <div
+          className="overflow-hidden"
+          style={{
+            maskImage: "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
+          }}
+        >
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.div
               key={startIndex}

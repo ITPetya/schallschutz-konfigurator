@@ -38,8 +38,19 @@ const MM_TO_M = 1 / 1000;
 // ca. 9 statt vorher ca. 13 gebracht (Faktor ~1,47, nah an den gewuenschten
 // 50%) - je kleiner das Preset, desto staerker der Zoom-Zugewinn, das
 // laengste bleibt unangetastet/unveraendert sicher.
-const THUMBNAIL_DISTANCE_BASE = 4.4;
-const THUMBNAIL_DISTANCE_SLOPE = 1.53;
+// Fix Runde 4 (Jonas' Vorgabe 2026-08-18: "die 3D-Modelle sollen nochmal um
+// 50% groesser werden"): Sockel/Steigung diesmal GLEICHMAESSIG um den
+// Faktor 1/1,5 (~0,667) reduziert, OHNE das laengste Preset (18m) wie in
+// Runde 3 gezielt auszunehmen - Jonas wollte diesmal ausdruecklich alle
+// Modelle groesser, nicht nur die kleineren nachziehen. Damit sinkt 18m's
+// Distanz von ~32 auf ~21 - das war bisher bewusst die "garantiert nichts
+// wird abgeschnitten"-Grenze, jetzt nicht mehr mit derselben Sicherheits-
+// marge. Kann in dieser Umgebung nicht visuell geprueft werden (siehe
+// Sitzungs-Notizen zu fehlendem WebGL) - beim naechsten Live-Test gezielt
+// die laengsten Presets (18m/40 Fuß) auf abgeschnittene Kanten pruefen,
+// bei Bedarf Sockel/Steigung fuer genau diese wieder anheben.
+const THUMBNAIL_DISTANCE_BASE = 2.94;
+const THUMBNAIL_DISTANCE_SLOPE = 1.02;
 
 interface StartPresetThumbnailProps {
   config: ContainerConfig;
