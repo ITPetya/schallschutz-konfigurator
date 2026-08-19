@@ -82,6 +82,12 @@ const LABEL_THRESHOLD_DEG = 4.5;
 const FADE_SIGMA = 1.1;
 const FADE_MIN_OPACITY = 0.12;
 
+// Trigger-Button-Hintergrund, wenn KEINE Sonderfarbe von diesem Rad aktiv
+// ist (siehe activeIndex-Verwendung am Button unten) - ein einmal
+// umlaufender Regenbogen-Kreisverlauf statt einer (redundanten) Standardfarbe.
+const RAINBOW_RING_GRADIENT =
+  "conic-gradient(from 0deg, #ff0000, #ffbf00, #80ff00, #00ff80, #00ffff, #0080ff, #8000ff, #ff00bf, #ff0000)";
+
 // Standard-Mathe-Winkel (0deg = rechts, waechst gegen den Uhrzeigersinn wie
 // im Einheitskreis "nach oben") auf SVG-Koordinaten (y waechst nach unten)
 // umgerechnet - deshalb das Minus vor sin().
@@ -246,8 +252,22 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
           width: size,
           height: size,
           borderRadius: 9999,
-          background: value,
-          border: "2px solid rgba(255,255,255,0.9)",
+          // Jonas' Vorgabe 2026-08-19: "wenn eine Standardfarbe ausgewaehlt
+          // ist, soll der Hintergrund des Plus-Buttons die Regenbogenfarben
+          // sein, einmal im Kreis" - eine Standardfarbe hier anzuzeigen waere
+          // redundant (die steht schon auf ihrem eigenen Punkt in entry.tsx)
+          // und saehe wie eine dritte, unbenutzte Auswahl aus - der
+          // Regenbogen-Ring signalisiert stattdessen "hier gibt's alles
+          // andere". Ist dagegen tatsaechlich eine Sonderfarbe von DIESEM
+          // Rad aktiv (activeIndex!==-1), zeigt der Button ganz normal deren
+          // echte Farbe. "Wenn eine Farbe (Standard oder Sonder) ausgewaehlt
+          // ist, soll der Punkt nicht weiss, sondern blau umrandet sein" -
+          // hier: blau NUR wenn die aktuelle Auswahl tatsaechlich von DIESEM
+          // Rad stammt (activeIndex!==-1) - sonst weiss, wie gehabt (die
+          // beiden Standard-Punkte in entry.tsx haben ihre eigene,
+          // unabhaengige aktiv/blau-Markierung, siehe dortiges ColorDot).
+          background: activeIndex !== -1 ? value : RAINBOW_RING_GRADIENT,
+          border: activeIndex !== -1 ? "2px solid #008eb4" : "2px solid rgba(255,255,255,0.9)",
           boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
           cursor: "pointer",
           padding: 0,
