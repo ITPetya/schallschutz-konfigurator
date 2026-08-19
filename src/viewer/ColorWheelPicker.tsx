@@ -222,8 +222,17 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
           onPointerMove={handlePointerMove}
           onPointerLeave={() => setHoverIndex(null)}
         >
+          {/* Jonas' Fehlerbericht 2026-08-19: "haessliche weisse Striche
+              dazwischen" - klassisches SVG-Antialiasing-Nahtproblem
+              zwischen vielen aneinanderstossenden fein gefuellten Formen
+              (bei 213 duennen Segmenten gut sichtbar): jede <path> wird
+              einzeln geglaettet, an der gemeinsamen Kante bleibt dabei ein
+              Sub-Pixel-Spalt, durch den der Hintergrund durchscheint.
+              Standard-Fix: Stroke in derselben Farbe wie die Fuellung, 1px
+              breit - deckt genau diesen Spalt ab, ohne die sichtbare Form
+              zu veraendern. */}
           {segments.map((seg, i) => (
-            <path key={i} d={seg.d} fill={seg.fill} />
+            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} />
           ))}
           {activeIndex !== -1 && (
             <CurrentMarker cx={cx} cy={cy} r={midR} angle={(layout[activeIndex].a0 + layout[activeIndex].a1) / 2} />
