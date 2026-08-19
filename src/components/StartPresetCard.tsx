@@ -6,8 +6,7 @@ import { PlusIcon } from "./icons/PlusIcon";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./primitives/DropdownMenu";
 import { LazyStartPresetThumbnail } from "./LazyStartPresetThumbnail";
 import { RAL_STANDARD_COLORS, RAL_SPECIAL_COLORS } from "../constants/ralColors";
-import type { StartPreset } from "../constants/startPresets";
-import type { ProjectConfig } from "../config/projectTypes";
+import { buildProjectFromPreset, type StartPreset } from "../constants/startPresets";
 
 interface StartPresetCardProps {
   preset: StartPreset;
@@ -28,19 +27,7 @@ export function StartPresetCard({ preset }: StartPresetCardProps) {
   const customColor = isStandardColor ? null : outsideColor;
 
   function handleConfigure() {
-    const project: ProjectConfig = {
-      formatVersion: 1,
-      name: preset.label,
-      instances: [
-        {
-          id: crypto.randomUUID(),
-          label: `${preset.label} Container`,
-          config: { ...preset.config, outsideColor },
-          position: { x: 0, z: 0 },
-          rotationY: 0,
-        },
-      ],
-    };
+    const project = buildProjectFromPreset(preset, outsideColor);
     // Jonas' Vorgabe 2026-08-18: "trotzdem Projektname und Standort
     // abfragen wie beim Erstellen jedes Projekts" - fresh:true zusaetzlich
     // zu project (bisher schloss sich das gegenseitig aus: project kam

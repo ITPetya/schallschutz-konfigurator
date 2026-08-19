@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Scene } from "../components/Scene";
 import { ProjectScene3D } from "../components/ProjectScene3D";
@@ -49,6 +49,8 @@ import { CONFIG_FILE_EXTENSION, decodeConfig, downloadBlob, encodeConfig, saniti
 import { REQUEST_EMAIL } from "../config/requestEmail";
 import { defaultConfig } from "../config/defaultContainerConfig";
 import type { AlignmentDependency, ContainerInstance, ProjectConfig } from "../config/projectTypes";
+import { START_PRESETS, buildProjectFromPreset } from "../constants/startPresets";
+import { findRalColorByCode } from "../constants/ralColors";
 import { lockedAxesFor, resolveAlignmentDependencies } from "../utils/alignmentDependencies";
 import {
   hasMeaningfulProjectDraft,
@@ -132,13 +134,45 @@ export function WorkspacePage() {
   // der aktive Eintrag, statt (wie bei routeProject ohne historyId, z. B.
   // einer frisch aus Datei geladenen Fremd-Datei) einen neuen anzulegen.
   const routeState = location.state as { project?: ProjectConfig; fresh?: boolean; historyId?: string } | null;
-  const routeProject = routeState?.project;
+  // Jonas' Vorgabe 2026-08-19: der eigenstaendige Viewer-Embed (viewer.html,
+  // siehe src/viewer/) kann per "Konfigurieren"/Personalisieren-Button
+  // direkt hierher verlinken - das ist ein ECHTER Seitenaufruf (moeglich aus
+  // einem Cross-Origin-iframe heraus, neuer Tab), NICHT eine React-Router-
+  // Navigation innerhalb derselben SPA. location.state (routeState oben) ist
+  // dafuer ungeeignet (existiert nur innerhalb der SPA-Navigationshistorie) -
+  // ?preset=<id>&RAL=<code>/&color=<hex> in der URL uebernimmt deshalb
+  // dieselbe Rolle, wenn kein state vorhanden ist. Baut das Projekt exakt
+  // wie StartPresetCard.tsx's handleConfigure() (ueber denselben, jetzt
+  // geteilten buildProjectFromPreset), nur eben aus URL-Parametern statt
+  // Klick-Zustand. useMemo mit leeren Deps statt einer einfachen IIFE:
+  // buildProjectFromPreset ruft crypto.randomUUID() auf - ohne Memoisierung
+  // wuerde JEDER Render eine NEUE Instanz-ID erzeugen (reine Verschwendung,
+  // der Rueckgabewert wird ohnehin nur einmal im useState-Initializer unten
+  // als Startwert uebernommen) - genau wie routeState auch nur beim ersten
+  // Render als relevant gilt.
+  const routePresetProject = useMemo(() => {
+    if (routeState?.project) return undefined;
+    const params = new URLSearchParams(location.search);
+    const presetId = params.get("preset");
+    const preset = START_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return undefined;
+    const ralColor = params.get("RAL") ?? params.get("ral");
+    const matchedRal = ralColor ? findRalColorByCode(ralColor) : undefined;
+    const colorParam = params.get("color");
+    const hexColor = colorParam && /^#[0-9a-fA-F]{3,8}$/.test(colorParam) ? colorParam : undefined;
+    const outsideColor = matchedRal?.hex ?? hexColor ?? preset.config.outsideColor;
+    return buildProjectFromPreset(preset, outsideColor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const routeProject = routeState?.project ?? routePresetProject;
   // "Konfiguration starten" auf der Startseite setzt "fresh", damit IMMER
   // ein neues, leeres Projekt beginnt statt (versehentlich) den Cache
   // wiederherzustellen - der Cache bleibt dem expliziten "Aus Cache laden"
   // vorbehalten. Ohne jeden State (z. B. Neuladen der Seite waehrend der
-  // Arbeit) greift weiterhin der Cache als Absturz-Sicherheitsnetz.
-  const forceFresh = routeState?.fresh === true;
+  // Arbeit) greift weiterhin der Cache als Absturz-Sicherheitsnetz. Ein
+  // URL-Preset (routePresetProject) zaehlt genauso als bewusster Neustart
+  // wie routeState.fresh.
+  const forceFresh = routeState?.fresh === true || routePresetProject !== undefined;
   const routeHistoryId = routeState?.historyId;
 
   const [project, setProject] = useState<ProjectConfig>(() => {

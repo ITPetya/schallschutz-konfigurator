@@ -271,3 +271,50 @@ export function findRalColorByCode(input: string): RalColor | undefined {
   const target = normalize(input);
   return [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS].find((c) => normalize(c.code) === target);
 }
+
+// Farbton (0-360, HSL-Hue) eines Hex-Werts - Basis fuer das Farbrad im
+// eingebetteten Viewer (Jonas' Vorgabe 2026-08-19, siehe
+// src/viewer/ColorWheelPicker.tsx): der Bogen dort soll "stufenlos wirken,
+// aber es wird immer der naechst passende RAL-Ton genommen" - der Bogen
+// selbst ist ein reiner visueller Verlauf ueber den Farbton, die tatsaechliche
+// Auswahl rastet per findNearestRalColor unten auf einen echten RAL-Ton ein.
+export function hexToHue(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  if (delta === 0) return 0; // Grauton - Farbton per Konvention 0.
+  let h: number;
+  if (max === r) h = ((g - b) / delta) % 6;
+  else if (max === g) h = (b - r) / delta + 2;
+  else h = (r - g) / delta + 4;
+  h *= 60;
+  return h < 0 ? h + 360 : h;
+}
+
+// Findet den RAL-Ton mit dem naechstliegenden Farbton zu einem beliebigen
+// Hex-Wert - zirkulaerer Abstand (0/360 Grad liegen nebeneinander). `colors`
+// optional eingrenzbar (Default: kompletter Katalog Standard+Sonder) - der
+// Viewer-Embed durchsucht z.B. bewusst NUR RAL_SPECIAL_COLORS fuers Farbrad
+// (siehe src/viewer/ColorWheelPicker.tsx), weil die 2 Standardfarben dort
+// bereits als eigene, direkt sichtbare Punkte existieren. Genutzt fuers
+// Einrasten auf dem Farbrad UND fuer den "coolen" Marken-Standardton des
+// Viewer-Embeds (siehe src/viewer/entry.tsx) - eine einzige Quelle fuer
+// "welcher RAL-Ton passt am besten zu diesem Hex" statt mehrerer
+// unabhaengiger Naeherungen.
+export function findNearestRalColor(hex: string, colors: RalColor[] = [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS]): RalColor {
+  const targetHue = hexToHue(hex);
+  let best = colors[0];
+  let bestDist = Infinity;
+  for (const c of colors) {
+    const diff = Math.abs(hexToHue(c.hex) - targetHue);
+    const dist = Math.min(diff, 360 - diff);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = c;
+    }
+  }
+  return best;
+}
