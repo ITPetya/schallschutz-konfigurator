@@ -35,18 +35,24 @@ interface ColorWheelPickerProps {
 // Kappen an beiden Enden (volle Kreise mit Radius = halbe Bandbreite)
 // wieder ENTFERNT statt sie nachzujustieren, da unklar war, welche Form
 // stattdessen gewuenscht ist - lieber sauber sichtbare, scharfe Enden als
-// nochmal geraten. "Abstand an den Raendern zu den oberen/unteren Buttons
-// noch zu gering, aeusseren und inneren Ring noch etwas vergroessern,
-// Verhaeltnis ist gut" - ARC_GAP/ARC_BAND_WIDTH im GLEICHEN Verhaeltnis
-// (50:55) weiter hochskaliert, der Abstand zu den Nachbar-Punkten wird in
-// entry.tsx separat vergroessert (siehe dortiger Kommentar).
+// nochmal geraten.
+//
+// Jonas' Fehlerbericht 2026-08-19 (Runde 6): erst per Stack-Gap (siehe
+// entry.tsx) mehr Abstand zu den Nachbar-Punkten versucht, dann korrigiert:
+// "nein, Punkte wieder zurueck, aber den Durchmesser des Innen- und
+// Aussenkreises einfach noch etwas groesser" - bewusste Entscheidung
+// GEGEN das Vermeiden jeder Naehe zu den Nachbar-Punkten (bei diesem
+// Bogen-Winkel wuerde das nur ueber ein SCHMALERES Sweep oder mehr
+// Punkt-Abstand gehen, beides von Jonas explizit abgelehnt) - der Ring
+// waechst hier also weiter, eine gewisse Naehe/Ueberlappung zu den beiden
+// Standardfarben-Punkten beim geoeffneten Bogen ist damit in Kauf genommen.
 const PALETTE = RAL_SPECIAL_COLORS;
 
 const ARC_START_DEG = -80;
 const ARC_END_DEG = 80;
 const ARC_SWEEP_DEG = ARC_END_DEG - ARC_START_DEG;
-const ARC_BAND_WIDTH = 72;
-const ARC_GAP = 65; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
+const ARC_BAND_WIDTH = 92;
+const ARC_GAP = 85; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
 const CLOSE_DELAY_MS = 220;
 // Wie viele Nachbar-Segmente um den Cursor herum spuerbar mitwachsen
 // (Gauss-Streuung in Segment-Einheiten) und wie stark der Cursor-nahe

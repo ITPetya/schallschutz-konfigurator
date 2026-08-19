@@ -285,11 +285,14 @@ function ViewerRoot() {
             dann korrigiert): "Standardfarben bleiben, aber alles an den
             linken Rand, in der Mitte die Sonderfarbe, grau dann oben".
             Jonas' Fehlerbericht 2026-08-19 (nach dem Farbrad-Live-Test):
-            "der Abstand an den Raendern zu den oberen/unteren Buttons ist
-            noch etwas zu gering" - der geoeffnete Bogen reicht bei einem
-            Bogen-Radius von >200px sehr nah an die direkt benachbarten
-            Standardfarben-Punkte heran, 14px Standardabstand reichte dafuer
-            nicht mehr aus. */}
+            zunaechst versucht, mehr Abstand ueber einen groesseren
+            Stack-Gap (14->70) zu schaffen - Jonas' Korrektur direkt danach:
+            "nein, Punkte wieder zurueck" (sollen an ihrer urspruenglichen
+            Position bleiben), stattdessen waechst nur noch der Ring selbst
+            (siehe ColorWheelPicker.tsx) - eine gewisse Naehe/Ueberlappung
+            des geoeffneten Bogens zu diesen beiden Punkten ist damit
+            bewusst in Kauf genommen statt durch Verschieben der Punkte
+            geloest. */}
         <div
           style={{
             position: "absolute",
@@ -299,7 +302,7 @@ function ViewerRoot() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 70,
+            gap: 14,
             pointerEvents: "none",
           }}
         >
