@@ -39,9 +39,34 @@ export const GeometryCacheScopeContext = createContext<string | null>(null);
 interface CacheEntry {
   geometry: BufferGeometry;
   refCount: number;
+  // Siehe DISPOSE_GRACE_MS-Kommentar unten - laeuft ein Timer, ist der
+  // Eintrag "zum Absterben vorgemerkt", aber noch vollstaendig nutzbar.
+  disposeTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const cache = new Map<string, CacheEntry>();
+
+// Jonas' Fehlerbericht 2026-08-19 ("wenn ich einen einzelnen Container
+// veraendert habe und dann zurueck in die Baugruppe gehe, laedt diese
+// komplett neu, obwohl sich nur der eine Container/die eine Wand geaendert
+// hat"): WorkspacePage.tsx wechselt zwischen Baugruppen- und Detail-Ansicht
+// per State-Ternary (kein Routing, kein CSS-Verstecken) - die komplette
+// ProjectScene3D-Teilbaum-Instanz wird dabei UNGEMOUNTET, in beide
+// Richtungen. Bisher liess das JEDEN Eintrag dieses Caches sofort auf
+// refCount<=0 fallen und disposen, sobald die Baugruppe verlassen wurde -
+// selbst wenn NICHTS an den Daten dieses Containers geaendert wurde, ergab
+// das Zurueckwechseln denselben Cache-Schluessel wie vorher, traf aber auf
+// einen bereits entsorgten Eintrag und musste die teure CSG-Berechnung
+// (factory()) komplett neu durchlaufen. DISPOSE_GRACE_MS verzoegert das
+// tatsaechliche Dispose um ein paar Sekunden statt es bei refCount=0 SOFORT
+// auszufuehren - claimt in dieser Zeit irgendjemand (z. B. genau dieselbe
+// Baugruppen-Ansicht beim Zurueckwechseln) denselben Schluessel erneut,
+// wird der Timer verworfen und der Eintrag einfach weiterverwendet, ganz
+// ohne Neuberechnung. Bleibt der Schluessel dagegen wirklich ungenutzt (der
+// Nutzer navigiert laenger weg, wechselt das Projekt etc.), greift die
+// Aufraeumung wie zuvor - der Speicher waechst dadurch NICHT unbegrenzt,
+// nur kurzlebige Hin-und-her-Wechsel werden guenstiger.
+const DISPOSE_GRACE_MS = 8000;
 
 // Acquire passiert SYNCHRON im useMemo (greift/erzeugt + zaehlt sofort hoch,
 // noetig damit der Rueckgabewert schon im selben Render korrekt ist),
@@ -59,8 +84,14 @@ export function useCachedGeometry<T extends BufferGeometry>(key: string, factory
   const geometry = useMemo(() => {
     let entry = cache.get(scopedKey);
     if (!entry) {
-      entry = { geometry: factory(), refCount: 0 };
+      entry = { geometry: factory(), refCount: 0, disposeTimer: null };
       cache.set(scopedKey, entry);
+    } else if (entry.disposeTimer) {
+      // War zum Absterben vorgemerkt (siehe DISPOSE_GRACE_MS oben) - jetzt
+      // erneut geclaimt, bevor die Frist ablief: Timer verwerfen, Eintrag
+      // bleibt einfach bestehen.
+      clearTimeout(entry.disposeTimer);
+      entry.disposeTimer = null;
     }
     entry.refCount += 1;
     return entry.geometry as T;
@@ -73,8 +104,15 @@ export function useCachedGeometry<T extends BufferGeometry>(key: string, factory
       if (!entry) return;
       entry.refCount -= 1;
       if (entry.refCount <= 0) {
-        cache.delete(scopedKey);
-        entry.geometry.dispose();
+        entry.disposeTimer = setTimeout(() => {
+          // Erneut nachsehen statt blind zu disposen - falls in der
+          // Zwischenzeit doch wieder geclaimt wurde (Timer waere dann
+          // bereits oben geloescht/ueberschrieben worden), NICHT entsorgen.
+          const current = cache.get(scopedKey);
+          if (!current || current.refCount > 0) return;
+          cache.delete(scopedKey);
+          current.geometry.dispose();
+        }, DISPOSE_GRACE_MS);
       }
     };
   }, [scopedKey]);

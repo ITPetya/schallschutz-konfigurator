@@ -116,21 +116,59 @@ export function ProjectScene3D({
   canRedo,
   onCreateDependency,
 }: ProjectScene3DProps) {
-  // Reichweite (Meter) der ganzen Baugruppe ab dem Ursprung - fuer die
-  // Kameradistanz UND fuer TerrainBackground's extentM (Jonas' Vorgabe
-  // 2026-07-25: "die Waldgrenzen sollen sich mit erweitern, wenn ... die
-  // Baugruppe größer wird"), damit Baumring/Wiese immer mitwachsen, statt
-  // bei einer ausgedehnten Baugruppe mitten im Gebaeude zu stehen.
-  const maxReachM = useMemo(() => {
-    if (instances.length === 0) return 6;
-    let maxReach = 6;
+  // Jonas' Fehlerbericht 2026-08-19: der Dreh-/Weltmittelpunkt (OrbitControls-
+  // target) sass bisher fest bei [0, 1.2, 0], VOELLIG unabhaengig davon, wo
+  // die Instanzen tatsaechlich stehen - "der Mittelpunkt der Welt soll immer
+  // da sein, wo der Mittelpunkt aller Container zusammen waere, von den
+  // maximalen Aussenpunkten". Berechnet hier deshalb die echte, rotations-
+  // korrekte Bounding-Box ueber ALLE Instanzen (jede Instanz-Grundflaeche
+  // wird um rotationY gedreht, dann werden alle 4 Eckpunkte einbezogen -
+  // eine reine Mittelpunkt-plus-Radius-Naeherung wie zuvor waere bei
+  // gedrehten/asymmetrisch verteilten Baugruppen ungenau), centerX/centerZ
+  // ist deren Mittelpunkt, maxHeight die groesste Container-Hoehe (fuer den
+  // vertikalen Mittelpunkt), reach der tatsaechliche Bounding-Box-Halbdiagonal-
+  // Abstand VOM ECHTEN MITTELPUNKT (ersetzt die vorherige, nur ab dem
+  // Ursprung gemessene Naeherung - genauer UND automatisch mitkorrigiert,
+  // falls die Baugruppe nicht in Ursprungsnaehe steht) - weiterhin fuer die
+  // Kameradistanz UND TerrainBackground's extentM (Jonas' Vorgabe 2026-07-25:
+  // "die Waldgrenzen sollen sich mit erweitern, wenn ... die Baugruppe
+  // größer wird") verwendet.
+  const assemblyBounds = useMemo(() => {
+    if (instances.length === 0) return { centerX: 0, centerZ: 0, maxHeight: 2.4, reach: 6 };
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let maxHeight = 0;
     for (const inst of instances) {
-      const reachMm = Math.hypot(inst.position.x, inst.position.z) + Math.hypot(inst.config.size.length, inst.config.size.width) / 2;
-      maxReach = Math.max(maxReach, reachMm * MM_TO_M);
+      const lengthM = inst.config.size.length * MM_TO_M;
+      const widthM = inst.config.size.width * MM_TO_M;
+      const xM = inst.position.x * MM_TO_M;
+      const zM = inst.position.z * MM_TO_M;
+      const rotRad = (inst.rotationY * Math.PI) / 180;
+      const cos = Math.cos(rotRad);
+      const sin = Math.sin(rotRad);
+      for (const lx of [-lengthM / 2, lengthM / 2]) {
+        for (const lz of [-widthM / 2, widthM / 2]) {
+          // Gleiche Rotationsformel wie InstanceGroups eigene
+          // group-rotation={[0, rotRad, 0]} weiter unten, hier nur von Hand
+          // auf die 4 Eckpunkte angewendet statt ueber ein Three.js-Objekt.
+          const wx = xM + lx * cos + lz * sin;
+          const wz = zM - lx * sin + lz * cos;
+          if (wx < minX) minX = wx;
+          if (wx > maxX) maxX = wx;
+          if (wz < minZ) minZ = wz;
+          if (wz > maxZ) maxZ = wz;
+        }
+      }
+      maxHeight = Math.max(maxHeight, inst.config.size.height * MM_TO_M);
     }
-    return maxReach;
+    const centerX = (minX + maxX) / 2;
+    const centerZ = (minZ + maxZ) / 2;
+    const reach = Math.max(6, Math.hypot(maxX - centerX, maxZ - centerZ));
+    return { centerX, centerZ, maxHeight, reach };
   }, [instances]);
-  const cameraDistance = instances.length === 0 ? 14 : maxReachM * 1.3 + 4;
+  const cameraDistance = instances.length === 0 ? 14 : assemblyBounds.reach * 1.3 + 4;
 
   // Siehe Scene.tsx fuer die Begruendung (Home-Button + reset()).
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -436,7 +474,19 @@ export function ProjectScene3D({
       <Canvas
         shadows={viewPrefs.shadowsEnabled}
         gl={{ localClippingEnabled: true }}
-        camera={{ position: [cameraDistance, cameraDistance * 0.6, cameraDistance], fov: 45 }}
+        // Kameraposition um denselben Betrag verschoben wie das
+        // OrbitControls-target unten (assemblyBounds.centerX/centerZ) - so
+        // bleiben Blickwinkel/Abstand relativ zum Ziel exakt wie zuvor
+        // kalibriert, nur der ganze Aufbau ist auf den echten
+        // Baugruppen-Mittelpunkt zentriert statt auf den Weltursprung.
+        camera={{
+          position: [
+            assemblyBounds.centerX + cameraDistance,
+            assemblyBounds.maxHeight / 2 + cameraDistance * 0.6,
+            assemblyBounds.centerZ + cameraDistance,
+          ],
+          fov: 45,
+        }}
         // Siehe Scene.tsx fuer die Begruendung (PerformanceMonitor/
         // AdaptiveDpr/AdaptiveEvents unten) - hier besonders relevant, weil
         // eine Baugruppe aus vielen Containern die Framerate staerker
@@ -512,7 +562,7 @@ export function ProjectScene3D({
             Herkunft dieser HDRI-Dateien. */}
         {isTerrain ? (
           <>
-            <TerrainBackground detail={viewPrefs.terrainDetail} extentM={maxReachM} />
+            <TerrainBackground detail={viewPrefs.terrainDetail} extentM={assemblyBounds.reach} />
             <Environment files="/hdri/rooitou_park_1k.hdr" background={false} />
           </>
         ) : (
@@ -540,7 +590,7 @@ export function ProjectScene3D({
           enabled={!draggingId}
           minDistance={2}
           maxDistance={80}
-          target={[0, 1.2, 0]}
+          target={[assemblyBounds.centerX, assemblyBounds.maxHeight / 2, assemblyBounds.centerZ]}
           // Siehe Scene.tsx: mittlere Maustaste verschiebt die Ansicht. Dass
           // dabei nie ein Container mitverschoben wird, regelt das
           // e.button===0-Gate in handlePointerEvent oben, nicht diese Zeile.
