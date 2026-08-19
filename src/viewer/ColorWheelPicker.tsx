@@ -29,14 +29,24 @@ interface ColorWheelPickerProps {
 // Gauss-Gewichtung spuerbar mehr Gradanteil vom GLEICHBLEIBENDEN
 // Gesamt-Bogen zugewiesen, weit entfernte bleiben bei ihrer duennen
 // Basisbreite - die Summe aller Breiten fuellt immer exakt den Bogen.
-// "Ecken runden" - runde Kappen an beiden Bogen-Enden statt scharfer Kanten.
+//
+// Jonas' Fehlerbericht 2026-08-19 (Runde 5): "der Zoom ist gut, die
+// Rundung ist aber einfach nur komisch" - die zunaechst versuchten runden
+// Kappen an beiden Enden (volle Kreise mit Radius = halbe Bandbreite)
+// wieder ENTFERNT statt sie nachzujustieren, da unklar war, welche Form
+// stattdessen gewuenscht ist - lieber sauber sichtbare, scharfe Enden als
+// nochmal geraten. "Abstand an den Raendern zu den oberen/unteren Buttons
+// noch zu gering, aeusseren und inneren Ring noch etwas vergroessern,
+// Verhaeltnis ist gut" - ARC_GAP/ARC_BAND_WIDTH im GLEICHEN Verhaeltnis
+// (50:55) weiter hochskaliert, der Abstand zu den Nachbar-Punkten wird in
+// entry.tsx separat vergroessert (siehe dortiger Kommentar).
 const PALETTE = RAL_SPECIAL_COLORS;
 
 const ARC_START_DEG = -80;
 const ARC_END_DEG = 80;
 const ARC_SWEEP_DEG = ARC_END_DEG - ARC_START_DEG;
-const ARC_BAND_WIDTH = 55;
-const ARC_GAP = 50; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
+const ARC_BAND_WIDTH = 72;
+const ARC_GAP = 65; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
 const CLOSE_DELAY_MS = 220;
 // Wie viele Nachbar-Segmente um den Cursor herum spuerbar mitwachsen
 // (Gauss-Streuung in Segment-Einheiten) und wie stark der Cursor-nahe
@@ -66,7 +76,6 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   const innerR = size / 2 + ARC_GAP;
   const outerR = innerR + ARC_BAND_WIDTH;
   const midR = innerR + ARC_BAND_WIDTH / 2;
-  const capR = ARC_BAND_WIDTH / 2;
   const svgSize = outerR * 2;
   const cx = outerR;
   const cy = outerR;
@@ -158,8 +167,6 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   }
 
   const activeIndex = PALETTE.findIndex((c) => c.hex.toLowerCase() === value.toLowerCase());
-  const startCap = polarToXY(cx, cy, midR, ARC_START_DEG);
-  const endCap = polarToXY(cx, cy, midR, ARC_END_DEG);
 
   return (
     <div
@@ -212,12 +219,6 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
           {segments.map((seg, i) => (
             <path key={i} d={seg.d} fill={seg.fill} />
           ))}
-          {/* Runde Kappen an beiden Bogen-Enden statt scharfer Ecken (Jonas'
-              Vorgabe 2026-08-19: "Ecken runden") - ein Kreis mit Radius
-              = halbe Bandbreite an jedem Ende deckt die spitzen
-              Innen-/Aussenwinkel dort ab und rundet die Silhouette ab. */}
-          <circle cx={startCap[0]} cy={startCap[1]} r={capR} fill={PALETTE[0].hex} />
-          <circle cx={endCap[0]} cy={endCap[1]} r={capR} fill={PALETTE[PALETTE.length - 1].hex} />
           {activeIndex !== -1 && (
             <CurrentMarker cx={cx} cy={cy} r={midR} angle={(layout[activeIndex].a0 + layout[activeIndex].a1) / 2} />
           )}

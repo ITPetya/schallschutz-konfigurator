@@ -283,7 +283,13 @@ function ViewerRoot() {
             Farbrad fuer Sonderfarben (Mitte) - Standardfarbe gruen (unten).
             Jonas' Vorgabe 2026-08-19 (nach anfaenglich "3 Punkte unten",
             dann korrigiert): "Standardfarben bleiben, aber alles an den
-            linken Rand, in der Mitte die Sonderfarbe, grau dann oben". */}
+            linken Rand, in der Mitte die Sonderfarbe, grau dann oben".
+            Jonas' Fehlerbericht 2026-08-19 (nach dem Farbrad-Live-Test):
+            "der Abstand an den Raendern zu den oberen/unteren Buttons ist
+            noch etwas zu gering" - der geoeffnete Bogen reicht bei einem
+            Bogen-Radius von >200px sehr nah an die direkt benachbarten
+            Standardfarben-Punkte heran, 14px Standardabstand reichte dafuer
+            nicht mehr aus. */}
         <div
           style={{
             position: "absolute",
@@ -293,7 +299,7 @@ function ViewerRoot() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 14,
+            gap: 70,
             pointerEvents: "none",
           }}
         >
