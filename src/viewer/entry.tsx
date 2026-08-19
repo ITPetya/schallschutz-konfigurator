@@ -264,7 +264,19 @@ function ViewerRoot() {
               </SectionPlaneProvider>
             </DisplaySettingsProvider>
           </GeometryCacheScopeContext.Provider>
-          <OrbitControls target={[0, heightM / 2, 0]} minDistance={2} maxDistance={40} enableDamping />
+          {/* Jonas' Fehlerbericht 2026-08-19 (per Screenshot): "der
+              Container ist auf vertikaler Ebene nicht mittig" - Ursache:
+              die <group> oben verschiebt den Container bereits um
+              -heightM/2 nach unten (uebernommen von
+              StartPresetThumbnail.tsx, wo das den Container auf den
+              Welt-Ursprung zentriert), das target hier war aber
+              faelschlich von Scene.tsx uebernommen, wo der Container OHNE
+              diese Verschiebung direkt bei lokal y=0..height steht - dort
+              ist heightM/2 korrekt die Mitte, hier (bereits verschoben)
+              liegt heightM/2 stattdessen auf Dachhoehe, das Ziel zielte
+              dadurch auf das Dach statt die Mitte. Nach der Verschiebung
+              liegt die echte Mitte bei Welt-y=0. */}
+          <OrbitControls target={[0, 0, 0]} minDistance={2} maxDistance={40} enableDamping />
         </Canvas>
 
         {/* Linker Rand, vertikal mittig: Standardfarbe grau (oben) -
