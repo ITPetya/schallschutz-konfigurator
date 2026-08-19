@@ -71,14 +71,15 @@ const HOVER_MAGNIFY = 26;
 // versehentlich ueberall aufploppt.
 const LABEL_THRESHOLD_DEG = 4.5;
 // Jonas' Vorgabe 2026-08-19: "es sollen immer nur 3 wirklich sichtbar
-// sein, der Rest soll weg faden" - eigene, ENGERE Gauss-Streuung nur fuer
-// die Deckkraft (getrennt von HOVER_SIGMA/-MAGNIFY oben, die steuern nur
-// die BREITE) - bei FADE_SIGMA=1,1 sind ungefaehr das getroffene Segment
-// plus je ein Nachbar auf jeder Seite deutlich sichtbar, der Rest faellt
-// schnell auf FADE_MIN_OPACITY ab. FADE_MIN_OPACITY bleibt > 0 statt 0,
-// damit die Bogenform als Ganzes (welche Farbfamilien ueberhaupt zur
-// Verfuegung stehen) weiterhin schwach erkennbar bleibt, nicht komplett
-// verschwindet.
+// sein, der Rest soll weg faden" - Klarstellung direkt danach: "die Farben
+// sollen nicht ausfaden, nur der Text" - die Deckkraft-Gewichtung hier gilt
+// deshalb NUR fuer die RAL-Namen-Beschriftung (siehe die <text>-Elemente
+// unten), NICHT fuer die Farbsegmente selbst (die bleiben immer voll
+// deckend, siehe segments-Rendering). Eigene, ENGERE Gauss-Streuung
+// (getrennt von HOVER_SIGMA/-MAGNIFY oben, die steuern nur die BREITE) -
+// bei FADE_SIGMA=1,1 bleiben ungefaehr das getroffene Segment plus je ein
+// Nachbar auf jeder Seite deutlich lesbar beschriftet, der Rest faellt
+// schnell auf FADE_MIN_OPACITY ab.
 const FADE_SIGMA = 1.1;
 const FADE_MIN_OPACITY = 0.12;
 
@@ -316,7 +317,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
               breit - deckt genau diesen Spalt ab, ohne die sichtbare Form
               zu veraendern. */}
           {segments.map((seg, i) => (
-            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} opacity={opacities[i]} />
+            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} />
           ))}
           {/* RAL-Nummer als Text, sobald ein Segment (durch die
               Hover-Vergroesserung oben) breit genug dafuer ist - siehe
