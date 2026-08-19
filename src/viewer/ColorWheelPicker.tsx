@@ -200,8 +200,36 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     return layout.length - 1;
   }
 
-  function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
-    const { angle, dist } = pointFromEvent(e);
+  // Jonas' Fehlerbericht 2026-08-19: "die Ansichten laggen teilweise,
+  // Animationen von Buttons usw." - rohe pointermove-Events koennen weit
+  // haeufiger feuern als der Bildschirm tatsaechlich neu zeichnet (v.a. bei
+  // hochaufloesenden Trackpads/Maeusen), und bei 213 eng gepackten Segmenten
+  // wechselt hoverIndex dabei fast bei jedem einzelnen Event - JEDES fuehrte
+  // bisher zu einer vollen Neuberechnung von layout/segments/opacities (213
+  // Elemente) UND einem React-Re-Render. Jetzt per requestAnimationFrame
+  // gedrosselt: mehrere pointermove-Events, die vor dem naechsten
+  // Bildschirm-Update eintreffen, aktualisieren nur noch die zuletzt
+  // bekannte Position (pendingMoveRef), tatsaechlich verarbeitet wird davon
+  // hoechstens einmal pro Frame - reduziert die Update-Rate auf die
+  // Bildwiederholrate, unabhaengig von der rohen Eingabe-Rate.
+  const pendingMoveRef = useRef<{ clientX: number; clientY: number; buttons: number; rect: DOMRect } | null>(null);
+  const moveRafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (moveRafRef.current !== null) cancelAnimationFrame(moveRafRef.current);
+    };
+  }, []);
+
+  function processPendingMove() {
+    moveRafRef.current = null;
+    const pending = pendingMoveRef.current;
+    if (!pending) return;
+    const px = pending.clientX - pending.rect.left - cx;
+    const py = pending.clientY - pending.rect.top - cy;
+    const dist = Math.hypot(px, py);
+    const raw = (Math.atan2(-py, px) * 180) / Math.PI;
+    const angle = Math.max(ARC_START_DEG, Math.min(ARC_END_DEG - 0.001, raw));
     if (!isOverRing(dist)) {
       setHoverIndex(null);
       return;
@@ -218,7 +246,14 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     // selbst nach, bleibt dadurch stabil deckungsgleich mit dem Cursor.
     const idx = indexForAngle(angle);
     setHoverIndex(idx);
-    if (e.buttons === 1) onChange(PALETTE[idx].hex);
+    if (pending.buttons === 1) onChange(PALETTE[idx].hex);
+  }
+
+  function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
+    pendingMoveRef.current = { clientX: e.clientX, clientY: e.clientY, buttons: e.buttons, rect: e.currentTarget.getBoundingClientRect() };
+    if (moveRafRef.current === null) {
+      moveRafRef.current = requestAnimationFrame(processPendingMove);
+    }
   }
 
   function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {

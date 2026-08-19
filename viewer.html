@@ -7,12 +7,17 @@
     <title>Container Ansicht</title>
     <!--
       Bewusst KEIN Import von src/index.css hier (Jonas' Vorgabe 2026-08-19,
-      eigenstaendig einbettbarer Viewer, siehe src/viewer-entry.tsx) - die
-      gesamte 3D-Render-Kette (Container.tsx und alles darunter) ist reines
-      r3f/three.js (<group>/<mesh> im Canvas), keine einzige Tailwind-Klasse,
-      kein DOM ausser dem Canvas selbst - ein Tailwind-/Font-Stylesheet
-      einzubinden wuerde nur unnoetig Gewicht in ein Embed-Bundle ziehen, das
-      auf einer fremden Webseite in einem iframe landet.
+      eigenstaendig einbettbarer Viewer, siehe src/viewer/entry.tsx) - alle
+      Bedienelemente (Farbpunkte, Farbrad, Preset-Auswahl, Personalisieren-
+      Button, Lade-Overlay) sind bewusst reines Inline-Styling statt
+      Tailwind-Klassen - ein Tailwind-/Font-Stylesheet einzubinden wuerde nur
+      unnoetig Gewicht in ein Embed-Bundle ziehen, das auf einer fremden
+      Webseite in einem iframe landet. Die Dreh-Animation des Lade-Icons
+      (siehe entry.tsx's LoadingOverlay) braucht trotzdem eine @keyframes-
+      Regel irgendwo im Dokument - hier statt einer eigenen <style>-Injektion
+      per JS, spart eine Laufzeit-Umstaendlichkeit fuer eine einzige Regel.
+      1:1 identisch zu index.css' .ssk-spin-slow (siehe dortiger Kommentar,
+      warum reines CSS statt einer JS/rAF-getriebenen Animation).
     -->
     <style>
       html,
@@ -24,6 +29,19 @@
       #viewer-root {
         width: 100%;
         height: 100%;
+      }
+      @keyframes viewer-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .viewer-spin {
+        animation: viewer-spin 2s linear infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .viewer-spin {
+          animation-duration: 3s;
+        }
       }
     </style>
   </head>

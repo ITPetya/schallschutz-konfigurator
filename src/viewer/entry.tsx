@@ -66,6 +66,19 @@ const MAX_SCALE = 1.7;
 const BRAND_LIGHT_BLUE = "#71c8dd";
 const DEFAULT_ACCENT_COLOR = findNearestRalColor(BRAND_LIGHT_BLUE, RAL_SPECIAL_COLORS).hex;
 
+// Jonas' Vorgabe 2026-08-19: "sortiere die Previews nach Groesse und Art,
+// also nicht wie bei der Startseite vom eigentlichen Konfigurator, sondern
+// die Dropdown-Liste gescheit sortiert" - START_PRESETS selbst bleibt
+// UNVERAENDERT in seiner eigenen, absichtlich handkuratierten Reihenfolge
+// (Jonas' Vorgabe 2026-08-18 fuer die Start-Seiten-Karten, siehe
+// startPresets.ts), hier nur eine SEPARATE, nach Laenge aufsteigend
+// sortierte Kopie speziell fuer dieses Embed - die Groessen-Einheit (ft/m)
+// ist ueber das Preset-Label selbst weiterhin klar erkennbar ("20 Fuß" vs.
+// "12m"), ein zusaetzliches Gruppieren nach Einheit haette hier eine
+// willkuerliche "welche Einheit zuerst"-Entscheidung erzwungen, die Jonas
+// nicht vorgegeben hat.
+const SORTED_PRESETS = [...START_PRESETS].sort((a, b) => a.config.size.length - b.config.size.length);
+
 // Minimale Plausibilitaetspruefung fuer ?config= (siehe parseConfig unten) -
 // Container.tsx selbst prueft seine Eingaben nicht defensiv (das war bisher
 // nie noetig, alle bisherigen Aufrufer liefern bereits gepruefte
@@ -199,9 +212,74 @@ function ColorDot({ color, active, onClick, title }: { color: string; active: bo
   );
 }
 
+// Jonas' Vorgabe 2026-08-19: "die Einbettungen sollen auch das typische
+// Lade-Symbol haben, welches auch im Konfigurator existiert, mit
+// milchigem Glas etc." - 1:1 dieselbe Optik wie LoadingIndicator.tsx's
+// Overlay-Variante (bg-white/70 + backdrop-blur-sm + rotierendes
+// Orbit-Icon + "Lädt…"-Text), hier als eigenstaendige Inline-Style-Version
+// nachgebaut statt die echte Komponente zu importieren (die haengt an
+// Tailwind-Klassen/useLoadingPhase.ts - beides fuer ein derart kleines,
+// bewusst CSS-freies Embed unnoetiger Overhead, siehe Kommentar oben zur
+// Bundle-Groesse). Rotation per reiner CSS-@keyframes-Klasse
+// (.viewer-spin, siehe viewer.html) statt JS/rAF-getrieben, aus demselben
+// Grund wie OrbitIcon.tsx's eigener Kommentar: bleibt vom Hauptthread
+// (schwere CSG-Berechnung laeuft genau waehrend dieses Overlay sichtbar
+// ist) unberuehrt, laeuft auf dem Compositor-Thread.
+function LoadingOverlay() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 30,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        background: "rgba(255,255,255,0.7)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+      }}
+    >
+      <svg
+        width={32}
+        height={32}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#008eb4"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="viewer-spin"
+      >
+        <path d="M20.341 6.484A10 10 0 0 1 10.266 21.85" />
+        <path d="M3.659 17.516A10 10 0 0 1 13.74 2.152" />
+        <circle cx="12" cy="12" r="3" />
+        <circle cx="19" cy="5" r="2" />
+        <circle cx="5" cy="19" r="2" />
+      </svg>
+      <span style={{ fontFamily: "sans-serif", fontSize: 13, color: "#94a3b8" }}>Lädt…</span>
+    </div>
+  );
+}
+
 function ViewerRoot() {
   const geometryScope = useId();
   const initial = useMemo(resolveConfig, []);
+  // Jonas' Vorgabe 2026-08-19 (siehe LoadingOverlay oben): true, sobald
+  // Container.tsx's eigenes onReady (Scene.tsx/StartPresetThumbnail.tsx
+  // nutzen das schon genauso) meldet, dass wirklich alle Teile des
+  // ERSTEN Aufbaus gemountet sind - deckt zuverlaessig den schwersten Fall
+  // ab (kalter Erststart inkl. three.js/CSG-Bundle-Aufwaermen). Bewusst
+  // NICHT bei jedem Preset-Wechsel zurueckgesetzt: Container.tsx's
+  // useChunkedReveal reveal-Zaehler laeuft nur neu an, wenn sich die
+  // TEILE-ANZAHL aendert (parts.length) - bei gleich vielen Teilen (alle
+  // Presets ohne Trennwaende, also praktisch immer) bleibt er bereits
+  // "voll" stehen und der Wechsel passiert ohnehin synchron in einem
+  // Render, ein erneutes Overlay wuerde dort nur flackern ohne echten
+  // Ladevorgang dahinter.
+  const [ready, setReady] = useState(false);
   // presetId ist IMMER ein echter Preset (auch im ?config=-Fall, dann als
   // sinnvoller Startwert fuer die Preset-Auswahl unten) - der
   // "Personalisieren"-Link baut deshalb immer aus presetId+outsideColor,
@@ -263,6 +341,21 @@ function ViewerRoot() {
       <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
         <Canvas
           gl={{ alpha: true }}
+          // Jonas' Vorgabe 2026-08-19: "der Konfigurator soll nicht die
+          // Webseite, auf der er eingesetzt ist, verlangsamen - das ist
+          // essenziell wichtig." r3f rendert per Default JEDEN Frame
+          // durchgehend neu (auch wenn sich rein gar nichts aendert), was
+          // bei einer eingebetteten, meist unbewegten Szene reine
+          // GPU/CPU-Verschwendung im Hintergrund waere, selbst wenn der
+          // umgebende Tab/das umgebende iframe gar nicht im Fokus steht.
+          // frameloop="demand" rendert stattdessen nur noch, wenn sich
+          // tatsaechlich etwas aendert (React-Commits im Canvas-Baum, z.B.
+          // waehrend des anfaenglichen CSG-Aufbaus) ODER wenn drei's
+          // OrbitControls selbst invalidiert (laeuft eingebaut mit, auch
+          // waehrend des Ausschwingens der enableDamping-Traegheit nach
+          // dem Loslassen) - im Ruhezustand (kein Ziehen, fertig geladen)
+          // rendert der Canvas dann komplett gar nicht mehr.
+          frameloop="demand"
           // [1, 2] statt fest 2 (abweichend von StartPresetThumbnail.tsx):
           // die Vorschau dort rendert einmalig auf eine feste kleine
           // Kachelgroesse, ein Embed kann in beliebiger iframe-Groesse
@@ -297,6 +390,7 @@ function ViewerRoot() {
                     floorThickness={config.floorThickness}
                     floorInsulated={config.floorInsulated}
                     partitionWalls={config.partitionWalls}
+                    onReady={() => setReady(true)}
                   />
                 </group>
               </SectionPlaneProvider>
@@ -316,6 +410,8 @@ function ViewerRoot() {
               liegt die echte Mitte bei Welt-y=0. */}
           <OrbitControls target={[0, 0, 0]} minDistance={2} maxDistance={40} enableDamping />
         </Canvas>
+
+        {!ready && <LoadingOverlay />}
 
         {/* Linker Rand, vertikal mittig: Standardfarbe grau (oben) -
             Farbrad fuer Sonderfarben (Mitte) - Standardfarbe gruen (unten).
@@ -386,7 +482,7 @@ function ViewerRoot() {
             cursor: "pointer",
           }}
         >
-          {START_PRESETS.map((p) => (
+          {SORTED_PRESETS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
             </option>
