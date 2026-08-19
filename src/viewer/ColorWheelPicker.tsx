@@ -285,10 +285,24 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
         </svg>
       </button>
       {open && (
+        // Jonas' Fehlerbericht 2026-08-19: "ich kann zum Schliessen aber
+        // noch nicht auf das Kreuz druecken, da passiert nix" - Ursache:
+        // dieses SVG-Element ist bei der aktuellen Ringgroesse (>350px)
+        // gross genug, um den kleinen Trigger-Button in seiner Mitte
+        // komplett zu ueberdecken - auch ohne sichtbare Fuellung faengt der
+        // <svg>-Wurzelknoten in einigen Browsern trotzdem Klicks in seinen
+        // "leeren" Bereichen ab, bevor sie den darunterliegenden Button
+        // erreichen. pointerEvents:"none" auf der Wurzel + "auto" auf den
+        // einzelnen <path>-Segmenten (siehe unten) macht nur die
+        // tatsaechlich bemalte Ringflaeche klickbar/hoverbar - Klicks in
+        // leeren Bereichen (inkl. dem Loch in der Mitte, wo der Button
+        // sitzt) fallen jetzt durch zum darunterliegenden Element. Die
+        // Pointer-Handler unten bleiben trotzdem wirksam, da Events von den
+        // <path>-Kindern weiterhin zur Wurzel hochblubbern.
         <svg
           width={svgSize}
           height={svgSize}
-          style={{ position: "absolute", left: size / 2 - outerR, top: size / 2 - outerR, touchAction: "none" }}
+          style={{ position: "absolute", left: size / 2 - outerR, top: size / 2 - outerR, touchAction: "none", pointerEvents: "none" }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerLeave={() => setHoverIndex(null)}
@@ -303,7 +317,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
               breit - deckt genau diesen Spalt ab, ohne die sichtbare Form
               zu veraendern. */}
           {segments.map((seg, i) => (
-            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} />
+            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} style={{ pointerEvents: "auto" }} />
           ))}
           {/* RAL-Nummer als Text, sobald ein Segment (durch die
               Hover-Vergroesserung oben) breit genug dafuer ist - siehe
