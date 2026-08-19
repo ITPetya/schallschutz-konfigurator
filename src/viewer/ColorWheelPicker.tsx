@@ -70,6 +70,17 @@ const HOVER_MAGNIFY = 26;
 // gross genug, dass der Text bei der Basisbreite (~0,75 Grad) nicht
 // versehentlich ueberall aufploppt.
 const LABEL_THRESHOLD_DEG = 4.5;
+// Jonas' Vorgabe 2026-08-19: "es sollen immer nur 3 wirklich sichtbar
+// sein, der Rest soll weg faden" - eigene, ENGERE Gauss-Streuung nur fuer
+// die Deckkraft (getrennt von HOVER_SIGMA/-MAGNIFY oben, die steuern nur
+// die BREITE) - bei FADE_SIGMA=1,1 sind ungefaehr das getroffene Segment
+// plus je ein Nachbar auf jeder Seite deutlich sichtbar, der Rest faellt
+// schnell auf FADE_MIN_OPACITY ab. FADE_MIN_OPACITY bleibt > 0 statt 0,
+// damit die Bogenform als Ganzes (welche Farbfamilien ueberhaupt zur
+// Verfuegung stehen) weiterhin schwach erkennbar bleibt, nicht komplett
+// verschwindet.
+const FADE_SIGMA = 1.1;
+const FADE_MIN_OPACITY = 0.12;
 
 // Standard-Mathe-Winkel (0deg = rechts, waechst gegen den Uhrzeigersinn wie
 // im Einheitskreis "nach oben") auf SVG-Koordinaten (y waechst nach unten)
@@ -78,8 +89,6 @@ function polarToXY(cx: number, cy: number, r: number, angleDeg: number): [number
   const rad = (angleDeg * Math.PI) / 180;
   return [cx + r * Math.cos(rad), cy - r * Math.sin(rad)];
 }
-
-const UNIFORM_STEP = ARC_SWEEP_DEG / PALETTE.length;
 
 export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPickerProps) {
   const [open, setOpen] = useState(false);
@@ -140,6 +149,17 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     });
   }, [hoverIndex]);
 
+  // Deckkraft je Segment - siehe FADE_SIGMA/FADE_MIN_OPACITY-Kommentar oben.
+  // Ohne Hover (hoverIndex=null, z.B. direkt beim Oeffnen) volle Deckkraft
+  // ueberall, damit erstmal das komplette Spektrum sichtbar ist.
+  const opacities = useMemo(() => {
+    if (hoverIndex === null) return PALETTE.map(() => 1);
+    return PALETTE.map((_, i) => {
+      const d = i - hoverIndex;
+      return FADE_MIN_OPACITY + (1 - FADE_MIN_OPACITY) * Math.exp(-(d * d) / (2 * FADE_SIGMA * FADE_SIGMA));
+    });
+  }, [hoverIndex]);
+
   const segments = useMemo(() => {
     return layout.map(({ a0, a1 }, i) => {
       const [ix0, iy0] = polarToXY(cx, cy, innerR, a0);
@@ -150,12 +170,26 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     });
   }, [layout, cx, cy, innerR, outerR]);
 
-  function angleFromEvent(e: ReactPointerEvent<SVGSVGElement>): number {
+  // Jonas' Fehlerbericht 2026-08-19: "die Auswahl soll auch nur passieren,
+  // wenn die Maus wirklich ueber den Farben ist, nicht im Nichts mehr" -
+  // bisher wurde der Winkel IMMER berechnet und geclampt, unabhaengig
+  // davon, ob der Cursor tatsaechlich im bemalten Ring (zwischen innerR und
+  // outerR) stand oder z.B. im leeren Loch in der Mitte bzw. den leeren
+  // Ecken der quadratischen SVG-Bounding-Box - dist gibt jetzt zusaetzlich
+  // den Radialabstand vom Mittelpunkt zurueck, isOverRing prueft, ob der
+  // Cursor wirklich auf dem Band steht.
+  function pointFromEvent(e: ReactPointerEvent<SVGSVGElement>): { angle: number; dist: number } {
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left - cx;
     const py = e.clientY - rect.top - cy;
+    const dist = Math.hypot(px, py);
     const raw = (Math.atan2(-py, px) * 180) / Math.PI;
-    return Math.max(ARC_START_DEG, Math.min(ARC_END_DEG - 0.001, raw));
+    const angle = Math.max(ARC_START_DEG, Math.min(ARC_END_DEG - 0.001, raw));
+    return { angle, dist };
+  }
+
+  function isOverRing(dist: number): boolean {
+    return dist >= innerR && dist <= outerR;
   }
 
   // Sucht das Segment, dessen (ggf. vergroesserter) Winkelbereich den
@@ -169,17 +203,29 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   }
 
   function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
-    const angle = angleFromEvent(e);
-    // Fuer die Hover-Vergroesserung reicht die GLEICHVERTEILTE Basis-Zuordnung
-    // als Anker (self-korrigierend bei jeder weiteren Mausbewegung, muss
-    // nicht exakt zum aktuell verzerrten Layout passen).
-    const uniformIndex = Math.min(PALETTE.length - 1, Math.max(0, Math.floor((angle - ARC_START_DEG) / UNIFORM_STEP)));
-    setHoverIndex(uniformIndex);
-    if (e.buttons === 1) onChange(PALETTE[indexForAngle(angle)].hex);
+    const { angle, dist } = pointFromEvent(e);
+    if (!isOverRing(dist)) {
+      setHoverIndex(null);
+      return;
+    }
+    // Jonas' Fehlerbericht 2026-08-19: "das Ganze verlaeuft nicht direkt
+    // zur Position der Maus" - Ursache: hier stand bisher eine GLEICH-
+    // VERTEILTE Basis-Zuordnung (angle/UNIFORM_STEP), obwohl das TATSAECH-
+    // LICH angezeigte Layout durch die Hover-Vergroesserung laengst verzerrt
+    // ist - bei starker Vergroesserung (HOVER_MAGNIFY jetzt 26) wich die so
+    // berechnete "Mitte" der Aufweitung spuerbar von der echten Mausposition
+    // ab. Fix: denselben indexForAngle-Lookup wie beim tatsaechlichen Picken
+    // nutzen (sucht im AKTUELLEN, ggf. bereits verzerrten Layout aus dem
+    // letzten Render) - das korrigiert sich mit jeder weiteren Mausbewegung
+    // selbst nach, bleibt dadurch stabil deckungsgleich mit dem Cursor.
+    const idx = indexForAngle(angle);
+    setHoverIndex(idx);
+    if (e.buttons === 1) onChange(PALETTE[idx].hex);
   }
 
   function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {
-    const angle = angleFromEvent(e);
+    const { angle, dist } = pointFromEvent(e);
+    if (!isOverRing(dist)) return;
     onChange(PALETTE[indexForAngle(angle)].hex);
   }
 
@@ -194,7 +240,18 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() =>
+          setOpen((o) => {
+            // Jonas' Fehlerbericht 2026-08-19: "wenn man aufs Plus drueckt
+            // soll das auch wieder eingefahren werden" - explizites
+            // Zuruecksetzen von hoverIndex beim Schliessen, damit beim
+            // naechsten Oeffnen (per Hover) nicht kurz die zuletzt
+            // vergroesserte Stelle "nachhaengt", bevor die Maus sich
+            // wieder bewegt.
+            if (o) setHoverIndex(null);
+            return !o;
+          })
+        }
         title="Sonderfarbe wählen"
         aria-label="Sonderfarbe wählen"
         style={{
@@ -212,8 +269,24 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
         {/* Jonas' Fehlerbericht 2026-08-19: "es soll klar werden, dass das
             mittlere custom ist, also irgendwie ein Plus darin" - weisses
             Kreuz mit dunklem Schlagschatten, dauerhaft sichtbar (nicht nur
-            solange keine Sonderfarbe gewaehlt ist). */}
-        <svg width={14} height={14} viewBox="0 0 14 14" style={{ position: "absolute", inset: 0, margin: "auto", pointerEvents: "none" }}>
+            solange keine Sonderfarbe gewaehlt ist). Jonas' Vorgabe
+            2026-08-19: "das Plus bitte auch nach dem animated-ui machen,
+            dass es zu einem Kreuz wird, wenn der Farbpicker ausgefahren
+            ist" - ein Plus, um 45 Grad gedreht, IST bereits ein X/Kreuz -
+            reine CSS-Rotation mit Uebergang statt eines zweiten Icons. */}
+        <svg
+          width={14}
+          height={14}
+          viewBox="0 0 14 14"
+          style={{
+            position: "absolute",
+            inset: 0,
+            margin: "auto",
+            pointerEvents: "none",
+            transform: `rotate(${open ? 45 : 0}deg)`,
+            transition: "transform 0.2s ease",
+          }}
+        >
           <g stroke="#000" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round">
             <line x1={7} y1={2} x2={7} y2={12} />
             <line x1={2} y1={7} x2={12} y2={7} />
@@ -243,7 +316,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
               breit - deckt genau diesen Spalt ab, ohne die sichtbare Form
               zu veraendern. */}
           {segments.map((seg, i) => (
-            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} />
+            <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} opacity={opacities[i]} />
           ))}
           {/* RAL-Nummer als Text, sobald ein Segment (durch die
               Hover-Vergroesserung oben) breit genug dafuer ist - siehe
@@ -272,6 +345,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
                 stroke="#000"
                 strokeWidth={2.5}
                 paintOrder="stroke"
+                opacity={opacities[i]}
                 style={{ pointerEvents: "none" }}
               >
                 {PALETTE[i].code}
