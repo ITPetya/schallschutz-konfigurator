@@ -91,8 +91,12 @@ interface StartPresetThumbnailProps {
 // an - Jonas' Vorgabe 2026-08-18: "ein Bild, das automatisch generiert wird,
 // ohne Hintergrund". Bewusst NICHT dauerhaft als lebender 3D-Canvas: acht
 // Presets gleichzeitig als volle r3f-Szenen (inkl. CSG-Aufbau) waeren fuer
-// eine reine Icon-Vorschau unnoetig teuer, siehe SnapshotCapture unten -
-// nach dem einmaligen Einfangen wird der Canvas wieder abgebaut.
+// eine reine Icon-Vorschau unnoetig teuer - nach dem einmaligen Einfangen
+// wird der Canvas wieder abgebaut. Der Zeitpunkt des Einfangens wartet auf
+// Container.tsx's echtes onReady statt (wie urspruenglich) eine geratene
+// Frame-Anzahl abzuwarten - siehe SnapshotCapture unten fuer die volle
+// Begruendung (Jonas' Fehlerbericht 2026-08-19: Dach/Boden fehlten
+// manchmal im fertigen Snapshot).
 export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 216, onDone }: StartPresetThumbnailProps) {
   // Jonas' Fehlerbericht 2026-08-18 ("Container laden vollstaendig und dann
   // verschwinden Bauteile wieder") - siehe GeometryCacheScopeContext-
@@ -103,6 +107,11 @@ export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 
   // Containern anderswo in der App interferieren kann.
   const geometryScope = useId();
   const [snapshot, setSnapshot] = useState<string | null>(() => getCachedThumbnail(cacheKey) ?? null);
+  // Jonas' Fehlerbericht 2026-08-19: Dach und/oder Boden fehlten manchmal
+  // komplett im fertigen Snapshot - siehe containerReady/SnapshotCapture-
+  // Kommentare unten fuer die volle Begruendung (echte Fertigstellung statt
+  // einer geratenen Frame-Anzahl).
+  const [containerReady, setContainerReady] = useState(false);
 
   // Meldet echte Fertigstellung nach oben (siehe onDone-Kommentar oben) -
   // laeuft bei JEDEM Uebergang von "noch kein Bild" auf "Bild da", egal ob
@@ -122,6 +131,7 @@ export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 
   // erledigt hat oder dieselbe Karte vorher schon einmal sichtbar war),
   // sonst auf null setzen und unten neu rendern/einfangen.
   useEffect(() => {
+    setContainerReady(false);
     setSnapshot(getCachedThumbnail(cacheKey) ?? null);
   }, [cacheKey]);
 
@@ -137,6 +147,7 @@ export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 
     },
     [cacheKey],
   );
+  const handleContainerReady = useCallback(() => setContainerReady(true), []);
 
   return (
     <div style={{ width: sizePx, height: sizePx }} className="mx-auto flex items-center justify-center">
@@ -181,41 +192,53 @@ export function StartPresetThumbnail({ config, outsideColor, cacheKey, sizePx = 
                     floorThickness={config.floorThickness}
                     floorInsulated={config.floorInsulated}
                     partitionWalls={config.partitionWalls}
+                    onReady={handleContainerReady}
                   />
                 </group>
               </SectionPlaneProvider>
             </DisplaySettingsProvider>
           </GeometryCacheScopeContext.Provider>
-          <SnapshotCapture onCaptured={handleCaptured} />
+          <SnapshotCapture ready={containerReady} onCaptured={handleCaptured} />
         </Canvas>
       )}
     </div>
   );
 }
 
-// Container.tsx gibt seine Teile ueber useChunkedReveal STUECKWEISE frei
-// (siehe dortiger Kommentar) - statt auf dessen onReady zu warten (das wuerde
-// hier eine weitere Prop-Kette nur fuers einmalige Einfangen aufziehen),
-// reicht fuer eine derart kleine, schnell fertige Vorschau-Szene ein festes
-// Abwarten mehrerer Frames: danach ist die komplette (kleine) CSG-Geometrie
-// zuverlaessig aufgebaut und mindestens einmal gezeichnet.
-const CAPTURE_AFTER_FRAMES = 12;
+// Jonas' Fehlerbericht 2026-08-19: "Container laden vollstaendig, aber Dach
+// und/oder Boden fehlen manchmal komplett im fertigen Snapshot" - betraf
+// urspruenglich (Runde 1, siehe Git-Historie) EIN festes Abwarten mehrerer
+// Frames (die Annahme "eine derart kleine Szene ist immer nach N Frames
+// fertig") STATT auf Container.tsx's echtes onReady zu warten. Diese Annahme
+// war falsch: Container.tsx gibt seine ~14-15 Teile ueber useChunkedReveal
+// ADAPTIV/zeitbasiert frei (siehe dortiger Kommentar) - unter genug
+// Hintergrundlast (z. B. waehrend der Vorlade-Batch in StartPresetCarousel.tsx
+// gleichzeitig weitere Presets aufbaut) kann das laenger dauern als jede
+// fest geratene Frame-Zahl, egal wie grosszuegig gewaehlt. Jetzt wird
+// stattdessen auf Container.tsx's eigenes onReady gewartet (ready-Prop,
+// siehe handleContainerReady in StartPresetThumbnail) - das feuert
+// garantiert erst, wenn WIRKLICH alle Teile gemountet sind, unabhaengig von
+// Timing/Systemlast. SETTLE_FRAMES_AFTER_READY wartet zusaetzlich noch ein
+// paar Frames NACH ready, weil onReady in einem useEffect feuert (also NACH
+// dem Commit) - der zuletzt gemountete Teil braucht noch einen echten
+// r3f-Zeichendurchlauf, bevor toDataURL() ihn tatsaechlich im Puffer sieht.
+const SETTLE_FRAMES_AFTER_READY = 3;
 
-function SnapshotCapture({ onCaptured }: { onCaptured: (dataUrl: string) => void }) {
+function SnapshotCapture({ ready, onCaptured }: { ready: boolean; onCaptured: (dataUrl: string) => void }) {
   const { gl } = useThree();
-  const frameCount = useRef(0);
+  const settleFrames = useRef(0);
   const captured = useRef(false);
 
   useFrame(() => {
-    if (captured.current) return;
-    frameCount.current += 1;
-    if (frameCount.current < CAPTURE_AFTER_FRAMES) return;
+    if (captured.current || !ready) return;
+    settleFrames.current += 1;
+    if (settleFrames.current < SETTLE_FRAMES_AFTER_READY) return;
     captured.current = true;
     // In useFrame ausgefuehrt, NACHDEM r3f diesen Frame bereits gezeichnet
     // hat (r3f rendert nach dem Aufruf aller useFrame-Callbacks desselben
     // Durchlaufs) - toDataURL() liest hier also den Puffer des VORHERIGEN
-    // Frames, fuer eine bis dahin laengst eingeschwungene, unbewegte Szene
-    // ohne sichtbaren Unterschied.
+    // Frames, fuer eine zu diesem Zeitpunkt laengst eingeschwungene,
+    // unbewegte Szene ohne sichtbaren Unterschied.
     onCaptured(gl.domElement.toDataURL("image/png"));
   });
 
