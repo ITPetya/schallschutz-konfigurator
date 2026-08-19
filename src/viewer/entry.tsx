@@ -1,4 +1,4 @@
-import { Component, StrictMode, useId, useMemo, useState, type ReactNode } from "react";
+import { Component, StrictMode, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -41,6 +41,20 @@ const MM_TO_M = 1 / 1000;
 // Vorschaubild-Konstanten drueben anzufassen.
 const VIEWER_DISTANCE_BASE = 2.94;
 const VIEWER_DISTANCE_SLOPE = 1.02;
+
+// Jonas' Vorgabe 2026-08-19: "die Buttons muessen sich mit der
+// Fenstergroesse auch anpassen. Die Farbwahl-Buttons und der Colorpicker
+// sind bei 420er Hoehe gut, aber die Auswahl-Buttons fuer Preset und
+// Konfigurieren eher bei 320er Hoehe" - zwei GETRENNTE Referenzhoehen
+// (nicht eine gemeinsame), weil die linke Farbgruppe und die rechte
+// Preset-/Personalisieren-Gruppe bei EXAKT derselben Einbettungshoehe
+// (420px) unterschiedlich richtig gross wirken - jede Gruppe skaliert
+// deshalb relativ zu ihrer EIGENEN kalibrierten Referenz. clamp() verhindert
+// absurd winzige/riesige Bedienelemente bei sehr kleinen/grossen Embeds.
+const COLOR_CONTROLS_REFERENCE_HEIGHT = 420;
+const TOP_CONTROLS_REFERENCE_HEIGHT = 320;
+const MIN_SCALE = 0.55;
+const MAX_SCALE = 1.7;
 
 // Jonas' Vorgabe 2026-08-19: "standardmaessig soll das helle Blau von der
 // Webseite sein, das sieht dann cool aus" - --color-brand-light aus
@@ -160,6 +174,10 @@ class ViewerErrorBoundary extends Component<{ children: ReactNode }, { hasError:
   }
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function ColorDot({ color, active, onClick, title }: { color: string; active: boolean; onClick: () => void; title: string }) {
   return (
     <button
@@ -220,9 +238,29 @@ function ViewerRoot() {
   const grau = RAL_STANDARD_COLORS[1]; // RAL 7004 Signalgrau
   const gruen = RAL_STANDARD_COLORS[0]; // RAL 6005 Moosgruen
 
+  // Beobachtet die TATSAECHLICHE gerenderte Hoehe des Embeds (nicht die
+  // Fenstergroesse - ein iframe kann per CSS auf jede beliebige Groesse
+  // gesetzt werden, unabhaengig vom Browserfenster) per ResizeObserver statt
+  // eines resize-Events, damit es auch reagiert, wenn NUR der umgebende
+  // Container (nicht das Browserfenster) seine Groesse aendert.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(COLOR_CONTROLS_REFERENCE_HEIGHT);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h) setContainerHeight(h);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const colorControlsScale = clamp(containerHeight / COLOR_CONTROLS_REFERENCE_HEIGHT, MIN_SCALE, MAX_SCALE);
+  const topControlsScale = clamp(containerHeight / TOP_CONTROLS_REFERENCE_HEIGHT, MIN_SCALE, MAX_SCALE);
+
   return (
     <ViewerErrorBoundary>
-      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
         <Canvas
           gl={{ alpha: true }}
           // [1, 2] statt fest 2 (abweichend von StartPresetThumbnail.tsx):
@@ -298,7 +336,10 @@ function ViewerRoot() {
             position: "absolute",
             left: 14,
             top: "50%",
-            transform: "translateY(-50%)",
+            // Skaliert relativ zur (bereits zentrierten) eigenen Mitte -
+            // siehe colorControlsScale-Kommentar oben.
+            transform: `translateY(-50%) scale(${colorControlsScale})`,
+            transformOrigin: "center",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -327,6 +368,12 @@ function ViewerRoot() {
             position: "absolute",
             top: 14,
             right: 14,
+            // Skaliert von der oberen rechten Ecke aus (transformOrigin),
+            // damit die Ecke selbst beim Skalieren an Ort und Stelle bleibt
+            // statt sich vom Rand wegzubewegen - siehe topControlsScale-
+            // Kommentar oben.
+            transform: `scale(${topControlsScale})`,
+            transformOrigin: "top right",
             height: 32,
             borderRadius: 8,
             border: "1px solid rgba(0,0,0,0.15)",
@@ -347,7 +394,15 @@ function ViewerRoot() {
         </select>
 
         {/* Unten rechts: Personalisieren-Button (verlinkt ins volle Studio). */}
-        <div style={{ position: "absolute", right: 14, bottom: 14 }}>
+        <div
+          style={{
+            position: "absolute",
+            right: 14,
+            bottom: 14,
+            transform: `scale(${topControlsScale})`,
+            transformOrigin: "bottom right",
+          }}
+        >
           <PersonalizeButton href={personalizeHref} />
         </div>
       </div>
