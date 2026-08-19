@@ -54,11 +54,22 @@ const ARC_SWEEP_DEG = ARC_END_DEG - ARC_START_DEG;
 const ARC_BAND_WIDTH = 92;
 const ARC_GAP = 85; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
 const CLOSE_DELAY_MS = 220;
-// Wie viele Nachbar-Segmente um den Cursor herum spuerbar mitwachsen
-// (Gauss-Streuung in Segment-Einheiten) und wie stark der Cursor-nahe
-// Bereich gegenueber der Basisbreite gewichtet wird.
-const HOVER_SIGMA = 3.2;
-const HOVER_MAGNIFY = 8;
+// Jonas' Vorgabe 2026-08-19: "den Zoom noch groesser machen" - HOVER_MAGNIFY
+// deutlich hoch (das Segment am Cursor nimmt einen deutlich groesseren
+// Gradanteil des Bogens ein), HOVER_SIGMA leicht mit angehoben, damit auch
+// ein paar Nachbar-Segmente spuerbar mitwachsen (nicht nur ein einzelnes
+// Segment ploetzlich riesig, sondern ein sanfterer Huegel darum herum) -
+// wichtig auch fuer die RAL-Namen-Beschriftung unten: mehrere anwachsende
+// Nachbarn ueberschreiten dadurch nacheinander die Beschriftungsschwelle.
+const HOVER_SIGMA = 4;
+const HOVER_MAGNIFY = 26;
+// Ab dieser Segmentbreite (Grad) wird die RAL-Nummer als Text eingeblendet
+// (Jonas' Vorgabe 2026-08-19: "ab einer gewissen Groesse auch die RAL-Farbe
+// als Namen reinschreiben") - klein genug, dass mehrere durch den Hover
+// vergroesserte Nachbar-Segmente gleichzeitig beschriftet werden koennen,
+// gross genug, dass der Text bei der Basisbreite (~0,75 Grad) nicht
+// versehentlich ueberall aufploppt.
+const LABEL_THRESHOLD_DEG = 4.5;
 
 // Standard-Mathe-Winkel (0deg = rechts, waechst gegen den Uhrzeigersinn wie
 // im Einheitskreis "nach oben") auf SVG-Koordinaten (y waechst nach unten)
@@ -234,6 +245,39 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
           {segments.map((seg, i) => (
             <path key={i} d={seg.d} fill={seg.fill} stroke={seg.fill} strokeWidth={1} />
           ))}
+          {/* RAL-Nummer als Text, sobald ein Segment (durch die
+              Hover-Vergroesserung oben) breit genug dafuer ist - siehe
+              LABEL_THRESHOLD_DEG. Radial ausgerichtet (Rotation = -Winkel,
+              da SVG im Uhrzeigersinn rotiert, unser Winkel aber gegen den
+              Uhrzeigersinn waechst, siehe polarToXY-Kommentar), damit der
+              Text der Speiche entlang der jeweiligen Segmentmitte folgt
+              statt quer drueberzustehen. */}
+          {layout.map(({ a0, a1 }, i) => {
+            const widthDeg = a1 - a0;
+            if (widthDeg < LABEL_THRESHOLD_DEG) return null;
+            const midAngle = (a0 + a1) / 2;
+            const [tx, ty] = polarToXY(cx, cy, midR, midAngle);
+            return (
+              <text
+                key={`label-${i}`}
+                x={tx}
+                y={ty}
+                transform={`rotate(${-midAngle}, ${tx}, ${ty})`}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={11}
+                fontFamily="sans-serif"
+                fontWeight={700}
+                fill="#fff"
+                stroke="#000"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+                style={{ pointerEvents: "none" }}
+              >
+                {PALETTE[i].code}
+              </text>
+            );
+          })}
           {activeIndex !== -1 && (
             <CurrentMarker cx={cx} cy={cy} r={midR} angle={(layout[activeIndex].a0 + layout[activeIndex].a1) / 2} />
           )}
