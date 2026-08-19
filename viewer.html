@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Container Ansicht</title>
+    <!--
+      Bewusst KEIN Import von src/index.css hier (Jonas' Vorgabe 2026-08-19,
+      eigenstaendig einbettbarer Viewer, siehe src/viewer-entry.tsx) - die
+      gesamte 3D-Render-Kette (Container.tsx und alles darunter) ist reines
+      r3f/three.js (<group>/<mesh> im Canvas), keine einzige Tailwind-Klasse,
+      kein DOM ausser dem Canvas selbst - ein Tailwind-/Font-Stylesheet
+      einzubinden wuerde nur unnoetig Gewicht in ein Embed-Bundle ziehen, das
+      auf einer fremden Webseite in einem iframe landet.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      #viewer-root {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer-root"></div>
+    <script type="module" src="/src/viewer-entry.tsx"></script>
+  </body>
+</html>
