@@ -7,6 +7,7 @@ import { DisplaySettingsProvider } from "./context/DisplaySettingsContext";
 import { SectionPlaneProvider } from "./context/SectionPlaneContext";
 import { GeometryCacheScopeContext } from "./utils/geometryCache";
 import { START_PRESETS } from "./constants/startPresets";
+import { findRalColorByCode } from "./constants/ralColors";
 import type { ContainerConfig } from "./config/types";
 
 // Jonas' Vorgabe 2026-08-19: der 3D-Viewer soll eigenstaendig (z.B. per
@@ -55,13 +56,9 @@ function isPlausibleContainerConfig(value: unknown): value is ContainerConfig {
   return true;
 }
 
-// Liest die Container-Konfiguration aus der URL (viewer.html?...) - zwei
-// Modi, siehe Kommentare an den jeweiligen Zweigen. Faellt bei JEDEM Fehler
-// auf den ersten Preset zurueck statt eine leere/kaputte Seite zu zeigen -
-// ein Embed auf einer fremden Webseite soll nie sichtbar "kaputt" wirken.
-function resolveConfig(): { config: ContainerConfig; outsideColor: string } {
-  const params = new URLSearchParams(window.location.search);
-
+// Ermittelt Config + Standardfarbe aus ?preset=<id> ODER ?config=<JSON> -
+// siehe resolveConfig unten fuer den (davon getrennten) Farb-Override.
+function resolveBaseConfig(params: URLSearchParams): { config: ContainerConfig; outsideColor: string } {
   const configParam = params.get("config");
   if (configParam) {
     try {
@@ -76,9 +73,35 @@ function resolveConfig(): { config: ContainerConfig; outsideColor: string } {
 
   const presetId = params.get("preset");
   const preset = START_PRESETS.find((p) => p.id === presetId) ?? START_PRESETS[0];
+  return { config: preset.config, outsideColor: preset.config.outsideColor };
+}
+
+// Liest die Container-Konfiguration aus der URL (viewer.html?...). Faellt
+// bei JEDEM Fehler auf den ersten Preset zurueck statt eine leere/kaputte
+// Seite zu zeigen - ein Embed auf einer fremden Webseite soll nie sichtbar
+// "kaputt" wirken.
+function resolveConfig(): { config: ContainerConfig; outsideColor: string } {
+  const params = new URLSearchParams(window.location.search);
+  const base = resolveBaseConfig(params);
+
+  // Farb-Override, gilt fuer BEIDE Modi oben (auch bei ?config=, damit ein
+  // bestehender Konfigurations-Link ohne Neuerzeugung trotzdem in einer
+  // anderen Farbe gezeigt werden kann). ?RAL=<nummer> (Jonas' Vorgabe
+  // 2026-08-19: "keine Ahnung ueber ?RAL=7004 oder sowas" - naeher an dem,
+  // wie er/seine Kunden tatsaechlich denken, die ganze App zeigt Farben ja
+  // auch sonst immer als RAL-Ton, nie als Hex, siehe getRalNameForHex-
+  // Kommentar in ralColors.ts) hat Vorrang vor dem rohen
+  // ?color=<hex>-Fallback fuer Faelle ohne passenden RAL-Ton.
+  const ralParam = params.get("RAL") ?? params.get("ral");
+  const ralColor = ralParam ? findRalColorByCode(ralParam) : undefined;
+  if (ralColor) return { ...base, outsideColor: ralColor.hex };
+
   const colorParam = params.get("color");
-  const outsideColor = colorParam && /^#[0-9a-fA-F]{3,8}$/.test(colorParam) ? colorParam : preset.config.outsideColor;
-  return { config: preset.config, outsideColor };
+  if (colorParam && /^#[0-9a-fA-F]{3,8}$/.test(colorParam)) {
+    return { ...base, outsideColor: colorParam };
+  }
+
+  return base;
 }
 
 // Eigener, schlanker Fehler-Rahmen statt des bestehenden

@@ -258,3 +258,16 @@ export function getRalNameForHex(hex: string): string {
   // letzter, ehrlicher Ausweg statt einer erfundenen Bezeichnung.
   return `Sonderfarbe (${hex})`;
 }
+
+// Umkehrung von getRalNameForHex: findet den RAL-Ton zu einer eingegebenen
+// Bezeichnung wie "7004", "RAL7004" oder "RAL 7004" (Jonas' Vorgabe
+// 2026-08-19, fuer den eingebetteten Viewer - siehe viewer-entry.tsx's
+// ?RAL=<nummer>-Parameter: Kunden/Einbetter kennen RAL-Nummern, keine
+// Hex-Codes). Vergleich normalisiert Gross-/Kleinschreibung und optionales
+// "RAL"-Praefix/Leerzeichen auf beiden Seiten, damit jede uebliche
+// Schreibweise trifft.
+export function findRalColorByCode(input: string): RalColor | undefined {
+  const normalize = (s: string) => s.trim().toUpperCase().replace(/^RAL\s*/, "");
+  const target = normalize(input);
+  return [...RAL_STANDARD_COLORS, ...RAL_SPECIAL_COLORS].find((c) => normalize(c.code) === target);
+}
