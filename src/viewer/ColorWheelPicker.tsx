@@ -53,7 +53,6 @@ const ARC_END_DEG = 80;
 const ARC_SWEEP_DEG = ARC_END_DEG - ARC_START_DEG;
 const ARC_BAND_WIDTH = 92;
 const ARC_GAP = 85; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
-const CLOSE_DELAY_MS = 220;
 // Jonas' Vorgabe 2026-08-19: "den Zoom noch groesser machen" - HOVER_MAGNIFY
 // deutlich hoch (das Segment am Cursor nimmt einen deutlich groesseren
 // Gradanteil des Bogens ein), HOVER_SIGMA leicht mit angehoben, damit auch
@@ -98,7 +97,6 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   // (Basisbreiten gelten dann unveraendert ueberall).
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const innerR = size / 2 + ARC_GAP;
   const outerR = innerR + ARC_BAND_WIDTH;
@@ -107,19 +105,12 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   const cx = outerR;
   const cy = outerR;
 
-  function openNow() {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-    setOpen(true);
-  }
-  function closeSoon() {
-    closeTimer.current = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
-  }
-
-  // Klick ausserhalb schliesst - noetig fuer Touch-Geraete (kein Hover) und
-  // fuer's Zumachen nach einer getroffenen Auswahl am Rand des Bogens.
+  // Klick ausserhalb schliesst - Jonas' Vorgabe 2026-08-19: "wenn man auf
+  // das Plus drueckt soll sie ausklappen, nochmal drauf klicken wieder
+  // einklappen, Hovern soll nicht mehr ausreichen" - Oeffnen/Schliessen
+  // laeuft jetzt AUSSCHLIESSLICH ueber den expliziten Klick auf den
+  // Trigger-Button (siehe onClick dort) plus diesen Klick-ausserhalb-
+  // Schliesser hier, kein onMouseEnter/-Leave mehr.
   useEffect(() => {
     if (!open) return;
     function handleOutside(e: PointerEvent) {
@@ -233,12 +224,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   const activeIndex = PALETTE.findIndex((c) => c.hex.toLowerCase() === value.toLowerCase());
 
   return (
-    <div
-      ref={wrapperRef}
-      style={{ position: "relative", width: size, height: size, pointerEvents: "auto" }}
-      onMouseEnter={openNow}
-      onMouseLeave={closeSoon}
-    >
+    <div ref={wrapperRef} style={{ position: "relative", width: size, height: size, pointerEvents: "auto" }}>
       <button
         type="button"
         onClick={() =>
