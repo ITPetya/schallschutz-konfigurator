@@ -6,7 +6,7 @@ import { Container } from "../components/Container";
 import { DisplaySettingsProvider } from "../context/DisplaySettingsContext";
 import { SectionPlaneProvider } from "../context/SectionPlaneContext";
 import { GeometryCacheScopeContext } from "../utils/geometryCache";
-import { START_PRESETS } from "../constants/startPresets";
+import { START_PRESETS, type StartPreset } from "../constants/startPresets";
 import { RAL_STANDARD_COLORS, findRalColorByCode, findNearestRalColor, RAL_SPECIAL_COLORS } from "../constants/ralColors";
 import { ColorWheelPicker } from "./ColorWheelPicker";
 import { PersonalizeButton } from "./PersonalizeButton";
@@ -71,13 +71,22 @@ const DEFAULT_ACCENT_COLOR = findNearestRalColor(BRAND_LIGHT_BLUE, RAL_SPECIAL_C
 // die Dropdown-Liste gescheit sortiert" - START_PRESETS selbst bleibt
 // UNVERAENDERT in seiner eigenen, absichtlich handkuratierten Reihenfolge
 // (Jonas' Vorgabe 2026-08-18 fuer die Start-Seiten-Karten, siehe
-// startPresets.ts), hier nur eine SEPARATE, nach Laenge aufsteigend
-// sortierte Kopie speziell fuer dieses Embed - die Groessen-Einheit (ft/m)
-// ist ueber das Preset-Label selbst weiterhin klar erkennbar ("20 Fuß" vs.
-// "12m"), ein zusaetzliches Gruppieren nach Einheit haette hier eine
-// willkuerliche "welche Einheit zuerst"-Entscheidung erzwungen, die Jonas
-// nicht vorgegeben hat.
-const SORTED_PRESETS = [...START_PRESETS].sort((a, b) => a.config.size.length - b.config.size.length);
+// startPresets.ts), hier nur eine SEPARATE Kopie speziell fuer dieses
+// Embed. Fehlerbericht 2026-08-19 (Runde 2, nach erstem Live-Test): reine
+// Sortierung nach Laenge allein reisst die Fuss-Familie auseinander (40ft
+// = 12192mm faellt dabei zwischen 12m und 15m) - "10ft, 20ft, 40ft sollte
+// so sein, aber 40ft ist irgendwo." Jetzt echte zweistufige Sortierung:
+// zuerst nach Art (Fuss-Praesets VOR Meter-Praesets, per id-Endung "ft"
+// erkannt), erst INNERHALB jeder Gruppe nach Laenge aufsteigend - ergibt
+// "10ft, 20ft, 40ft, 7m, 9,6m, 12m, 15m, 18m".
+function isFeetPreset(preset: StartPreset): boolean {
+  return preset.id.endsWith("ft");
+}
+const SORTED_PRESETS = [...START_PRESETS].sort((a, b) => {
+  const familyDiff = Number(isFeetPreset(a)) - Number(isFeetPreset(b));
+  if (familyDiff !== 0) return -familyDiff; // Fuss (true=1) soll VOR Meter (false=0) stehen
+  return a.config.size.length - b.config.size.length;
+});
 
 // Minimale Plausibilitaetspruefung fuer ?config= (siehe parseConfig unten) -
 // Container.tsx selbst prueft seine Eingaben nicht defensiv (das war bisher

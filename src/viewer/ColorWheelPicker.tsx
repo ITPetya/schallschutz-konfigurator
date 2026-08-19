@@ -176,10 +176,25 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   // Ecken der quadratischen SVG-Bounding-Box - dist gibt jetzt zusaetzlich
   // den Radialabstand vom Mittelpunkt zurueck, isOverRing prueft, ob der
   // Cursor wirklich auf dem Band steht.
-  function pointFromEvent(e: ReactPointerEvent<SVGSVGElement>): { angle: number; dist: number } {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = e.clientX - rect.left - cx;
-    const py = e.clientY - rect.top - cy;
+  // Jonas' Fehlerbericht 2026-08-19: "die kleiner skalierten Colorpicker
+  // funktionieren irgendwie nicht mehr, der Maus-Erfassungsbereich ist da
+  // verschoben" - Ursache: entry.tsx skaliert die ganze Bedienelement-
+  // Gruppe per CSS transform:scale() (responsive Groesse, siehe dortiger
+  // Kommentar) - getBoundingClientRect() liefert dabei zwar die korrekt
+  // SKALIERTE (sichtbare) Groesse zurueck, cx/cy/innerR/outerR hier sind
+  // aber weiterhin in UNSKALIERTEN Pixeln berechnet (aus size/ARC_GAP/
+  // ARC_BAND_WIDTH) - bei jedem Skalierungsfaktor ausser 1 driftet dieser
+  // Massstabs-Unterschied die berechnete Position vom tatsaechlichen
+  // Cursor weg. Fix: den EFFEKTIVEN Skalierungsfaktor direkt aus dem
+  // Verhaeltnis zwischen sichtbarer Rect-Groesse und der bekannten
+  // unskalierten svgSize herleiten, statt anzunehmen, dass beide gleich
+  // sind - funktioniert dadurch unabhaengig davon, WOHER eine Skalierung
+  // kommt (transform:scale() hier, aber genauso robust gegenueber
+  // Browser-Zoom o.ae.).
+  function pointFromClient(clientX: number, clientY: number, rect: DOMRect): { angle: number; dist: number } {
+    const scaleFactor = rect.width / svgSize;
+    const px = (clientX - rect.left) / scaleFactor - cx;
+    const py = (clientY - rect.top) / scaleFactor - cy;
     const dist = Math.hypot(px, py);
     const raw = (Math.atan2(-py, px) * 180) / Math.PI;
     const angle = Math.max(ARC_START_DEG, Math.min(ARC_END_DEG - 0.001, raw));
@@ -225,11 +240,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
     moveRafRef.current = null;
     const pending = pendingMoveRef.current;
     if (!pending) return;
-    const px = pending.clientX - pending.rect.left - cx;
-    const py = pending.clientY - pending.rect.top - cy;
-    const dist = Math.hypot(px, py);
-    const raw = (Math.atan2(-py, px) * 180) / Math.PI;
-    const angle = Math.max(ARC_START_DEG, Math.min(ARC_END_DEG - 0.001, raw));
+    const { angle, dist } = pointFromClient(pending.clientX, pending.clientY, pending.rect);
     if (!isOverRing(dist)) {
       setHoverIndex(null);
       return;
@@ -257,7 +268,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
   }
 
   function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {
-    const { angle, dist } = pointFromEvent(e);
+    const { angle, dist } = pointFromClient(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
     if (!isOverRing(dist)) return;
     onChange(PALETTE[indexForAngle(angle)].hex);
   }
