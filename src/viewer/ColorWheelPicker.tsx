@@ -21,8 +21,11 @@ const ARC_START_DEG = -80;
 const ARC_END_DEG = 80;
 const ARC_SWEEP_DEG = ARC_END_DEG - ARC_START_DEG;
 const ARC_SEGMENTS = 64;
-const ARC_BAND_WIDTH = 22;
-const ARC_GAP = 8; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
+// Jonas' Fehlerbericht 2026-08-19 (nach erstem Live-Test per Screenshot):
+// "der Halbkreis muss deutlich groesser" - Bandbreite mehr als verdoppelt,
+// Abstand zum Trigger-Kreis ebenfalls vergroessert.
+const ARC_BAND_WIDTH = 56;
+const ARC_GAP = 14; // Abstand zwischen Trigger-Kreis-Rand und Bogen-Innenkante.
 const CLOSE_DELAY_MS = 220;
 
 // Standard-Mathe-Winkel (0deg = rechts, waechst gegen den Uhrzeigersinn wie
@@ -105,6 +108,7 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
         title="Sonderfarbe wählen"
         aria-label="Sonderfarbe wählen"
         style={{
+          position: "relative",
           width: size,
           height: size,
           borderRadius: 9999,
@@ -114,7 +118,28 @@ export function ColorWheelPicker({ value, onChange, size = 30 }: ColorWheelPicke
           cursor: "pointer",
           padding: 0,
         }}
-      />
+      >
+        {/* Jonas' Fehlerbericht 2026-08-19: "es soll klar werden, dass das
+            mittlere custom ist, also irgendwie ein Plus darin" - im
+            Gegensatz zu den beiden statischen Standardfarben-Punkten in
+            entry.tsx ist DIESER Button hier interaktiv/frei waehlbar, das
+            Plus signalisiert das dauerhaft (nicht nur solange keine
+            Sonderfarbe gewaehlt ist - anders als StartPresetCard.tsx's
+            gleichnamiges Muster, wo das Plus verschwindet, sobald
+            tatsaechlich eine Sonderfarbe aktiv ist). Weisses Kreuz mit
+            dunklem Schlagschatten statt einer festen Farbe, damit es auf
+            JEDER moeglichen Fuellfarbe des Buttons lesbar bleibt. */}
+        <svg width={14} height={14} viewBox="0 0 14 14" style={{ position: "absolute", inset: 0, margin: "auto", pointerEvents: "none" }}>
+          <g stroke="#000" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round">
+            <line x1={7} y1={2} x2={7} y2={12} />
+            <line x1={2} y1={7} x2={12} y2={7} />
+          </g>
+          <g stroke="#fff" strokeWidth={2} strokeLinecap="round">
+            <line x1={7} y1={2} x2={7} y2={12} />
+            <line x1={2} y1={7} x2={12} y2={7} />
+          </g>
+        </svg>
+      </button>
       {open && (
         <svg
           width={svgSize}
