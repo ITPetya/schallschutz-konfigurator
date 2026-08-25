@@ -53,7 +53,21 @@ const SMOOTHING_TAU_S = 0.06;
 // daneben, falls nochmal nachjustiert werden muss).
 const PAN_SPEED_M_PER_S = 4.5; // Meter/Sekunde (vorher 1.5)
 const DOLLY_SPEED_PER_S = 3.6; // relative Annaeherung/Entfernung pro Sekunde (vorher 1.2)
-const ORBIT_SPEED_RAD_PER_S = 3.6; // Radiant/Sekunde (vorher 1.2)
+
+// Jonas' Fehlerbericht 2026-08-25: Drehen fuehlt sich "deutlich traeger" an
+// als Schwenken/Zoomen an - und zwar UNVERAENDERT, nachdem die ry-Deadzone
+// bereits von 45 auf 25 gesenkt wurde (siehe DEADZONE_RAW_RY oben). Da eine
+// Deadzone-Aenderung nichts gebracht hat, war offenbar nicht (nur) das die
+// Ursache - liegt naeher, dass die reine Winkelgeschwindigkeit selbst zu
+// niedrig angesetzt war, unabhaengig von rx/ry einzeln (beide teilen sich
+// diese Konstante). Von 3.6 auf 6.0 angehoben (+67%), wieder eine grobe
+// Annahme ohne echte Hardware zum Testen - falls immer noch zu langsam,
+// naechster Schritt: sagen, ob selbst eine kraftvolle volle Auslenkung
+// (Kappe ganz nach vorne/hinten neigen bzw. ganz durchdrehen) spuerbar an
+// Tempo zulegt oder ob es durchgehend gleich langsam bleibt (letzteres
+// wuerde eher auf ein RAW_FULL_SCALE-Kalibrierungsproblem hindeuten als auf
+// die Geschwindigkeitskonstante hier).
+const ORBIT_SPEED_RAD_PER_S = 6.0; // Radiant/Sekunde (vorher 3.6, davor 1.2)
 
 function normalizeAxis(raw: number, deadzone: number = DEADZONE_RAW): number {
   if (Math.abs(raw) < deadzone) return 0;
