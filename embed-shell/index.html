@@ -110,6 +110,14 @@
         //   standard: { rangeLabel: "R'w 30-34 dB" },
         //   schallschutz: { label: "Ruhig", rangeLabel: "R'w 40-44 dB" },
         // },
+        //
+        // WICHTIG bei einer Kunden-Shell (diese Datei hier ist LC Systems'
+        // EIGENE Shell, deshalb bleibt es unten auskommentiert): auf true
+        // setzen, sonst sieht ein Besucher der Kundenseite "Interner
+        // Bereich" im "?"-Menue - einen Link zu LC Systems' eigenem,
+        // nicht-oeffentlichem Mitarbeiterbereich (siehe
+        // src/config/embedContext.ts / layout/AppShell.tsx).
+        // isWhiteLabelCustomer: true,
       };
 
       (function () {

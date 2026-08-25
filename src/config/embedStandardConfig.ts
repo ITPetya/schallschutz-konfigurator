@@ -15,10 +15,15 @@
 import { applyLcStandardOverrides, type LcStandardOverrides } from "../constants/lcStandard";
 import { setRequestEmail } from "./requestEmail";
 import { setContactUrl } from "./contactLink";
+import { setIsWhiteLabelCustomer } from "./embedContext";
 
 export interface EmbedStandardConfig extends LcStandardOverrides {
   requestEmail?: string;
   contactUrl?: string;
+  // true = Kunden-Shell (blendet u.a. den "Interner Bereich"-Link im
+  // "?"-Menue aus, siehe embedContext.ts). LC Systems' eigene Shell
+  // (embed-shell/index.html) laesst dieses Feld bewusst weg.
+  isWhiteLabelCustomer?: boolean;
 }
 
 export function applyEmbedStandardConfig(config: unknown): void {
@@ -30,6 +35,9 @@ export function applyEmbedStandardConfig(config: unknown): void {
   }
   if (typeof c.contactUrl === "string" && c.contactUrl.trim() !== "") {
     setContactUrl(c.contactUrl);
+  }
+  if (c.isWhiteLabelCustomer === true) {
+    setIsWhiteLabelCustomer(true);
   }
   applyLcStandardOverrides(c);
 }

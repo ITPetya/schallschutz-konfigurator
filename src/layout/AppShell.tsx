@@ -16,6 +16,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { PageTitleProvider, usePageTitleContext } from "../context/PageTitleContext";
 import { decodeProject } from "../config/projectFileCodec";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
+import { getIsWhiteLabelCustomer } from "../config/embedContext";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -71,6 +72,20 @@ function AppShellContent() {
   // (fest hinterlegte Demo-Datei per fetch() + decodeProject()), nur jetzt
   // hier global statt an die Startseite gebunden, damit sie ueberall (nicht
   // nur auf "/") aufrufbar ist.
+  // Jonas' Vorgabe 2026-08-25: der interne Bereich soll NIE direkt ueber die
+  // "Backend"-Adresse (containerconfigurator.netlify.app) aufgerufen werden
+  // muessen, immer ueber die Shell - navigiert deshalb bewusst das OBERSTE
+  // Fenster (window.top, funktioniert auch Cross-Origin fuer reines
+  // Navigieren, siehe MDN) statt window.location, sonst wuerde bei
+  // eingebetteter Nutzung nur der iframe selbst umspringen, nicht der
+  // sichtbare Tab. Fest auf hayse.de verdrahtet, nicht auf window.location -
+  // /intern ist LC Systems' eigener Mitarbeiterbereich, nicht Teil des
+  // White-Label-Angebots, siehe embed-shell/intern/index.html fuer die
+  // zugehoerige Shell-Unterseite.
+  function handleInternerBereich() {
+    window.top!.location.href = "https://hayse.de/intern";
+  }
+
   async function handleOpenDemo() {
     try {
       const response = await fetch("/demo/demo-projekt.sszprojekt");
@@ -105,6 +120,7 @@ function AppShellContent() {
                 onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
                 onVerlauf={() => navigate("/verlauf")}
                 onOpenDemo={handleOpenDemo}
+                onInternerBereich={handleInternerBereich}
                 onDeleteData={() => setShowDeleteConfirm(true)}
               />
             </div>
@@ -119,6 +135,7 @@ function AppShellContent() {
             onHilfe={() => window.open(CONTACT_URL, "_blank", "noreferrer")}
             onVerlauf={() => navigate("/verlauf")}
             onOpenDemo={handleOpenDemo}
+            onInternerBereich={handleInternerBereich}
             onDeleteData={() => setShowDeleteConfirm(true)}
           />
         </div>
@@ -164,6 +181,7 @@ interface HelpMenuProps {
   onHilfe: () => void;
   onVerlauf: () => void;
   onOpenDemo: () => void;
+  onInternerBereich: () => void;
   onDeleteData: () => void;
 }
 
@@ -171,7 +189,12 @@ interface HelpMenuProps {
 // siehe https://animate-ui.com/docs/components/radix/dropdown-menu) - der
 // Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
 // mehr selbst, das uebernimmt jetzt Radix intern.
-function HelpMenu({ onTutorial, onHilfe, onVerlauf, onOpenDemo, onDeleteData }: HelpMenuProps) {
+function HelpMenu({ onTutorial, onHilfe, onVerlauf, onOpenDemo, onInternerBereich, onDeleteData }: HelpMenuProps) {
+  // "Interner Bereich" nur zeigen, wenn dies NICHT die Shell eines
+  // White-Label-Kunden ist (siehe embedContext.ts) - sonst wuerde ein
+  // Besucher auf einer Kundenwebseite einen Link zu LC Systems' eigenem
+  // Mitarbeiterbereich im Hilfemenue sehen.
+  const showInternerBereich = !getIsWhiteLabelCustomer();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -216,6 +239,14 @@ function HelpMenu({ onTutorial, onHilfe, onVerlauf, onOpenDemo, onDeleteData }: 
         >
           Demo-Projekt öffnen
         </DropdownMenuItem>
+        {showInternerBereich && (
+          <DropdownMenuItem
+            onSelect={onInternerBereich}
+            className="block cursor-pointer rounded px-3 py-1.5 text-left text-ink hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+          >
+            Interner Bereich
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onSelect={onDeleteData}
           className="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-950"

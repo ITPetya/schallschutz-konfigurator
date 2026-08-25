@@ -23,14 +23,22 @@ const GATED_HOSTS = new Set(["containerconfigurator.netlify.app"]);
 const EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
 const HANDSHAKE_TIMEOUT_MS = 3000;
 
-// Jonas' Fehlerbericht 2026-08-25: /intern (nicht verlinkte Mitarbeiter-
-// Ansicht) und /ansehen (schreibgeschuetzter Handy-Freigabelink fuer Kunden,
-// siehe pages/ProjectViewerPage.tsx) werden BEIDE direkt aufgerufen/verteilt
-// - nie ueber eine Einbettungs-Shell. Der Host-Gate wuerde sie sonst genauso
-// blocken wie die Haupt-App unter "/", obwohl sie nie fuer den
-// Shell-Handshake gedacht waren. Beide Pfade sind deshalb IMMER ausgenommen,
-// unabhaengig vom Host.
-const EXEMPT_PATH_PREFIXES = ["/intern", "/ansehen"];
+// /ansehen (schreibgeschuetzter Handy-Freigabelink fuer Kunden, siehe
+// pages/ProjectViewerPage.tsx) wird direkt aufgerufen/verteilt - nie ueber
+// eine Einbettungs-Shell. Der Host-Gate wuerde ihn sonst genauso blocken wie
+// die Haupt-App unter "/", obwohl er nie fuer den Shell-Handshake gedacht
+// war. Deshalb IMMER ausgenommen, unabhaengig vom Host.
+//
+// /intern war hier KURZZEITIG (2026-08-25, spaeter am selben Tag rueckgaengig
+// gemacht) ebenfalls ausgenommen, als Direkt-Fix fuer Jonas' Bugreport "komme
+// nicht mehr rein". Jonas' Klarstellung direkt danach: /intern soll GERADE
+// NICHT direkt auf der rohen Backend-URL erreichbar sein - "es soll ALLES
+// ueber die Shell laufen, nicht dass man auf das Backend zugreifen muss".
+// Der eigentliche Fix ist stattdessen embed-shell/intern/index.html (eigene
+// Shell-Unterseite mit demselben Schluessel-Handshake wie die Haupt-Shell) +
+// der "Interner Bereich"-Menuepunkt in layout/AppShell.tsx, der dorthin
+// navigiert. /intern bleibt also bewusst GEGATET wie jeder andere Pfad.
+const EXEMPT_PATH_PREFIXES = ["/ansehen"];
 
 function isExemptPath(): boolean {
   const path = window.location.pathname;
