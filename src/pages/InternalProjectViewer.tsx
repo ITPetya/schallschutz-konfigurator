@@ -7,11 +7,11 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { DownloadIcon } from "../components/icons/DownloadIcon";
-import { LoadingIcon } from "../components/LoadingIcon";
+import { DownloadDialog, type DownloadFormatOption } from "../components/DownloadDialog";
 import type { ProjectConfig } from "../config/projectTypes";
 import type { KundenverlaufEintrag } from "../config/kundenverlauf";
 import { sanitizeFileName, downloadBlob } from "../config/configFileCodec";
-import { exportGroupAsGlb } from "../utils/exportGlb";
+import { encodeProject, PROJECT_FILE_EXTENSION } from "../config/projectFileCodec";
 
 interface InternalProjectViewerProps {
   project: ProjectConfig;
@@ -39,26 +39,39 @@ interface InternalProjectViewerProps {
 export function InternalProjectViewer({ project, fileName, onOpenInstance, kundenverlauf, showExport }: InternalProjectViewerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Jonas' Vorgabe 2026-08-25 (GLB-Export, nur im internen Bereich): siehe
+  // Jonas' Vorgabe 2026-08-25 (Download nur im internen Bereich): siehe
   // KonfiguratorPage.tsx fuer dieselbe Begruendung - hier exportiert die
   // GANZE Baugruppe statt eines einzelnen Containers.
   const exportGroupRef = useRef<THREE.Group>(null);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  async function handleExportGlb() {
-    if (!exportGroupRef.current) return;
-    setExporting(true);
-    setExportError(null);
-    try {
-      const blob = await exportGroupAsGlb(exportGroupRef.current);
-      downloadBlob(blob, `${sanitizeFileName(fileName ?? project.name)}.glb`);
-    } catch {
-      setExportError("Export fehlgeschlagen.");
-    } finally {
-      setExporting(false);
-    }
-  }
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const safeName = sanitizeFileName(fileName ?? project.name);
+  // .sszprojekt gehoert nur zur Baugruppe (siehe .sszkonfig-Gegenstueck in
+  // KonfiguratorPage.tsx) - die generellen 3D-Formate gelten fuer beide.
+  const downloadFormats: DownloadFormatOption[] = [
+    {
+      id: "sszprojekt",
+      label: "Als Projektdatei (.sszprojekt)",
+      info: "Eigenes Dateiformat dieser Anwendung - zum späteren Wiederladen und Weiterbearbeiten im Konfigurator, nicht in anderer Software.",
+      onDownload: async () => {
+        const blob = await encodeProject(project);
+        downloadBlob(blob, `${safeName}${PROJECT_FILE_EXTENSION}`);
+      },
+    },
+    {
+      id: "glb",
+      label: "Als 3D-Modell (.glb)",
+      info: "Reine 3D-Ansicht außerhalb der Webseite - öffnet unter Windows z. B. direkt mit der eingebauten App „3D-Viewer”, kein Zusatzprogramm nötig. Nicht zur Weiterbearbeitung in CAD-Software gedacht.",
+      onDownload: async () => {
+        if (!exportGroupRef.current) return;
+        // Dynamischer Import - siehe KonfiguratorPage.tsx fuer die
+        // ausfuehrliche Begruendung (dieselbe Datei wird auch vom
+        // oeffentlichen /ansehen genutzt).
+        const { exportGroupAsGlb } = await import("../utils/exportGlb");
+        const blob = await exportGroupAsGlb(exportGroupRef.current);
+        downloadBlob(blob, `${safeName}.glb`);
+      },
+    },
+  ];
 
   return (
     <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
@@ -118,20 +131,15 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance, kunde
             {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
             {showExport && (
               <div className="mt-6 space-y-2">
-                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Exportieren</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Herunterladen</p>
                 <AnimatedButton
                   type="button"
-                  onClick={handleExportGlb}
-                  disabled={exporting}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  onClick={() => setDownloadOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
-                  {exporting ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
-                  Als GLB herunterladen
+                  <DownloadIcon size={16} />
+                  Herunterladen
                 </AnimatedButton>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Lädt die ganze Baugruppe als .glb-Datei herunter – öffnet unter Windows z. B. direkt mit der App „3D-Viewer”.
-                </p>
-                {exportError && <p className="text-xs text-red-600 dark:text-red-400">{exportError}</p>}
               </div>
             )}
           </>
@@ -150,6 +158,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance, kunde
           exportGroupRef={exportGroupRef}
         />
       </ViewerSidebarLayout>
+      <DownloadDialog open={downloadOpen} onClose={() => setDownloadOpen(false)} formats={downloadFormats} />
     </div>
   );
 }

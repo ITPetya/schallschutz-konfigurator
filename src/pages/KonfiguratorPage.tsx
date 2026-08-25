@@ -8,15 +8,14 @@ import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
 import { DownloadIcon } from "../components/icons/DownloadIcon";
-import { LoadingIcon } from "../components/LoadingIcon";
+import { DownloadDialog, type DownloadFormatOption } from "../components/DownloadDialog";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
 import type { KundenverlaufEintrag } from "../config/kundenverlauf";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
 import { getRalNameForHex } from "../constants/ralColors";
-import { sanitizeFileName, downloadBlob } from "../config/configFileCodec";
-import { exportGroupAsGlb } from "../utils/exportGlb";
+import { sanitizeFileName, downloadBlob, encodeConfig, CONFIG_FILE_EXTENSION } from "../config/configFileCodec";
 
 interface KonfiguratorPageProps {
   // Seit der Nacht-Session 2026-07-25 uebernimmt WorkspacePage.tsx den
@@ -56,26 +55,46 @@ interface KonfiguratorPageProps {
 export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel, kundenverlauf, showExport }: KonfiguratorPageProps) {
   const config = initialConfig;
 
-  // Jonas' Vorgabe 2026-08-25 (GLB-Export, nur im internen Bereich, siehe
+  // Jonas' Vorgabe 2026-08-25 (Download nur im internen Bereich, siehe
   // showExport oben): Scene.tsx fuellt diese Ref mit einer Gruppe, die NUR
-  // die exportwuerdige Container-Geometrie enthaelt.
+  // die exportwuerdige Container-Geometrie enthaelt (fuer den GLB-Eintrag
+  // im Herunterladen-Dialog unten).
   const exportGroupRef = useRef<THREE.Group>(null);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  async function handleExportGlb() {
-    if (!exportGroupRef.current) return;
-    setExporting(true);
-    setExportError(null);
-    try {
-      const blob = await exportGroupAsGlb(exportGroupRef.current);
-      downloadBlob(blob, `${sanitizeFileName(projectName ?? "container")}.glb`);
-    } catch {
-      setExportError("Export fehlgeschlagen.");
-    } finally {
-      setExporting(false);
-    }
-  }
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const safeName = sanitizeFileName(projectName ?? "container");
+  // .sszkonfig gehoert nur zum Einzelcontainer (siehe .sszprojekt-Gegenstueck
+  // in InternalProjectViewer.tsx) - die generellen 3D-Formate (GLB, spaeter
+  // 3D-PDF/STEP) gelten dagegen fuer beide, deshalb dort wortgleich.
+  const downloadFormats: DownloadFormatOption[] = [
+    {
+      id: "sszkonfig",
+      label: "Als Konfigurationsdatei (.sszkonfig)",
+      info: "Eigenes Dateiformat dieser Anwendung - zum späteren Wiederladen und Weiterbearbeiten im Konfigurator, nicht in anderer Software.",
+      onDownload: async () => {
+        const blob = await encodeConfig(config);
+        downloadBlob(blob, `${safeName}${CONFIG_FILE_EXTENSION}`);
+      },
+    },
+    {
+      id: "glb",
+      label: "Als 3D-Modell (.glb)",
+      info: "Reine 3D-Ansicht außerhalb der Webseite - öffnet unter Windows z. B. direkt mit der eingebauten App „3D-Viewer”, kein Zusatzprogramm nötig. Nicht zur Weiterbearbeitung in CAD-Software gedacht.",
+      onDownload: async () => {
+        if (!exportGroupRef.current) return;
+        // Dynamischer Import statt eines statischen (Jonas' Vorgabe
+        // 2026-08-25: Export in andere Formate nur im internen Bereich) -
+        // KonfiguratorPage.tsx wird auch vom OEFFENTLICHEN /ansehen
+        // (ProjectViewerPage.tsx) genutzt, ein statischer Import haette den
+        // GLTFExporter-Code (~40 KB) trotzdem in einen von beiden geteilten
+        // Chunk gepackt, obwohl showExport dort immer false ist und der
+        // Button nie erscheint. So laedt der Export-Code wirklich nur, wenn
+        // tatsaechlich geklickt wird - auf /ansehen nie erreichbar.
+        const { exportGroupAsGlb } = await import("../utils/exportGlb");
+        const blob = await exportGroupAsGlb(exportGroupRef.current);
+        downloadBlob(blob, `${safeName}.glb`);
+      },
+    },
+  ];
 
   const [size] = useState<ContainerSize>(config.size);
   const [wallThickness] = useState(config.wallThickness);
@@ -173,20 +192,15 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
             {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
             {showExport && (
               <div className="mt-6 space-y-2">
-                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Exportieren</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Herunterladen</p>
                 <AnimatedButton
                   type="button"
-                  onClick={handleExportGlb}
-                  disabled={exporting}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  onClick={() => setDownloadOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
-                  {exporting ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
-                  Als GLB herunterladen
+                  <DownloadIcon size={16} />
+                  Herunterladen
                 </AnimatedButton>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Lädt das 3D-Modell als .glb-Datei herunter – öffnet unter Windows z. B. direkt mit der App „3D-Viewer”.
-                </p>
-                {exportError && <p className="text-xs text-red-600 dark:text-red-400">{exportError}</p>}
               </div>
             )}
           </>
@@ -205,6 +219,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
           exportGroupRef={exportGroupRef}
         />
       </ViewerSidebarLayout>
+      <DownloadDialog open={downloadOpen} onClose={() => setDownloadOpen(false)} formats={downloadFormats} />
     </div>
   );
 }
