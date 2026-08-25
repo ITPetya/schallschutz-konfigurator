@@ -423,15 +423,18 @@ function ViewerRoot() {
 
         {!ready && <LoadingOverlay />}
 
-        {/* Jonas' Vorgabe 2026-08-25: Versionsnummer unten rechts, dezent
-            grau, auf JEDER sichtbaren Seite inkl. dieses eingebetteten
-            Widgets. Reines Inline-Styling statt Tailwind-Klassen (siehe
-            viewer.html-Kommentar, gilt fuer diese ganze Datei). */}
+        {/* Jonas' Vorgabe 2026-08-25: Versionsnummer dezent grau auf JEDER
+            sichtbaren Seite. Bei Einbettungen (dieses Widget) explizit UNTEN
+            LINKS statt unten rechts, anders als auf den uebrigen Seiten
+            (ViewerStatusBar.tsx, StartPage.tsx etc.) - Jonas' Korrektur
+            2026-08-25 zur ersten Fassung. Reines Inline-Styling statt
+            Tailwind-Klassen (siehe viewer.html-Kommentar, gilt fuer diese
+            ganze Datei). */}
         <div
           style={{
             position: "absolute",
             bottom: 4,
-            right: 6,
+            left: 6,
             fontSize: 10,
             color: "#9ca3af",
             pointerEvents: "none",
