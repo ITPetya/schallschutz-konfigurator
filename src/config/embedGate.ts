@@ -28,11 +28,18 @@ function isHostGated(): boolean {
 }
 
 /**
- * Ruft `onResult(true)` auf, wenn die App angezeigt werden darf. Gibt eine
+ * Ruft `onResult(true, config)` auf, wenn die App angezeigt werden darf -
+ * `config` ist die rohe, noch ungepruefte Konfiguration aus der Shell
+ * (siehe applyEmbedStandardConfig in embedStandardConfig.ts fuer die
+ * eigentliche Validierung/Anwendung; bewusst als `unknown` statt eines
+ * konkreten Typs, damit dieses Modul generisch als Transport-Schicht bleibt
+ * und nichts ueber die Bedeutung der Konfiguration wissen muss). Gibt eine
  * Cleanup-Funktion zurueck (fuer React's useEffect, wichtig wegen
  * StrictMode's doppeltem Effect-Aufruf in der Dev-Umgebung).
  */
-export function requestEmbedAuth(onResult: (allowed: boolean) => void): () => void {
+export function requestEmbedAuth(
+  onResult: (allowed: boolean, config?: unknown) => void,
+): () => void {
   if (!isHostGated()) {
     onResult(true);
     return () => {};
@@ -53,12 +60,12 @@ export function requestEmbedAuth(onResult: (allowed: boolean) => void): () => vo
 
   function handleMessage(event: MessageEvent) {
     if (settled) return;
-    const data = event.data as { type?: string; key?: string } | null;
+    const data = event.data as { type?: string; key?: string; config?: unknown } | null;
     if (!data || data.type !== "embed-auth") return;
     settled = true;
     window.clearTimeout(timeoutId);
     window.removeEventListener("message", handleMessage);
-    onResult(data.key === EMBED_ACCESS_KEY);
+    onResult(data.key === EMBED_ACCESS_KEY, data.config);
   }
 
   window.addEventListener("message", handleMessage);

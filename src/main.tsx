@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { requestEmbedAuth } from './config/embedGate.ts'
+import { applyEmbedStandardConfig } from './config/embedStandardConfig.ts'
 
 function EmbedBlockedScreen() {
   return (
@@ -35,7 +36,10 @@ function Root() {
   const [allowed, setAllowed] = useState<boolean | null>(null)
 
   useEffect(() => {
-    return requestEmbedAuth(setAllowed)
+    return requestEmbedAuth((allowed, config) => {
+      if (allowed) applyEmbedStandardConfig(config)
+      setAllowed(allowed)
+    })
   }, [])
 
   if (allowed === null) return null

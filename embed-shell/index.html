@@ -25,6 +25,13 @@
       Schluessel, gezielt an APP_ORIGIN statt "*". Bei Aenderung des
       Schluessels: hier UND in src/config/embedGate.ts (EMBED_ACCESS_KEY)
       synchron halten.
+
+      STANDARD_CONFIG unten (2026-08-25) faehrt im selben Handshake mit:
+      Kunden-spezifische Geschaeftswerte, damit Jonas den App-Quellcode
+      unabhaengig vom Website-Baukasten seiner Kunden weiterpflegen kann -
+      jeder Kunde traegt nur seine eigenen Werte hier ein, alles Weggelassene
+      bleibt beim LC-Systems-Standard. Siehe src/config/embedStandardConfig.ts
+      fuer die App-seitige Verarbeitung.
     -->
     <style>
       html,
@@ -71,6 +78,26 @@
       </div>
     </noscript>
     <script>
+      // -----------------------------------------------------------------
+      // Kunden-Konfiguration: hier eintragen, was von den LC-Systems-
+      // Standardwerten abweichen soll. ALLE Felder sind optional - weglassen
+      // (bzw. auf null/undefined lassen) heisst "Standardwert verwenden".
+      // -----------------------------------------------------------------
+      var STANDARD_CONFIG = {
+        // requestEmail: "info@deine-firma.de",
+        // contactUrl: "https://deine-firma.de/kontakt/",
+        // dimensionLimits: {
+        //   length: { min: 1000, max: 12000 },
+        //   width: { min: 1000, max: 4500 },
+        //   height: { min: 1000, max: 3000 },
+        // },
+        // standardWallThickness: 80,
+        // soundClasses: {
+        //   standard: { rangeLabel: "R'w 30-34 dB" },
+        //   schallschutz: { label: "Ruhig", rangeLabel: "R'w 40-44 dB" },
+        // },
+      };
+
       (function () {
         var APP_ORIGIN = "https://containerconfigurator.netlify.app";
         var EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
@@ -81,7 +108,7 @@
           if (event.source !== frame.contentWindow) return;
           if (!event.data || event.data.type !== "embed-ready") return;
           frame.contentWindow.postMessage(
-            { type: "embed-auth", key: EMBED_ACCESS_KEY },
+            { type: "embed-auth", key: EMBED_ACCESS_KEY, config: STANDARD_CONFIG },
             APP_ORIGIN
           );
         });

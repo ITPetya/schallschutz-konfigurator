@@ -8,6 +8,13 @@
 // dieser Spannen sind kein Standardprodukt mehr, aber laut PDF trotzdem
 // bestellbar ("auf Anfrage") - deshalb nur Warnung/Bestaetigung, kein
 // hartes Blockieren (Jonas' Vorgabe 2026-08-10).
+// Kein `readonly`/`as const` bewusst - applyLcStandardOverrides (unten)
+// mutiert diese Objekte an Ort und Stelle, damit alle 12 Stellen im Code,
+// die LC_DIMENSION_LIMITS/LC_STANDARD_WALL_THICKNESS/SOUND_CLASSES direkt
+// importieren, den ueberschriebenen Wert automatisch sehen, ohne selbst
+// angefasst werden zu muessen (ES-Modul-Bindings sind live, kein Reactivity-
+// Layer noetig, da eine Kunden-Shell den Wert nur einmal beim App-Start
+// per postMessage liefert, siehe embedStandardConfig.ts).
 export const LC_DIMENSION_LIMITS = {
   length: { min: 1000, max: 18000 },
   width: { min: 1000, max: 4500 },
@@ -18,7 +25,9 @@ export const LC_DIMENSION_LIMITS = {
 // Standard-Wandstaerke fuer Wand UND Dach, siehe DEFAULT_WALL_THICKNESS in
 // containerSizes.ts. Jede Abweichung ist Sonderausstattung (Jonas' Vorgabe
 // 2026-08-10: "Wandstärken sind 100 Standard, alles andere auch Sonder").
-export const LC_STANDARD_WALL_THICKNESS = 100;
+// `let` statt `const` aus demselben Grund wie LC_DIMENSION_LIMITS oben -
+// applyLcStandardOverrides kann diesen Wert per Live-Binding ueberschreiben.
+export let LC_STANDARD_WALL_THICKNESS = 100;
 
 // Jonas' Klarstellung 2026-08-11 (Vormittag, siehe 52712bd): Bodendicke
 // zunaechst als IMMER fixe 120mm-Konstante modelliert, keine Nutzereingabe
@@ -120,3 +129,44 @@ export const DEFAULT_SOUND_CLASS: SoundClass = "standard";
 // 2026-08-10) - unverbindliche Empfehlung fuer Standard/Schallschutz, im
 // Unterschied zur zwingenden Vorgabe ab Silent (minWallThicknessRequired).
 export const LC_SOUND_WALL_THICKNESS_HINT = 100;
+
+// Ueberschreibbar per Kunden-Shell (2026-08-25, siehe embedStandardConfig.ts
+// fuer den vollen Kontext). Bewusst NUR dieser Ausschnitt der Konstanten
+// dieser Datei - Jonas' explizite Scope-Entscheidung: Mass-Spannen,
+// Standard-Wandstaerke, Schallschutzklassen (Label + dB-Spanne). ALLES
+// andere hier (Bodenstaerke, Farben, Default-Klasse) bleibt bewusst fest -
+// nicht Teil dieser Runde.
+export interface LcStandardOverrides {
+  dimensionLimits?: Partial<
+    Record<"length" | "width" | "height", { min?: number; max?: number }>
+  >;
+  standardWallThickness?: number;
+  soundClasses?: Partial<
+    Record<SoundClass, { label?: string; rangeLabel?: string; minWallThicknessRequired?: number }>
+  >;
+}
+
+export function applyLcStandardOverrides(overrides: LcStandardOverrides): void {
+  if (overrides.dimensionLimits) {
+    for (const axis of ["length", "width", "height"] as const) {
+      const o = overrides.dimensionLimits[axis];
+      if (!o) continue;
+      if (typeof o.min === "number") LC_DIMENSION_LIMITS[axis].min = o.min;
+      if (typeof o.max === "number") LC_DIMENSION_LIMITS[axis].max = o.max;
+    }
+  }
+  if (typeof overrides.standardWallThickness === "number") {
+    LC_STANDARD_WALL_THICKNESS = overrides.standardWallThickness;
+  }
+  if (overrides.soundClasses) {
+    for (const spec of SOUND_CLASSES) {
+      const o = overrides.soundClasses[spec.id];
+      if (!o) continue;
+      if (typeof o.label === "string") spec.label = o.label;
+      if (typeof o.rangeLabel === "string") spec.rangeLabel = o.rangeLabel;
+      if (typeof o.minWallThicknessRequired === "number") {
+        spec.minWallThicknessRequired = o.minWallThicknessRequired;
+      }
+    }
+  }
+}
