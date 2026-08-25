@@ -3,6 +3,7 @@ import { getHistoryEntries, MAX_HISTORY_ENTRIES, type ProjectHistoryEntry } from
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
 import { usePageSubtitle } from "../context/PageTitleContext";
+import { APP_VERSION } from "../config/appVersion";
 
 // "?"-Menü -> "Verlauf" (Jonas' Vorgabe 2026-07-28: "unter dem ?-Button soll
 // man dann den Verlauf aufrufen können"). Zeigt die bis zu MAX_HISTORY_ENTRIES
@@ -58,6 +59,13 @@ export function HistoryPage() {
       <p className="mt-6 text-xs text-slate-400 dark:text-slate-500">
         Begrenzt auf die letzten {MAX_HISTORY_ENTRIES} Projekte – ältere Stände fallen automatisch raus.
       </p>
+
+      {/* Jonas' Vorgabe 2026-08-25: Versionsnummer unten rechts, dezent grau -
+          siehe StartPage.tsx fuer dieselbe Begruendung (keine ViewerStatusBar
+          auf dieser Seite, deshalb ein eigenes, hier per position:fixed
+          verankertes Element - kein ViewCube auf dieser reinen Listen-Seite,
+          das kollidieren koennte). */}
+      <span className="fixed bottom-2 right-3 z-10 text-[11px] text-slate-400 dark:text-slate-500">{APP_VERSION}</span>
     </div>
   );
 }

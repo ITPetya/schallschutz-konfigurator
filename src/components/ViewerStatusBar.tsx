@@ -1,4 +1,5 @@
 import { useProgress } from "@react-three/drei";
+import { APP_VERSION } from "../config/appVersion";
 
 interface ViewerStatusBarProps {
   // Baufortschritt der aktuell aufgebauten Container (Container.tsx meldet
@@ -52,8 +53,13 @@ export function ViewerStatusBar({ buildProgress, containerCount }: ViewerStatusB
   }
 
   return (
-    <div className="relative z-10 flex h-6 w-full shrink-0 items-center overflow-hidden bg-white/90 px-3 backdrop-blur-sm dark:bg-slate-800/90">
+    <div className="relative z-10 flex h-6 w-full shrink-0 items-center justify-between gap-2 overflow-hidden bg-white/90 px-3 backdrop-blur-sm dark:bg-slate-800/90">
       <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">{text}</span>
+      {/* Jonas' Vorgabe 2026-08-25: Versionsnummer immer sichtbar, dezent
+          (graue statt schwarzer Schrift, "damit es nicht so auffällt") -
+          shrink-0, damit ein langer Status-/Warntext links sie nicht
+          verdraengt. */}
+      <span className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{APP_VERSION}</span>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type { ProjectConfig } from "../config/projectTypes";
 import { KonfiguratorPage } from "./KonfiguratorPage";
 import { InternalProjectViewer } from "./InternalProjectViewer";
 import { usePageSubtitle } from "../context/PageTitleContext";
+import { APP_VERSION } from "../config/appVersion";
 
 // "Interne" Seite fuer Mitarbeiter (Jonas' Vorgabe 2026-07-23) - NICHT in
 // Menü/Navigation verlinkt, nur ueber die direkte URL (/intern) erreichbar.
@@ -77,6 +78,11 @@ export function InternalPage() {
           className="hidden"
         />
         {loadError && <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>}
+        {/* Jonas' Vorgabe 2026-08-25: Versionsnummer unten rechts, dezent grau
+            (siehe StartPage.tsx/HistoryPage.tsx) - nur dieser Leerzustand
+            (noch keine Datei geladen) hat keine eigene ViewerStatusBar,
+            sobald ein Projekt geladen ist, uebernimmt die dortige Anzeige. */}
+        <span className="fixed bottom-2 right-3 z-10 text-[11px] text-slate-400 dark:text-slate-500">{APP_VERSION}</span>
       </div>
     );
   }

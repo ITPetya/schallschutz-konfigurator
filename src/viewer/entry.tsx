@@ -11,6 +11,7 @@ import { RAL_STANDARD_COLORS, findRalColorByCode, findNearestRalColor, RAL_SPECI
 import { ColorWheelPicker } from "./ColorWheelPicker";
 import { PersonalizeButton } from "./PersonalizeButton";
 import type { ContainerConfig } from "../config/types";
+import { APP_VERSION } from "../config/appVersion";
 
 // Jonas' Vorgabe 2026-08-19: der 3D-Viewer soll eigenstaendig (z.B. per
 // <iframe>) in eine fremde Webseite einbettbar sein - urspruenglich als
@@ -421,6 +422,23 @@ function ViewerRoot() {
         </Canvas>
 
         {!ready && <LoadingOverlay />}
+
+        {/* Jonas' Vorgabe 2026-08-25: Versionsnummer unten rechts, dezent
+            grau, auf JEDER sichtbaren Seite inkl. dieses eingebetteten
+            Widgets. Reines Inline-Styling statt Tailwind-Klassen (siehe
+            viewer.html-Kommentar, gilt fuer diese ganze Datei). */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 4,
+            right: 6,
+            fontSize: 10,
+            color: "#9ca3af",
+            pointerEvents: "none",
+          }}
+        >
+          {APP_VERSION}
+        </div>
 
         {/* Linker Rand, vertikal mittig: Standardfarbe grau (oben) -
             Farbrad fuer Sonderfarben (Mitte) - Standardfarbe gruen (unten).

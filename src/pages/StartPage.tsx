@@ -11,6 +11,7 @@ import { StartPresetCarousel } from "../components/StartPresetCarousel";
 import { useTour } from "../tour/TourContext";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
 import { schedulePreload } from "../utils/idlePreload";
+import { APP_VERSION } from "../config/appVersion";
 
 const LOAD_BUTTON_CLASSNAME =
   "flex items-center justify-center gap-2 rounded-full border-2 border-brand px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand hover:bg-brand hover:text-white";
@@ -143,6 +144,15 @@ export function StartPage() {
         style={{ backgroundImage: "url(/start-background.svg)" }}
       />
       <div aria-hidden className="absolute inset-0 -z-10 bg-white/55 dark:bg-slate-900/70" />
+
+      {/* Jonas' Vorgabe 2026-08-25: Versionsnummer unten rechts auf jeder
+          sichtbaren Seite, dezent grau - hier ohne eigene Fussleiste (die
+          gibt es nur bei den 3D-Viewer-Seiten, siehe ViewerStatusBar.tsx),
+          deshalb als eigenstaendiges, seitengebundenes Element (relativ zu
+          diesem "relative z-0"-Wurzelelement, kein globales position:fixed -
+          das wuerde auf den Viewer-Seiten mit dem ViewCube/"Ansicht
+          zuruecksetzen"-Button in derselben Ecke kollidieren). */}
+      <span className="absolute bottom-2 right-3 z-10 text-[11px] text-slate-400 dark:text-slate-500">{APP_VERSION}</span>
 
       {/* INNERE, scrollende Ebene (siehe Begruendung oben) - traegt den
           kompletten sichtbaren Inhalt. */}
