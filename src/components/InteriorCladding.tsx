@@ -112,7 +112,18 @@ export function InteriorCladding({
           Kanten" (siehe shaded oben). */}
       {shaded &&
         bayFields.map(({ uStart, uEnd, from, to, map, bumpMap }, i) => (
-          <mesh key={`bay-${i}`} position={[(uStart + uEnd) / 2, (from + to) / 2 - panelHeight / 2, streckgitterZ]}>
+          <mesh
+            key={`bay-${i}`}
+            // Jonas' Fehlerbericht 2026-08-25 (GLB-Export): diese Flaeche ist
+            // ohnehin nur eine Textur-Attrappe (siehe Kommentar oben, "nicht
+            // echte 3D-Geometrie") - die prozedurale Canvas-Textur ueberlebt
+            // den GLB-Export nicht zuverlaessig (leere weisse Flaeche, nur
+            // einseitig sichtbar in externen Viewern trotz side={DoubleSide}
+            // hier). Vom Export ausgeschlossen statt eines fragwuerdigen
+            // Textur-Exports hinterherzujagen, siehe utils/exportGlb.ts.
+            name="export-exclude"
+            position={[(uStart + uEnd) / 2, (from + to) / 2 - panelHeight / 2, streckgitterZ]}
+          >
             <planeGeometry args={[uEnd - uStart, to - from]} />
             <meshStandardMaterial
               map={map}
