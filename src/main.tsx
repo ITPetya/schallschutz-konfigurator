@@ -1,8 +1,8 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { isEmbedAccessBlocked } from './config/embedGate.ts'
+import { requestEmbedAuth } from './config/embedGate.ts'
 
 function EmbedBlockedScreen() {
   return (
@@ -31,8 +31,19 @@ function EmbedBlockedScreen() {
   )
 }
 
+function Root() {
+  const [allowed, setAllowed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    return requestEmbedAuth(setAllowed)
+  }, [])
+
+  if (allowed === null) return null
+  return allowed ? <App /> : <EmbedBlockedScreen />
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isEmbedAccessBlocked() ? <EmbedBlockedScreen /> : <App />}
+    <Root />
   </StrictMode>,
 )

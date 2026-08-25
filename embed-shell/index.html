@@ -14,16 +14,17 @@
       Vollbild-iframe, der die eigentliche Anwendung von einer separaten
       Netlify-Seite laedt (Jonas' Vorgabe 2026-08-25 - hayse.de soll selbst
       nur wenige KB sein, der schwere Code lebt auf einer eigenen URL, aehnlich
-      Cloud-/Remote-Gaming-Streaming). Der iframe-src unten ist die einzige
+      Cloud-/Remote-Gaming-Streaming). APP_ORIGIN unten ist die einzige
       Stelle, die bei einer Domain-Aenderung angepasst werden muss.
 
-      Der ?key=... Parameter ist Absicht (2026-08-25): src/config/embedGate.ts
-      im Haupt-Repo blockt clientseitig Direktaufrufe der rohen App-URL ohne
-      diesen Schluessel - kein echter Zugangsschutz, nur eine Huerde gegen
-      zufaelliges Weiterreichen des gefundenen iframe-Links. Bewusst OHNE
-      Server-/Edge-Infrastruktur, damit es auf jedem Hosting funktioniert. Bei
-      Aenderung des Schluessels: hier UND in src/config/embedGate.ts synchron
-      halten (EMBED_ACCESS_KEY).
+      Der Zugriffs-Schluessel steht bewusst NICHT im iframe-src (siehe
+      src/config/embedGate.ts im Haupt-Repo fuer die volle Begruendung -
+      kurz: ein Key als URL-Parameter ist per "Element untersuchen" sofort
+      sichtbar und kopierbar). Stattdessen ein postMessage-Handshake: die
+      App piept beim Start "embed-ready", diese Seite antwortet mit dem
+      Schluessel, gezielt an APP_ORIGIN statt "*". Bei Aenderung des
+      Schluessels: hier UND in src/config/embedGate.ts (EMBED_ACCESS_KEY)
+      synchron halten.
     -->
     <style>
       html,
@@ -60,18 +61,31 @@
     <iframe
       id="app-frame"
       title="Container Studio"
-      src="https://containerconfigurator.netlify.app/?key=YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c"
+      src="https://containerconfigurator.netlify.app/"
       allow="fullscreen"
       loading="eager"
     ></iframe>
     <noscript>
       <div class="fallback">
-        Bitte aktiviere JavaScript, um den Konfigurator zu nutzen, oder
-        besuche
-        <a href="https://containerconfigurator.netlify.app/?key=YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c"
-          >die Anwendung direkt</a
-        >.
+        Bitte aktiviere JavaScript, um den Konfigurator zu nutzen.
       </div>
     </noscript>
+    <script>
+      (function () {
+        var APP_ORIGIN = "https://containerconfigurator.netlify.app";
+        var EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
+        var frame = document.getElementById("app-frame");
+
+        window.addEventListener("message", function (event) {
+          if (event.origin !== APP_ORIGIN) return;
+          if (event.source !== frame.contentWindow) return;
+          if (!event.data || event.data.type !== "embed-ready") return;
+          frame.contentWindow.postMessage(
+            { type: "embed-auth", key: EMBED_ACCESS_KEY },
+            APP_ORIGIN
+          );
+        });
+      })();
+    </script>
   </body>
 </html>
