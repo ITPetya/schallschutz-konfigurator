@@ -26,6 +26,14 @@
       Schluessels: hier UND in src/config/embedGate.ts (EMBED_ACCESS_KEY)
       synchron halten.
 
+      allow="fullscreen; hid" auf dem iframe (2026-08-25 nachtraeglich ergaenzt):
+      OHNE "hid" verweigert der Browser der eingebetteten App den Zugriff auf
+      navigator.hid (SpaceMouse-Anbindung, siehe hooks/useSpaceMouse.ts) per
+      Permissions-Policy - "unterstuetzt" bleibt zwar true (die API existiert),
+      aber requestDevice() wirft dann einen SecurityError. Dieses Attribut
+      NIE weglassen, wenn diese Datei als Vorlage fuer eine Kunden-Shell
+      kopiert wird.
+
       STANDARD_CONFIG unten (2026-08-25) faehrt im selben Handshake mit:
       Kunden-spezifische Geschaeftswerte, damit Jonas den App-Quellcode
       unabhaengig vom Website-Baukasten seiner Kunden weiterpflegen kann -
@@ -69,7 +77,7 @@
       id="app-frame"
       title="Container Studio"
       src="https://containerconfigurator.netlify.app/"
-      allow="fullscreen"
+      allow="fullscreen; hid"
       loading="eager"
     ></iframe>
     <noscript>
