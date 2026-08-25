@@ -15,15 +15,16 @@
 import { applyLcStandardOverrides, type LcStandardOverrides } from "../constants/lcStandard";
 import { setRequestEmail } from "./requestEmail";
 import { setContactUrl } from "./contactLink";
-import { setIsWhiteLabelCustomer } from "./embedContext";
+import { setInternalAreaUrl } from "./embedContext";
 
 export interface EmbedStandardConfig extends LcStandardOverrides {
   requestEmail?: string;
   contactUrl?: string;
-  // true = Kunden-Shell (blendet u.a. den "Interner Bereich"-Link im
-  // "?"-Menue aus, siehe embedContext.ts). LC Systems' eigene Shell
-  // (embed-shell/index.html) laesst dieses Feld bewusst weg.
-  isWhiteLabelCustomer?: boolean;
+  // Ziel-URL fuer "Interner Bereich" im "?"-Menue (siehe embedContext.ts) -
+  // NICHT gesetzt = Button bleibt unsichtbar (Standard, passend fuer
+  // oeffentliche Kundenseiten). LC Systems' eigene Shells setzen hier ihre
+  // jeweils tatsaechlich passende Adresse, z.B. "https://hayse.de/intern".
+  internalAreaUrl?: string;
 }
 
 export function applyEmbedStandardConfig(config: unknown): void {
@@ -36,8 +37,8 @@ export function applyEmbedStandardConfig(config: unknown): void {
   if (typeof c.contactUrl === "string" && c.contactUrl.trim() !== "") {
     setContactUrl(c.contactUrl);
   }
-  if (c.isWhiteLabelCustomer === true) {
-    setIsWhiteLabelCustomer(true);
+  if (typeof c.internalAreaUrl === "string" && c.internalAreaUrl.trim() !== "") {
+    setInternalAreaUrl(c.internalAreaUrl);
   }
   applyLcStandardOverrides(c);
 }

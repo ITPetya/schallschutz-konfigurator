@@ -16,7 +16,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { PageTitleProvider, usePageTitleContext } from "../context/PageTitleContext";
 import { decodeProject } from "../config/projectFileCodec";
 import { useIsPhoneViewport } from "../hooks/useIsPhoneViewport";
-import { getIsWhiteLabelCustomer } from "../config/embedContext";
+import { getInternalAreaUrl } from "../config/embedContext";
 
 // Kein Login/Rollen mehr (Jonas' Vorgabe 2026-07-23) - die Kopfzeile ist auf
 // das Nötigste reduziert: Titel (Link zur Startseite) links, "?"-Button
@@ -73,17 +73,24 @@ function AppShellContent() {
   // hier global statt an die Startseite gebunden, damit sie ueberall (nicht
   // nur auf "/") aufrufbar ist.
   // Jonas' Vorgabe 2026-08-25: der interne Bereich soll NIE direkt ueber die
-  // "Backend"-Adresse (containerconfiguratorbackend.netlify.app) aufgerufen werden
-  // muessen, immer ueber die Shell - navigiert deshalb bewusst das OBERSTE
-  // Fenster (window.top, funktioniert auch Cross-Origin fuer reines
+  // "Backend"-Adresse (containerconfiguratorbackend.netlify.app) aufgerufen
+  // werden muessen, immer ueber die Shell - navigiert deshalb bewusst das
+  // OBERSTE Fenster (window.top, funktioniert auch Cross-Origin fuer reines
   // Navigieren, siehe MDN) statt window.location, sonst wuerde bei
   // eingebetteter Nutzung nur der iframe selbst umspringen, nicht der
-  // sichtbare Tab. Fest auf hayse.de verdrahtet, nicht auf window.location -
-  // /intern ist LC Systems' eigener Mitarbeiterbereich, nicht Teil des
-  // White-Label-Angebots, siehe embed-shell/intern/index.html fuer die
-  // zugehoerige Shell-Unterseite.
+  // sichtbare Tab.
+  //
+  // Die Ziel-URL kommt aus embedContext.ts (per Shell-Konfiguration gesetzt)
+  // statt hier fest verdrahtet zu sein - zweite Version nach Jonas'
+  // Nachfrage, ob Unterseiten wie /konfigurator/intern "automatisch"
+  // funktionieren (tun sie nicht): eine feste "https://hayse.de/intern"
+  // waere falsch gewesen, sobald die Shell woanders liegt (z.B.
+  // hayse.de/konfigurator bei BL-Media). Deshalb entscheidet jede Shell
+  // selbst, wohin ihr eigener "Interner Bereich"-Link zeigt - und ob er
+  // ueberhaupt existiert, siehe showInternerBereich unten in HelpMenu.
   function handleInternerBereich() {
-    window.top!.location.href = "https://hayse.de/intern";
+    const url = getInternalAreaUrl();
+    if (url) window.top!.location.href = url;
   }
 
   async function handleOpenDemo() {
@@ -190,11 +197,11 @@ interface HelpMenuProps {
 // Button selbst (Trigger) verwaltet den Oeffnen/Schliessen-Zustand nicht
 // mehr selbst, das uebernimmt jetzt Radix intern.
 function HelpMenu({ onTutorial, onHilfe, onVerlauf, onOpenDemo, onInternerBereich, onDeleteData }: HelpMenuProps) {
-  // "Interner Bereich" nur zeigen, wenn dies NICHT die Shell eines
-  // White-Label-Kunden ist (siehe embedContext.ts) - sonst wuerde ein
-  // Besucher auf einer Kundenwebseite einen Link zu LC Systems' eigenem
-  // Mitarbeiterbereich im Hilfemenue sehen.
-  const showInternerBereich = !getIsWhiteLabelCustomer();
+  // "Interner Bereich" nur zeigen, wenn die aktuelle Shell ueberhaupt eine
+  // Ziel-URL dafuer mitgegeben hat (siehe embedContext.ts) - Standard ist
+  // UNSICHTBAR, damit z.B. eine oeffentliche Kundenseite nicht ungefragt
+  // einen Link zu LC Systems' eigenem Mitarbeiterbereich zeigt.
+  const showInternerBereich = getInternalAreaUrl() !== null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

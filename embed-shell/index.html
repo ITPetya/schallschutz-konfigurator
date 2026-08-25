@@ -111,13 +111,16 @@
         //   schallschutz: { label: "Ruhig", rangeLabel: "R'w 40-44 dB" },
         // },
         //
-        // WICHTIG bei einer Kunden-Shell (diese Datei hier ist LC Systems'
-        // EIGENE Shell, deshalb bleibt es unten auskommentiert): auf true
-        // setzen, sonst sieht ein Besucher der Kundenseite "Interner
-        // Bereich" im "?"-Menue - einen Link zu LC Systems' eigenem,
-        // nicht-oeffentlichem Mitarbeiterbereich (siehe
-        // src/config/embedContext.ts / layout/AppShell.tsx).
-        // isWhiteLabelCustomer: true,
+        // Diese Datei ist LC Systems' EIGENE Shell, deshalb hier aktiv
+        // gesetzt (siehe src/config/embedContext.ts / layout/AppShell.tsx) -
+        // blendet den "Interner Bereich"-Link im "?"-Menue ein. Bei einer
+        // Kunden-Shell (Kopie dieser Datei fuer einen White-Label-Kunden)
+        // dieses Feld einfach WEGLASSEN, dann bleibt der Link unsichtbar.
+        // ACHTUNG: muss zur tatsaechlichen URL passen, unter der die
+        // zugehoerige /intern-Shell-Unterseite (embed-shell/intern/) live
+        // ist - bei einer testweisen Zwischen-Deployment (z.B. auf
+        // *.netlify.app statt hayse.de) hier entsprechend anpassen.
+        internalAreaUrl: "https://hayse.de/intern",
       };
 
       (function () {
