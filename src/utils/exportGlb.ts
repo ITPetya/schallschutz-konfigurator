@@ -34,6 +34,53 @@ function stripExcluded(root: THREE.Object3D): THREE.Object3D {
   return clone;
 }
 
+// Jonas' Fehlerbericht 2026-08-25 ("weisse Flaechen, nur von einer Seite/von
+// aussen sichtbar, auch am Dach, auch ohne Oeffnungen"): nach Analyse der
+// tatsaechlich exportierten .glb (163 Materialien direkt inspiziert) stellte
+// sich heraus, dass KEIN einziges Material tatsaechlich weiss ist - alle
+// Farben sind korrekt. Der eigentliche Grund: 83 der Materialien (die
+// C-Klemmschienen aus InteriorCladding.tsx, "roughness={0.5} metalness={0.7}")
+// haben recht hohe Metallizitaet. Im Web-Viewer sieht das dank der fein
+// abgestimmten HDRI-Beleuchtung (siehe Scene.tsx/ProjectScene3D.tsx) gut
+// aus - ein externer GLB-Viewer (z.B. Windows "3D-Viewer") nutzt aber seine
+// EIGENE, unbekannte, meist helle generische Beleuchtung, unter der hohe
+// Metallizitaet zu blendend hellen, stark winkelabhaengigen Reflexionen
+// fuehrt ("nur von einer Seite sichtbar" = Spiegel-Highlight, kein
+// tatsaechliches weisses Material). Fix: fuer den EXPORT (nicht fuer die
+// interaktive Szene, die bleibt unangetastet) wird die Metallizitaet aller
+// Materialien gekappt - der Export dient laut Jonas' eigener Vorgabe ohnehin
+// nur der reinen Betrachtung, nicht der pixelgenauen Wiedergabe der
+// In-App-Optik, daher ist eine matte, beleuchtungsunabhaengige Darstellung
+// hier die sicherere Wahl als die Original-PBR-Werte.
+const EXPORT_MAX_METALNESS = 0.15;
+
+function flattenMetalness(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    // WICHTIG: Object3D.clone()/Mesh.copy() teilen Material/Geometrie NUR per
+    // Referenz (three.js-eigenes Verhalten, kein Deep-Clone) - obj.material
+    // ist hier trotz stripExcluded()'s root.clone(true) noch DASSELBE Objekt
+    // wie in der interaktiven Live-Szene. Ohne dieses .clone() wuerde das
+    // Kappen der Metallizitaet fuer den Export versehentlich auch den
+    // sichtbaren 3D-Viewer veraendern (die C-Schienen wuerden dort ploetzlich
+    // ihren Glanz verlieren).
+    if (Array.isArray(obj.material)) {
+      obj.material = obj.material.map((mat) => {
+        if (mat instanceof THREE.MeshStandardMaterial && mat.metalness > EXPORT_MAX_METALNESS) {
+          const clone = mat.clone();
+          clone.metalness = EXPORT_MAX_METALNESS;
+          return clone;
+        }
+        return mat;
+      });
+    } else if (obj.material instanceof THREE.MeshStandardMaterial && obj.material.metalness > EXPORT_MAX_METALNESS) {
+      const clone = obj.material.clone();
+      clone.metalness = EXPORT_MAX_METALNESS;
+      obj.material = clone;
+    }
+  });
+}
+
 /**
  * Exportiert die uebergebene Szene/Gruppe als GLB-Blob. `root` sollte NUR
  * die exportwuerdige Geometrie enthalten (siehe exportGroupRef in
@@ -42,6 +89,7 @@ function stripExcluded(root: THREE.Object3D): THREE.Object3D {
  */
 export function exportGroupAsGlb(root: THREE.Object3D): Promise<Blob> {
   const exportRoot = stripExcluded(root);
+  flattenMetalness(exportRoot);
   return new Promise((resolve, reject) => {
     exporter.parse(
       exportRoot,
