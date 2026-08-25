@@ -36,7 +36,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance, kunde
         sidebar={
           <>
             {fileName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{fileName}</p>}
-            <AccordionSection title="Grundeinstellungen" defaultOpen>
+            <AccordionSection title="Grundeinstellungen">
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
                 <dt className="text-slate-400 dark:text-slate-500">Projektname</dt>
                 <dd>{project.name}</dd>

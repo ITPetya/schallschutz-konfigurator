@@ -1014,7 +1014,7 @@ export function WorkspacePage() {
                     Zweige zusaetzlich in einem eigens gekeyten Fragment. */}
                 {editingPartitionWall ? (
                   <Fragment key="pw-edit">
-                    <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
+                    <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen">
                       <PartitionWallSettings
                         pw={editingPartitionWall}
                         size={editingInstance.config.size}
@@ -1022,7 +1022,7 @@ export function WorkspacePage() {
                         onUpdate={(patch) => handleUpdatePartitionWall(editingPartitionWall.id, patch)}
                       />
                     </AccordionSection>
-                    <AccordionSection key="Einbauten" title="Einbauten" defaultOpen>
+                    <AccordionSection key="Einbauten" title="Einbauten">
                       <PartitionOpeningsPanel
                         openings={editingPartitionWall.openings}
                         partitionSpan={partitionSpan}
@@ -1039,7 +1039,6 @@ export function WorkspacePage() {
                 <AccordionSection
                   key="Grundeinstellungen"
                   title="Grundeinstellungen"
-                  defaultOpen
                   tourId="tour-grundeinstellungen"
                   forceOpenSignal={grundOpenSignal}
                 >
@@ -1166,7 +1165,7 @@ export function WorkspacePage() {
               </>
             ) : (
               <>
-                <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
+                <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen">
                   <label className="block text-xs text-slate-500 dark:text-slate-400">
                     Projektname
                     <input
@@ -1292,7 +1291,7 @@ export function WorkspacePage() {
                     liegt fest, das aendert man durch Loeschen + neu Erstellen
                     im Viewer, nicht hier. */}
                 {(project.dependencies ?? []).length > 0 && (
-                  <AccordionSection key="Abhaengigkeiten" title="Abhängigkeiten" defaultOpen>
+                  <AccordionSection key="Abhaengigkeiten" title="Abhängigkeiten">
                     <div className="space-y-2">
                       {(project.dependencies ?? []).map((dep) => {
                         const targetLabel = project.instances.find((i) => i.id === dep.target.instanceId)?.label ?? "?";
