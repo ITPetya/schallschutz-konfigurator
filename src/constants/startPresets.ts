@@ -1,4 +1,5 @@
 import type { ContainerConfig } from "../config/types";
+import type { ProjectConfig } from "../config/projectTypes";
 import type { Opening } from "../types/openings";
 import { RAL_STANDARD_COLORS } from "./ralColors";
 import { DEFAULT_WALL_THICKNESS } from "./containerSizes";
@@ -20,6 +21,29 @@ export interface StartPreset {
 }
 
 const SIGNALGRAU = RAL_STANDARD_COLORS[1].hex; // RAL 7004 - jetzt Standard fuer Innen UND Aussen (siehe StartPreset-Kommentar oben).
+
+// Baut ein neues Projekt mit GENAU EINER Instanz aus einem Preset - vorher
+// als Inline-Logik in StartPresetCard.tsx's handleConfigure() dupliziert,
+// jetzt hierher gezogen (Jonas' Vorgabe 2026-08-19: derselbe Vorgang wird
+// jetzt auch vom eingebetteten Viewer gebraucht, siehe
+// src/pages/WorkspacePage.tsx's ?preset=-URL-Fallback und
+// src/viewer/PersonalizeButton.tsx) - EINE Quelle statt zweier Kopien, die
+// auseinanderlaufen koennten.
+export function buildProjectFromPreset(preset: StartPreset, outsideColor: string): ProjectConfig {
+  return {
+    formatVersion: 1,
+    name: preset.label,
+    instances: [
+      {
+        id: crypto.randomUUID(),
+        label: `${preset.label} Container`,
+        config: { ...preset.config, outsideColor },
+        position: { x: 0, z: 0 },
+        rotationY: 0,
+      },
+    ],
+  };
+}
 
 function baseConfig(openings: Opening[]): ContainerConfig {
   return {
