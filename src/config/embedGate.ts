@@ -19,7 +19,7 @@
 // Haupt-App. /viewer.html hat einen eigenen Einstiegspunkt und importiert
 // diese Datei nicht - bleibt ungeschuetzt.
 
-const GATED_HOSTS = new Set(["containerconfigurator.netlify.app"]);
+const GATED_HOSTS = new Set(["containerconfiguratorbackend.netlify.app"]);
 const EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
 const HANDSHAKE_TIMEOUT_MS = 3000;
 

@@ -8,7 +8,7 @@
 # Ein echter Redirect landet stattdessen auf der tatsaechlichen Beta-URL,
 # wo alle Pfade wieder relativ zur richtigen Origin sind - haesslichere
 # URL-Leiste danach, aber funktioniert zuverlaessig statt kaputt auszusehen.
-/beta/*  https://night-2026-07-23-beta--containerconfigurator.netlify.app/:splat  302
-/beta    https://night-2026-07-23-beta--containerconfigurator.netlify.app/  302
+/beta/*  https://night-2026-07-23-beta--containerconfiguratorbackend.netlify.app/:splat  302
+/beta    https://night-2026-07-23-beta--containerconfiguratorbackend.netlify.app/  302
 
 /*    /index.html   200

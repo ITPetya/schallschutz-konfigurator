@@ -10,7 +10,7 @@
       Shell-Unterseite fuer den internen Mitarbeiterbereich (2026-08-25,
       Jonas' Vorgabe: "es soll ALLES ueber die Shell laufen, nicht dass man
       auf das Backend zugreifen muss"). Bisher war /intern direkt auf der
-      rohen Backend-URL (containerconfigurator.netlify.app/intern) erreichbar
+      rohen Backend-URL (containerconfiguratorbackend.netlify.app/intern) erreichbar
       - das widerspricht dem Gesamtkonzept dieser Shell-Architektur. Jetzt:
       genau dieselbe iframe+Schluessel-Handshake-Mechanik wie die
       Haupt-Shell-Seite (index.html im selben Ordner), nur mit dem
@@ -43,13 +43,13 @@
     <iframe
       id="app-frame"
       title="Container Studio - Intern"
-      src="https://containerconfigurator.netlify.app/intern"
+      src="https://containerconfiguratorbackend.netlify.app/intern"
       allow="fullscreen; hid; clipboard-write"
       loading="eager"
     ></iframe>
     <script>
       (function () {
-        var APP_ORIGIN = "https://containerconfigurator.netlify.app";
+        var APP_ORIGIN = "https://containerconfiguratorbackend.netlify.app";
         var EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
         var frame = document.getElementById("app-frame");
 

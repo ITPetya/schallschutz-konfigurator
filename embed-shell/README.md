@@ -2,7 +2,7 @@
 
 Die duenne Huelle fuer hayse.de. Kein Build, keine Abhaengigkeiten - zwei
 statische HTML-Dateien mit einem Vollbild-`<iframe>`, die die eigentliche
-Anwendung von `https://containerconfigurator.netlify.app` laden. Das
+Anwendung von `https://containerconfiguratorbackend.netlify.app` laden. Das
 eigentliche App-Bundle (React, three.js etc.) wird hier NICHT mit ausgeliefert.
 
 ## Als eigene Netlify-Seite einrichten
@@ -21,7 +21,7 @@ eigentliche App-Bundle (React, three.js etc.) wird hier NICHT mit ausgeliefert.
 
 ## Wenn sich die App-URL aendert
 
-`src="https://containerconfigurator.netlify.app/"` in `index.html` und
+`src="https://containerconfiguratorbackend.netlify.app/"` in `index.html` und
 `beta/index.html` anpassen - das ist die einzige Stelle. Sinnvoller
 naechster Schritt: der App-Seite eine eigene Subdomain geben (z.B.
 `app.hayse.de`) statt der rohen `.netlify.app`-URL, dann hier einmalig

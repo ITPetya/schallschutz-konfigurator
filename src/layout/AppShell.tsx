@@ -73,7 +73,7 @@ function AppShellContent() {
   // hier global statt an die Startseite gebunden, damit sie ueberall (nicht
   // nur auf "/") aufrufbar ist.
   // Jonas' Vorgabe 2026-08-25: der interne Bereich soll NIE direkt ueber die
-  // "Backend"-Adresse (containerconfigurator.netlify.app) aufgerufen werden
+  // "Backend"-Adresse (containerconfiguratorbackend.netlify.app) aufgerufen werden
   // muessen, immer ueber die Shell - navigiert deshalb bewusst das OBERSTE
   // Fenster (window.top, funktioniert auch Cross-Origin fuer reines
   // Navigieren, siehe MDN) statt window.location, sonst wuerde bei
