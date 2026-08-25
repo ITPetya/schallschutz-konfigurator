@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { requestEmbedAuth } from './config/embedGate.ts'
+import { canSkipEmbedAuth, requestEmbedAuth } from './config/embedGate.ts'
 import { applyEmbedStandardConfig } from './config/embedStandardConfig.ts'
 
 function EmbedBlockedScreen() {
@@ -33,7 +33,13 @@ function EmbedBlockedScreen() {
 }
 
 function Root() {
-  const [allowed, setAllowed] = useState<boolean | null>(null)
+  // Lazy-Initializer: auf hayse.de/Beta/lokal ist der Host nicht gegatet,
+  // dann kann `<App />` schon im allerersten Render erscheinen statt erst
+  // nach dem asynchronen postMessage-Roundtrip (vermeidet einen kurzen
+  // leeren Frame bei jedem normalen Seitenaufruf, siehe canSkipEmbedAuth).
+  const [allowed, setAllowed] = useState<boolean | null>(() =>
+    canSkipEmbedAuth() ? true : null,
+  )
 
   useEffect(() => {
     return requestEmbedAuth((allowed, config) => {

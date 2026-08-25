@@ -28,6 +28,18 @@ function isHostGated(): boolean {
 }
 
 /**
+ * Synchroner Vorab-Check fuer den Initial-State in main.tsx: auf einem
+ * nicht-gegateten Host (hayse.de, Beta, lokale Entwicklung) darf sofort im
+ * ersten Render `<App />` gezeigt werden, ohne auf den asynchronen
+ * postMessage-Roundtrip zu warten - sonst gaebe es bei JEDEM Seitenaufruf
+ * (nicht nur eingebetteten) einen kurzen leeren Frame, bis der useEffect
+ * durchgelaufen ist.
+ */
+export function canSkipEmbedAuth(): boolean {
+  return !isHostGated();
+}
+
+/**
  * Ruft `onResult(true, config)` auf, wenn die App angezeigt werden darf -
  * `config` ist die rohe, noch ungepruefte Konfiguration aus der Shell
  * (siehe applyEmbedStandardConfig in embedStandardConfig.ts fuer die
