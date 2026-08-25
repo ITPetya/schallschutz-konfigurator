@@ -18,15 +18,21 @@ const RAW_FULL_SCALE = 400;
 // Ebenfalls eine grobe Startannahme.
 const DEADZONE_RAW = 15;
 
-// ry braucht eine EIGENE, deutlich hoehere Deadzone (Jonas' Fehlerbericht
+// ry braucht eine EIGENE, etwas hoehere Deadzone (Jonas' Fehlerbericht
 // 2026-08-25, siehe Funktionskommentar unten fuer die volle Vorgeschichte):
 // auf seiner Hardware erzeugt schon das Kippen/Rollen der Kappe (physisch
 // eine andere Bewegung) ein kleines ry-Nebensignal - ein deliberates Twisten
-// sollte deutlich staerker ausschlagen als dieses Uebersprechen. Grobe
-// Startannahme (3x die normale Deadzone), da hier keine echte Hardware zum
-// Kalibrieren verfuegbar ist - Jonas muss nach echtem Test sagen, ob das
-// reicht oder noch hoeher muss.
-const DEADZONE_RAW_RY = 45;
+// sollte deutlich staerker ausschlagen als dieses Uebersprechen. ERSTER
+// Versuch war 45 (3x normal) - Jonas' Rueckmeldung SELBER TAG: fuehlte sich
+// dadurch "deutlich traeger" als alle anderen Richtungen an, weil eine
+// hoehere Deadzone in normalizeAxis() nicht nur das Uebersprechen filtert,
+// sondern in der Formel (raw-deadzone)/(RAW_FULL_SCALE-deadzone) JEDE
+// Auslenkung unterhalb von RAW_FULL_SCALE schwaecher ausgeben laesst, nicht
+// nur ganz kleine Werte. Auf 25 (1,7x normal statt 3x) reduziert - immer
+// noch eine grobe Annahme ohne echte Hardware, Jonas muss nach dem naechsten
+// Test wieder sagen, ob das Uebersprechen jetzt durchkommt (dann hoeher) oder
+// das Twisten noch traege wirkt (dann weiter runter).
+const DEADZONE_RAW_RY = 25;
 
 // Jonas' Fehlerbericht 2026-08-12: "es ruckelt an Stellen noch" - Zeitkonstante
 // (Sekunden) fuer ein exponentielles Glaetten der normierten Achsenwerte

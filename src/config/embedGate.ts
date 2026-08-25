@@ -23,8 +23,22 @@ const GATED_HOSTS = new Set(["containerconfigurator.netlify.app"]);
 const EMBED_ACCESS_KEY = "YsEy6JohTmFxm9FhPs1jnEfuJEwc5x5c";
 const HANDSHAKE_TIMEOUT_MS = 3000;
 
+// Jonas' Fehlerbericht 2026-08-25: /intern (nicht verlinkte Mitarbeiter-
+// Ansicht) und /ansehen (schreibgeschuetzter Handy-Freigabelink fuer Kunden,
+// siehe pages/ProjectViewerPage.tsx) werden BEIDE direkt aufgerufen/verteilt
+// - nie ueber eine Einbettungs-Shell. Der Host-Gate wuerde sie sonst genauso
+// blocken wie die Haupt-App unter "/", obwohl sie nie fuer den
+// Shell-Handshake gedacht waren. Beide Pfade sind deshalb IMMER ausgenommen,
+// unabhaengig vom Host.
+const EXEMPT_PATH_PREFIXES = ["/intern", "/ansehen"];
+
+function isExemptPath(): boolean {
+  const path = window.location.pathname;
+  return EXEMPT_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
+
 function isHostGated(): boolean {
-  return GATED_HOSTS.has(window.location.hostname);
+  return GATED_HOSTS.has(window.location.hostname) && !isExemptPath();
 }
 
 /**
