@@ -1014,7 +1014,7 @@ export function WorkspacePage() {
                     Zweige zusaetzlich in einem eigens gekeyten Fragment. */}
                 {editingPartitionWall ? (
                   <Fragment key="pw-edit">
-                    <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen">
+                    <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
                       <PartitionWallSettings
                         pw={editingPartitionWall}
                         size={editingInstance.config.size}
@@ -1039,6 +1039,7 @@ export function WorkspacePage() {
                 <AccordionSection
                   key="Grundeinstellungen"
                   title="Grundeinstellungen"
+                  defaultOpen
                   tourId="tour-grundeinstellungen"
                   forceOpenSignal={grundOpenSignal}
                 >
@@ -1165,7 +1166,7 @@ export function WorkspacePage() {
               </>
             ) : (
               <>
-                <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen">
+                <AccordionSection key="Grundeinstellungen" title="Grundeinstellungen" defaultOpen>
                   <label className="block text-xs text-slate-500 dark:text-slate-400">
                     Projektname
                     <input

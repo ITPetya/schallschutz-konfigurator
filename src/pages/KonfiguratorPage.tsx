@@ -82,7 +82,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
               </AnimatedButton>
             )}
             {projectName && <p className="mb-3 truncate text-sm font-bold text-brand-dark">{projectName}</p>}
-            <AccordionSection title="Grundeinstellungen">
+            <AccordionSection title="Grundeinstellungen" defaultOpen>
               <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
                 <dt className="text-slate-400 dark:text-slate-500">Länge</dt>
                 <dd>{size.length} mm</dd>

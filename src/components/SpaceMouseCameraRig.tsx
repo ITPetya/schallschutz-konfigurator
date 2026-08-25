@@ -18,6 +18,16 @@ const RAW_FULL_SCALE = 400;
 // Ebenfalls eine grobe Startannahme.
 const DEADZONE_RAW = 15;
 
+// ry braucht eine EIGENE, deutlich hoehere Deadzone (Jonas' Fehlerbericht
+// 2026-08-25, siehe Funktionskommentar unten fuer die volle Vorgeschichte):
+// auf seiner Hardware erzeugt schon das Kippen/Rollen der Kappe (physisch
+// eine andere Bewegung) ein kleines ry-Nebensignal - ein deliberates Twisten
+// sollte deutlich staerker ausschlagen als dieses Uebersprechen. Grobe
+// Startannahme (3x die normale Deadzone), da hier keine echte Hardware zum
+// Kalibrieren verfuegbar ist - Jonas muss nach echtem Test sagen, ob das
+// reicht oder noch hoeher muss.
+const DEADZONE_RAW_RY = 45;
+
 // Jonas' Fehlerbericht 2026-08-12: "es ruckelt an Stellen noch" - Zeitkonstante
 // (Sekunden) fuer ein exponentielles Glaetten der normierten Achsenwerte
 // zwischen aufeinanderfolgenden Frames. Rohe HID-Reports treffen unregelmaessig
@@ -39,10 +49,10 @@ const PAN_SPEED_M_PER_S = 4.5; // Meter/Sekunde (vorher 1.5)
 const DOLLY_SPEED_PER_S = 3.6; // relative Annaeherung/Entfernung pro Sekunde (vorher 1.2)
 const ORBIT_SPEED_RAD_PER_S = 3.6; // Radiant/Sekunde (vorher 1.2)
 
-function normalizeAxis(raw: number): number {
-  if (Math.abs(raw) < DEADZONE_RAW) return 0;
+function normalizeAxis(raw: number, deadzone: number = DEADZONE_RAW): number {
+  if (Math.abs(raw) < deadzone) return 0;
   const sign = Math.sign(raw);
-  const magnitude = (Math.abs(raw) - DEADZONE_RAW) / (RAW_FULL_SCALE - DEADZONE_RAW);
+  const magnitude = (Math.abs(raw) - deadzone) / (RAW_FULL_SCALE - deadzone);
   return sign * THREE.MathUtils.clamp(magnitude, 0, 1.5); // 1.5 statt hartem 1-Clamp: Auslenkungen ueber RAW_FULL_SCALE hinaus (modellabhaengig moeglich) bleiben noch etwas wirksam statt hart abzuschneiden.
 }
 
@@ -72,20 +82,25 @@ interface SpaceMouseCameraRigProps {
  * vertauscht, siehe unten): Translation x (links/rechts kippen) -> Schwenk
  * horizontal, Translation z (Kappe hoch/runter druecken) -> Schwenk
  * vertikal, Translation y (Kappe vor/zurueck kippen) -> Zoom (Dolly),
- * Rotation rx (Kappe vor/zurueck neigen) -> vertikale Umkreisung. Die
+ * Rotation rx (Kappe vor/zurueck neigen) -> vertikale Umkreisung, Rotation
+ * ry (Kappe seitlich drehen/"twisten") -> horizontale Umkreisung. Die
  * Roll-Achse (rz) hat in OrbitControls' Kugelkoordinaten-Modell ohnehin
  * keine Entsprechung (keine Kamera-Rollachse um die Blickrichtung) und
  * bleibt deshalb ungenutzt.
  *
- * Jonas' Fehlerbericht 2026-08-18: ry (Kappe seitlich drehen/"twisten",
- * bisher horizontale Umkreisung) ENTFERNT - auf seiner Hardware loest das
- * Kippen der Kappe nach rechts/links (physisch naeher an Roll als an Twist)
- * ebenfalls ein ry-Signal aus, obwohl der Viewer diese Drehung gar nicht
- * zulaesst (OrbitControls kennt keine Rollachse, siehe oben) - fuehlte sich
- * an wie eine Drehung, die "eigentlich gesperrt" sein sollte. Da Maus-Drag
- * horizontales Umkreisen weiterhin uneingeschraenkt bietet, bewusst OHNE
- * Ersatz-Zuordnung auf eine andere Achse - ry wird unten (wie rz) nicht
- * mehr gelesen/geglaettet.
+ * Geschichte der ry-Zuordnung (zum Nachvollziehen, falls das Problem
+ * zurueckkommt): Jonas' Fehlerbericht 2026-08-18 entfernte ry komplett, weil
+ * auf seiner Hardware das Kippen der Kappe nach rechts/links (physisch
+ * naeher an Roll als an Twist) ebenfalls ein kleines ry-Nebensignal ausloest
+ * - fuehlte sich an wie eine Drehung, die "eigentlich gesperrt" sein
+ * sollte. Jonas' Fehlerbericht 2026-08-25: das ging zu weit, ECHTES
+ * Twisten soll wieder horizontal umkreisen. Fix diesmal: ry bekommt eine
+ * eigene, deutlich hoehere Deadzone (DEADZONE_RAW_RY oben) statt komplett
+ * ausgeklammert zu werden - die Annahme ist, dass das Roll-Uebersprechen
+ * schwaecher ausschlaegt als ein deliberates Twisten. Unbestaetigt ohne
+ * echte Hardware; falls die Deadzone nicht reicht (Rollen loest weiterhin
+ * ungewollt Umkreisen aus), muss sie hoeher, falls sie zu hoch ist
+ * (deliberates Twisten wird selbst noch verschluckt), muss sie runter.
  *
  * Jonas' Fehlerbericht 2026-08-12: y (vor/zurueck) und z (hoch/runter) waren
  * vertauscht - Vor/Zurueck-Druck bewegte das Objekt hoch/runter (Pan) statt
@@ -130,9 +145,10 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
     // Geglaettete Achsenwerte (Jonas' Fehlerbericht 2026-08-12: "es ruckelt
     // an Stellen noch") - siehe SMOOTHING_TAU_S weiter oben. Persistiert
     // ueber Frames hinweg in diesem Ref, nicht neu angelegt pro Aufruf.
-    // Kein ry mehr (Jonas' Fehlerbericht 2026-08-18, siehe Funktionskommentar
-    // oben) - genau wie rz wird es unten gar nicht mehr gelesen.
-    smoothed: { x: 0, y: 0, z: 0, rx: 0 },
+    // ry seit 2026-08-25 wieder dabei (siehe Funktionskommentar oben) - rz
+    // bleibt weiterhin ungenutzt, dafuer gibt es in OrbitControls keine
+    // Entsprechung.
+    smoothed: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
   }).current;
 
   useFrame((_state, delta) => {
@@ -151,26 +167,38 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
     s.y += (normalizeAxis(a.y) - s.y) * alpha;
     s.z += (normalizeAxis(a.z) - s.z) * alpha;
     s.rx += (normalizeAxis(a.rx) - s.rx) * alpha;
+    s.ry += (normalizeAxis(a.ry, DEADZONE_RAW_RY) - s.ry) * alpha;
 
     // Erst NACH dem Glaetten pruefen, ob ueberhaupt noch etwas zu tun ist -
     // sonst wuerde ein frisch losgelassener Griff die Kamera mit dem
     // zuletzt geglaetteten (noch nicht auf 0 abgeklungenen) Wert
     // einfrieren, statt sanft auszurollen.
     const EPS = 1e-4;
-    if (Math.abs(s.x) < EPS && Math.abs(s.y) < EPS && Math.abs(s.z) < EPS && Math.abs(s.rx) < EPS) return;
+    if (
+      Math.abs(s.x) < EPS &&
+      Math.abs(s.y) < EPS &&
+      Math.abs(s.z) < EPS &&
+      Math.abs(s.rx) < EPS &&
+      Math.abs(s.ry) < EPS
+    )
+      return;
 
     const x = s.x;
     const y = s.y;
     const z = s.z;
     const rx = s.rx;
+    const ry = s.ry;
     const target = controls.target;
 
-    // Orbit (Rotation): rx -> vertikale Umkreisung (phi) um das aktuelle
-    // target. Keine horizontale Umkreisung (theta) mehr ueber die SpaceMouse
-    // (Jonas' Fehlerbericht 2026-08-18, siehe Funktionskommentar oben).
-    if (rx !== 0) {
+    // Orbit (Rotation): rx -> vertikale Umkreisung (phi), ry -> horizontale
+    // Umkreisung (theta), beide um das aktuelle target. Vorzeichen von ry
+    // UNBESTAETIGT (keine echte Hardware zum Testen verfuegbar, siehe
+    // Funktionskommentar oben) - falls die Drehrichtung beim echten Test
+    // verkehrt herum ist, hier das Vorzeichen von theta umdrehen.
+    if (rx !== 0 || ry !== 0) {
       scratch.offset.copy(camera.position).sub(target);
       scratch.spherical.setFromVector3(scratch.offset);
+      scratch.spherical.theta -= ry * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
       scratch.spherical.phi -= rx * ORBIT_SPEED_RAD_PER_S * sensitivity * delta;
       const EPS_POLE = 1e-3;
       scratch.spherical.phi = THREE.MathUtils.clamp(scratch.spherical.phi, EPS_POLE, Math.PI - EPS_POLE);
@@ -209,7 +237,7 @@ export function SpaceMouseCameraRig({ axisRef, controlsRef, enabled, sensitivity
       // gleich danach nochmal (mit identischem Ergebnis) macht - hier nur
       // vorgezogen, damit die folgende Rechts-/Auf-Achsen-Extraktion aus
       // camera.matrix bereits aktuell ist.
-      if (rx !== 0) {
+      if (rx !== 0 || ry !== 0) {
         camera.lookAt(target);
         camera.updateMatrix();
       }
