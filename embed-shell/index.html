@@ -17,13 +17,13 @@
       Cloud-/Remote-Gaming-Streaming). Der iframe-src unten ist die einzige
       Stelle, die bei einer Domain-Aenderung angepasst werden muss.
 
-      Der ?key=... Parameter ist Absicht (2026-08-25): eine Netlify Edge
-      Function auf containerconfigurator.netlify.app (netlify/edge-functions/
-      embed-gate.ts im Haupt-Repo) blockt Direktaufrufe der rohen App-URL ohne
+      Der ?key=... Parameter ist Absicht (2026-08-25): src/config/embedGate.ts
+      im Haupt-Repo blockt clientseitig Direktaufrufe der rohen App-URL ohne
       diesen Schluessel - kein echter Zugangsschutz, nur eine Huerde gegen
-      zufaelliges Weiterreichen des gefundenen iframe-Links. Bei Aenderung des
-      Schluessels: hier UND in der Netlify-Umgebungsvariable
-      EMBED_ACCESS_KEY (Projekt "containerconfigurator") synchron halten.
+      zufaelliges Weiterreichen des gefundenen iframe-Links. Bewusst OHNE
+      Server-/Edge-Infrastruktur, damit es auf jedem Hosting funktioniert. Bei
+      Aenderung des Schluessels: hier UND in src/config/embedGate.ts synchron
+      halten (EMBED_ACCESS_KEY).
     -->
     <style>
       html,
