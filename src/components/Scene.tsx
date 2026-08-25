@@ -91,6 +91,12 @@ interface SceneProps {
   selectedPartitionWallId?: string | null;
   onSelectPartitionWall?: (id: string | null) => void;
   onOpenPartitionWall?: (id: string) => void;
+  // Jonas' Vorgabe 2026-08-25 (GLB-Export): eine von aussen (WorkspacePage.tsx)
+  // hereingereichte Ref auf eine Gruppe, die NUR die exportwuerdige
+  // Container-Geometrie enthaelt - keine Hilfslinien/Markierungen/Gizmos.
+  // Optional, weil der schreibgeschuetzte Konstrukteur-Viewer (noch) keinen
+  // Export anbietet.
+  exportGroupRef?: React.RefObject<THREE.Group | null>;
 }
 
 const MM_TO_M = 1 / 1000;
@@ -128,6 +134,7 @@ export function Scene({
   selectedPartitionWallId,
   onSelectPartitionWall,
   onOpenPartitionWall,
+  exportGroupRef,
 }: SceneProps) {
   // Kamera/Grid/Schnittebene rechnen intern in Metern (Three.js-Konvention,
   // siehe Container.tsx) - size kommt in mm an (Jonas' Vorgabe 2026-07-22).
@@ -380,15 +387,17 @@ export function Scene({
         />
         <DisplaySettingsProvider value={{ viewStyle: viewPrefs.viewStyle, insideColor, outsideColor, insideUnpainted }}>
           <SectionPlaneProvider value={section.sectionPlane}>
-            <Container
-              size={size}
-              wallThickness={wallThickness}
-              openings={draftOpening ? [...openings, draftOpening] : openings}
-              floorThickness={resolvedFloorThickness}
-              floorInsulated={floorInsulated}
-              partitionWalls={draftPartitionWall ? [...partitionWalls, draftPartitionWall] : partitionWalls}
-              onReady={() => setContainerReady(true)}
-            />
+            <group ref={exportGroupRef}>
+              <Container
+                size={size}
+                wallThickness={wallThickness}
+                openings={draftOpening ? [...openings, draftOpening] : openings}
+                floorThickness={resolvedFloorThickness}
+                floorInsulated={floorInsulated}
+                partitionWalls={draftPartitionWall ? [...partitionWalls, draftPartitionWall] : partitionWalls}
+                onReady={() => setContainerReady(true)}
+              />
+            </group>
           </SectionPlaneProvider>
         </DisplaySettingsProvider>
 

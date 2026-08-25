@@ -91,6 +91,7 @@ export function InternalPage() {
           onBack={() => setDrillInInstanceId(null)}
           backLabel="Zurück zur Baugruppe"
           kundenverlauf={project.kundenverlauf}
+          showExport
         />
       );
     }
@@ -100,9 +101,17 @@ export function InternalPage() {
         fileName={fileName ?? undefined}
         onOpenInstance={setDrillInInstanceId}
         kundenverlauf={project.kundenverlauf}
+        showExport
       />
     );
   }
 
-  return <KonfiguratorPage initialConfig={config!} projectName={fileName ?? "Kundenkonfiguration"} kundenverlauf={config!.kundenverlauf} />;
+  return (
+    <KonfiguratorPage
+      initialConfig={config!}
+      projectName={fileName ?? "Kundenkonfiguration"}
+      kundenverlauf={config!.kundenverlauf}
+      showExport
+    />
+  );
 }

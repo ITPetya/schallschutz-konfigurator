@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type * as THREE from "three";
 import { ProjectScene3D } from "../components/ProjectScene3D";
 import { AccordionSection } from "../components/AccordionSection";
 import { KundenverlaufSection } from "../components/KundenverlaufSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowRightIcon } from "../components/icons/ArrowRightIcon";
+import { DownloadIcon } from "../components/icons/DownloadIcon";
+import { LoadingIcon } from "../components/LoadingIcon";
 import type { ProjectConfig } from "../config/projectTypes";
 import type { KundenverlaufEintrag } from "../config/kundenverlauf";
+import { sanitizeFileName, downloadBlob } from "../config/configFileCodec";
+import { exportGroupAsGlb } from "../utils/exportGlb";
 
 interface InternalProjectViewerProps {
   project: ProjectConfig;
@@ -19,6 +24,10 @@ interface InternalProjectViewerProps {
   // setzt es (mit project.kundenverlauf), ProjectViewerPage.tsx
   // (oeffentliches /ansehen) laesst es weg.
   kundenverlauf?: KundenverlaufEintrag[];
+  // Jonas' Vorgabe 2026-08-25: Modell-Export (GLB, spaeter 3D-PDF/STEP) nur
+  // im internen Bereich anbieten, NICHT auf der oeffentlichen /ansehen-Seite -
+  // siehe KonfiguratorPage.tsx fuer dasselbe Prop/Muster.
+  showExport?: boolean;
 }
 
 // Schreibgeschuetzter Baugruppen-Viewer fuer den Konstrukteur-Bereich (Jonas'
@@ -27,8 +36,29 @@ interface InternalProjectViewerProps {
 // (Sidebar links, 3D-Viewer rechts), aber mit der Baugruppen-Instanzliste
 // statt Groesse/Farbe/Einbauten, und ohne Ziehen/Ausrichten/Ansicht-Editieren
 // (ProjectScene3D bekommt hier bewusst nur No-Op-Handler fuer Drag/Undo).
-export function InternalProjectViewer({ project, fileName, onOpenInstance, kundenverlauf }: InternalProjectViewerProps) {
+export function InternalProjectViewer({ project, fileName, onOpenInstance, kundenverlauf, showExport }: InternalProjectViewerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Jonas' Vorgabe 2026-08-25 (GLB-Export, nur im internen Bereich): siehe
+  // KonfiguratorPage.tsx fuer dieselbe Begruendung - hier exportiert die
+  // GANZE Baugruppe statt eines einzelnen Containers.
+  const exportGroupRef = useRef<THREE.Group>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExportGlb() {
+    if (!exportGroupRef.current) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const blob = await exportGroupAsGlb(exportGroupRef.current);
+      downloadBlob(blob, `${sanitizeFileName(fileName ?? project.name)}.glb`);
+    } catch {
+      setExportError("Export fehlgeschlagen.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col bg-white text-ink dark:bg-slate-900 dark:text-slate-100">
@@ -86,6 +116,24 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance, kunde
               )}
             </AccordionSection>
             {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
+            {showExport && (
+              <div className="mt-6 space-y-2">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Exportieren</p>
+                <AnimatedButton
+                  type="button"
+                  onClick={handleExportGlb}
+                  disabled={exporting}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  {exporting ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
+                  Als GLB herunterladen
+                </AnimatedButton>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Lädt die ganze Baugruppe als .glb-Datei herunter – öffnet unter Windows z. B. direkt mit der App „3D-Viewer”.
+                </p>
+                {exportError && <p className="text-xs text-red-600 dark:text-red-400">{exportError}</p>}
+              </div>
+            )}
           </>
         }
       >
@@ -99,6 +147,7 @@ export function InternalProjectViewer({ project, fileName, onOpenInstance, kunde
           onPointerMove={() => {}}
           onPointerUp={() => {}}
           onOpenDetail={onOpenInstance}
+          exportGroupRef={exportGroupRef}
         />
       </ViewerSidebarLayout>
     </div>

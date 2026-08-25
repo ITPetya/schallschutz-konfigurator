@@ -89,6 +89,10 @@ interface ProjectScene3DProps extends ProjectScene3DHandlers {
   // Konstrukteur-Viewer (InternalProjectViewer.tsx), dort blendet sich der
   // Werkzeug-Button dann komplett aus.
   onCreateDependency?: (dep: Omit<AlignmentDependency, "id">) => void;
+  // Jonas' Vorgabe 2026-08-25 (GLB-Export): siehe Scene.tsx fuer die volle
+  // Begruendung - hier fasst die Gruppe ALLE Instanzen der Baugruppe
+  // zusammen, keine Grundriss-Rechtecke/Markierungen.
+  exportGroupRef?: React.RefObject<THREE.Group | null>;
 }
 
 // 3D-Ansicht der Baugruppe (Jonas' Vorgabe 2026-07-25: "soll auch einen 3D
@@ -115,6 +119,7 @@ export function ProjectScene3D({
   canUndo,
   canRedo,
   onCreateDependency,
+  exportGroupRef,
 }: ProjectScene3DProps) {
   // Jonas' Fehlerbericht 2026-08-19: der Dreh-/Weltmittelpunkt (OrbitControls-
   // target) sass bisher fest bei [0, 1.2, 0], VOELLIG unabhaengig davon, wo
@@ -517,26 +522,28 @@ export function ProjectScene3D({
           shadow-mapSize={[2048, 2048]}
         />
 
-        {instances.map((inst) => (
-          <InstanceGroup
-            key={inst.id}
-            instance={inst}
-            selected={selectedId === inst.id}
-            dragging={draggingId === inst.id}
-            // Zu EINEM Bool zusammengefasst statt dragValid roh
-            // durchzureichen: fuer alle NICHT gezogenen Instanzen bleibt
-            // dragInvalid dadurch dauerhaft "false" (stabiler Primitive-
-            // Wert), auch waehrend dragValid sich beim Ziehen laufend
-            // aendert - sonst haette JEDE Instanz bei JEDER
-            // Kollisionspruefung neu gerendert, nicht nur die gezogene.
-            dragInvalid={draggingId === inst.id && !dragValid}
-            sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
-            viewStyle={viewPrefs.viewStyle}
-            onPointerEvent={handlePointerEvent}
-            onInstanceReady={handleInstanceReady}
-            onOpenDetail={onOpenDetail}
-          />
-        ))}
+        <group ref={exportGroupRef}>
+          {instances.map((inst) => (
+            <InstanceGroup
+              key={inst.id}
+              instance={inst}
+              selected={selectedId === inst.id}
+              dragging={draggingId === inst.id}
+              // Zu EINEM Bool zusammengefasst statt dragValid roh
+              // durchzureichen: fuer alle NICHT gezogenen Instanzen bleibt
+              // dragInvalid dadurch dauerhaft "false" (stabiler Primitive-
+              // Wert), auch waehrend dragValid sich beim Ziehen laufend
+              // aendert - sonst haette JEDE Instanz bei JEDER
+              // Kollisionspruefung neu gerendert, nicht nur die gezogene.
+              dragInvalid={draggingId === inst.id && !dragValid}
+              sectionPlane={inst.id === selectedId ? section.sectionPlane : null}
+              viewStyle={viewPrefs.viewStyle}
+              onPointerEvent={handlePointerEvent}
+              onInstanceReady={handleInstanceReady}
+              onOpenDetail={onOpenDetail}
+            />
+          ))}
+        </group>
 
         {measureActive && (
           <MeasureMarkers
@@ -776,6 +783,10 @@ const InstanceGroup = memo(function InstanceGroup({
           selbst) und Kollisions-Farbfeedback. Ragt bewusst ueber die
           Container-Grundflaeche hinaus (siehe FOOTPRINT_MARGIN_M). */}
       <mesh
+        // Jonas' Vorgabe 2026-08-25 (GLB-Export): dieser Name markiert die
+        // Flaeche als export-auszuschliessen, siehe utils/exportGlb.ts -
+        // reine Interaktions-Hitbox, kein echter Modellbestandteil.
+        name="export-exclude"
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.01, 0]}
         onPointerDown={(e) => onPointerEvent(instance.id, e, "down")}

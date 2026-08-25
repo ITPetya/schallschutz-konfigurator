@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type * as THREE from "three";
 import { Scene } from "../components/Scene";
 import { OpeningsSummary } from "../components/OpeningsSummary";
 import { KundenverlaufSection } from "../components/KundenverlaufSection";
@@ -6,12 +7,16 @@ import { AccordionSection } from "../components/AccordionSection";
 import { AnimatedButton } from "../components/AnimatedButton";
 import { ViewerSidebarLayout } from "../components/ViewerSidebarLayout";
 import { ArrowLeftIcon } from "../components/icons/ArrowLeftIcon";
+import { DownloadIcon } from "../components/icons/DownloadIcon";
+import { LoadingIcon } from "../components/LoadingIcon";
 import type { ContainerSize } from "../constants/containerSizes";
 import type { Opening } from "../types/openings";
 import type { ContainerConfig } from "../config/types";
 import type { KundenverlaufEintrag } from "../config/kundenverlauf";
 import { DEFAULT_FLOOR_THICKNESS, DEFAULT_SOUND_CLASS, SOUND_CLASSES, defaultFloorInsulated } from "../constants/lcStandard";
 import { getRalNameForHex } from "../constants/ralColors";
+import { sanitizeFileName, downloadBlob } from "../config/configFileCodec";
+import { exportGroupAsGlb } from "../utils/exportGlb";
 
 interface KonfiguratorPageProps {
   // Seit der Nacht-Session 2026-07-25 uebernimmt WorkspacePage.tsx den
@@ -37,14 +42,40 @@ interface KonfiguratorPageProps {
   // siehe InternalPage.tsx). ProjectViewerPage.tsx (oeffentliches /ansehen)
   // laesst das Prop bewusst weg.
   kundenverlauf?: KundenverlaufEintrag[];
+  // Jonas' Vorgabe 2026-08-25: Modell-Export (GLB, spaeter 3D-PDF/STEP) nur
+  // im internen Bereich anbieten, NICHT auf der oeffentlichen /ansehen-Seite -
+  // gleiches Muster wie kundenverlauf oben: InternalPage.tsx setzt es,
+  // ProjectViewerPage.tsx laesst es bewusst weg.
+  showExport?: boolean;
 }
 
 // Reiner schreibgeschuetzter Detail-Viewer fuer eine geladene .sszkonfig
 // (siehe InternalPage.tsx) - zeigt Groesse, Farben und Einbauten als reine
 // Auflistung statt editierbarer Felder, ohne eigene Speicher-/Reset-/
 // Moduswechsel-Logik (die gibt es nur im editierbaren WorkspacePage.tsx).
-export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel, kundenverlauf }: KonfiguratorPageProps) {
+export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel, kundenverlauf, showExport }: KonfiguratorPageProps) {
   const config = initialConfig;
+
+  // Jonas' Vorgabe 2026-08-25 (GLB-Export, nur im internen Bereich, siehe
+  // showExport oben): Scene.tsx fuellt diese Ref mit einer Gruppe, die NUR
+  // die exportwuerdige Container-Geometrie enthaelt.
+  const exportGroupRef = useRef<THREE.Group>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExportGlb() {
+    if (!exportGroupRef.current) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const blob = await exportGroupAsGlb(exportGroupRef.current);
+      downloadBlob(blob, `${sanitizeFileName(projectName ?? "container")}.glb`);
+    } catch {
+      setExportError("Export fehlgeschlagen.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const [size] = useState<ContainerSize>(config.size);
   const [wallThickness] = useState(config.wallThickness);
@@ -140,6 +171,24 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
               <OpeningsSummary openings={openings} />
             </AccordionSection>
             {kundenverlauf && <KundenverlaufSection entries={kundenverlauf} />}
+            {showExport && (
+              <div className="mt-6 space-y-2">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand">Exportieren</p>
+                <AnimatedButton
+                  type="button"
+                  onClick={handleExportGlb}
+                  disabled={exporting}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  {exporting ? <LoadingIcon active kind="saving" size={16} /> : <DownloadIcon size={16} />}
+                  Als GLB herunterladen
+                </AnimatedButton>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Lädt das 3D-Modell als .glb-Datei herunter – öffnet unter Windows z. B. direkt mit der App „3D-Viewer”.
+                </p>
+                {exportError && <p className="text-xs text-red-600 dark:text-red-400">{exportError}</p>}
+              </div>
+            )}
           </>
         }
       >
@@ -153,6 +202,7 @@ export function KonfiguratorPage({ initialConfig, projectName, onBack, backLabel
           insideUnpainted={insideUnpainted}
           floorThickness={floorThickness}
           floorInsulated={floorInsulated}
+          exportGroupRef={exportGroupRef}
         />
       </ViewerSidebarLayout>
     </div>
