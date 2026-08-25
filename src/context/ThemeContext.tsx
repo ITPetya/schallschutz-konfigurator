@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { isStorageAllowed } from "../config/storageConsent";
+import { safeGetItem, safeSetItem } from "../utils/safeLocalStorage";
 
 export type Theme = "light" | "dark";
 
@@ -16,7 +17,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function loadStoredTheme(): Theme | null {
-  const raw = localStorage.getItem(THEME_KEY);
+  const raw = safeGetItem(THEME_KEY);
   return raw === "light" || raw === "dark" ? raw : null;
 }
 
@@ -35,7 +36,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Nur bei erteilter Speicher-Einwilligung schreiben (Jonas' Vorgabe
     // 2026-07-29: ein "Nein" im StorageConsentBanner muss WIRKLICH jede
     // weitere Speicherung verhindern, nicht nur die Projekt-Historie).
-    if (isStorageAllowed()) localStorage.setItem(THEME_KEY, theme);
+    if (isStorageAllowed()) safeSetItem(THEME_KEY, theme);
   }, [theme]);
 
   // "Swoosh"-Animation beim Umschalten (Jonas' Vorgabe 2026-07-28, siehe

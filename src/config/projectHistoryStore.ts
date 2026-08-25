@@ -1,5 +1,6 @@
 import type { ProjectConfig } from "./projectTypes";
 import { isStorageAllowed } from "./storageConsent";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "../utils/safeLocalStorage";
 import { THEME_KEY } from "../context/ThemeContext";
 import { SEEN_KEY, TOUR_PROGRESS_KEY } from "../tour/tourStore";
 import { UNIT_PREFS_KEY } from "./unitPreferencesStore";
@@ -30,7 +31,7 @@ export interface ProjectHistoryEntry {
 }
 
 function readRawEntries(): ProjectHistoryEntry[] {
-  const raw = localStorage.getItem(HISTORY_KEY);
+  const raw = safeGetItem(HISTORY_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -42,12 +43,7 @@ function readRawEntries(): ProjectHistoryEntry[] {
 
 function writeRawEntries(entries: ProjectHistoryEntry[]) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
-  } catch {
-    // localStorage kann voll oder deaktiviert sein - Autosave ist ein
-    // Sicherheitsnetz, kein kritischer Pfad, deshalb hier bewusst still.
-  }
+  safeSetItem(HISTORY_KEY, JSON.stringify(entries));
 }
 
 // Neuester Stand zuerst - sowohl fuer die Verlauf-Anzeige als auch damit
@@ -57,16 +53,12 @@ export function getHistoryEntries(): ProjectHistoryEntry[] {
 }
 
 export function getActiveHistoryId(): string | null {
-  return localStorage.getItem(ACTIVE_ID_KEY);
+  return safeGetItem(ACTIVE_ID_KEY);
 }
 
 export function setActiveHistoryId(id: string) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(ACTIVE_ID_KEY, id);
-  } catch {
-    // s.o.
-  }
+  safeSetItem(ACTIVE_ID_KEY, id);
 }
 
 function createHistoryId(): string {
@@ -130,16 +122,15 @@ export function hasMeaningfulProjectDraft(): boolean {
 // Ansicht-Einstellungen sind jetzt ebenfalls reine Browser-Praeferenz statt
 // Teil der gespeicherten Konfiguration) ebenso.
 export function clearProjectDraft() {
-  try {
-    localStorage.removeItem(HISTORY_KEY);
-    localStorage.removeItem(ACTIVE_ID_KEY);
-    localStorage.removeItem(THEME_KEY);
-    localStorage.removeItem(SEEN_KEY);
-    localStorage.removeItem(TOUR_PROGRESS_KEY);
-    localStorage.removeItem(UNIT_PREFS_KEY);
-    localStorage.removeItem(SPACEMOUSE_SENSITIVITY_KEY);
-    localStorage.removeItem(VIEW_PREFS_KEY);
-  } catch {
-    // s.o.
-  }
+  // Jede Entfernung einzeln abgesichert (statt EIN gemeinsames try/catch um
+  // alle) - sonst wuerde ein fehlschlagender erster Aufruf alle folgenden
+  // ueberspringen, statt so viel wie moeglich trotzdem zu loeschen.
+  safeRemoveItem(HISTORY_KEY);
+  safeRemoveItem(ACTIVE_ID_KEY);
+  safeRemoveItem(THEME_KEY);
+  safeRemoveItem(SEEN_KEY);
+  safeRemoveItem(TOUR_PROGRESS_KEY);
+  safeRemoveItem(UNIT_PREFS_KEY);
+  safeRemoveItem(SPACEMOUSE_SENSITIVITY_KEY);
+  safeRemoveItem(VIEW_PREFS_KEY);
 }

@@ -1,4 +1,5 @@
 import { isStorageAllowed } from "./storageConsent";
+import { safeGetItem, safeSetItem } from "../utils/safeLocalStorage";
 import type { BackgroundStyle, TerrainDetail, ViewStyle } from "../context/DisplaySettingsContext";
 
 // Jonas' Fehlerbericht 2026-08-14: "die Ansichts-Einstellungen werden immer
@@ -40,7 +41,7 @@ function isTerrainDetail(v: unknown): v is TerrainDetail {
 }
 
 export function loadViewPreferences(): ViewPreferences {
-  const raw = localStorage.getItem(VIEW_PREFS_KEY);
+  const raw = safeGetItem(VIEW_PREFS_KEY);
   if (!raw) return DEFAULT_VIEW_PREFS;
   try {
     const parsed = JSON.parse(raw) as Partial<ViewPreferences>;
@@ -57,9 +58,5 @@ export function loadViewPreferences(): ViewPreferences {
 
 export function saveViewPreferences(prefs: ViewPreferences) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    // Speicher voll/deaktiviert - Einstellung gilt dann nur fuer die laufende Sitzung.
-  }
+  safeSetItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
 }

@@ -1,4 +1,5 @@
 import { isStorageAllowed } from "./storageConsent";
+import { safeGetItem, safeSetItem } from "../utils/safeLocalStorage";
 
 // Merkt sich die im SpaceMouse-Einstellungen-Panel gewaehlte Empfindlichkeit
 // (Jonas' Vorgabe 2026-08-12: "man soll die Empfindlichkeit einstellen
@@ -18,7 +19,7 @@ function clamp(value: number): number {
 }
 
 export function loadSpaceMouseSensitivity(): number {
-  const raw = localStorage.getItem(SPACEMOUSE_SENSITIVITY_KEY);
+  const raw = safeGetItem(SPACEMOUSE_SENSITIVITY_KEY);
   if (!raw) return DEFAULT_SPACEMOUSE_SENSITIVITY;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? clamp(parsed) : DEFAULT_SPACEMOUSE_SENSITIVITY;
@@ -26,10 +27,5 @@ export function loadSpaceMouseSensitivity(): number {
 
 export function saveSpaceMouseSensitivity(value: number) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(SPACEMOUSE_SENSITIVITY_KEY, String(clamp(value)));
-  } catch {
-    // Speicher voll/deaktiviert - Einstellung gilt dann nur fuer die
-    // laufende Sitzung.
-  }
+  safeSetItem(SPACEMOUSE_SENSITIVITY_KEY, String(clamp(value)));
 }

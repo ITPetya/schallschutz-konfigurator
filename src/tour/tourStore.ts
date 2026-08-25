@@ -1,4 +1,5 @@
 import { isStorageAllowed } from "../config/storageConsent";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "../utils/safeLocalStorage";
 
 // Merkt sich pro Browser (localStorage, gleiche Einschraenkung wie der
 // restliche Mock-Layer), welche Tutorials schon automatisch gezeigt wurden -
@@ -9,7 +10,7 @@ import { isStorageAllowed } from "../config/storageConsent";
 export const SEEN_KEY = "ssk_tours_seen";
 
 function loadSeen(): string[] {
-  const raw = localStorage.getItem(SEEN_KEY);
+  const raw = safeGetItem(SEEN_KEY);
   if (!raw) return [];
   try {
     return JSON.parse(raw) as string[];
@@ -29,7 +30,7 @@ export function markTourSeen(id: string) {
   const seen = loadSeen();
   if (!seen.includes(id)) {
     seen.push(id);
-    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+    safeSetItem(SEEN_KEY, JSON.stringify(seen));
   }
 }
 
@@ -52,7 +53,7 @@ export interface TourProgress {
 }
 
 export function loadTourProgress(): TourProgress | null {
-  const raw = localStorage.getItem(TOUR_PROGRESS_KEY);
+  const raw = safeGetItem(TOUR_PROGRESS_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<TourProgress>;
@@ -67,18 +68,9 @@ export function loadTourProgress(): TourProgress | null {
 
 export function saveTourProgress(progress: TourProgress) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(TOUR_PROGRESS_KEY, JSON.stringify(progress));
-  } catch {
-    // Speicher voll/deaktiviert - Fortsetzen faellt dann auf Schritt 0
-    // zurueck, kein harter Fehler.
-  }
+  safeSetItem(TOUR_PROGRESS_KEY, JSON.stringify(progress));
 }
 
 export function clearTourProgress() {
-  try {
-    localStorage.removeItem(TOUR_PROGRESS_KEY);
-  } catch {
-    // s.o.
-  }
+  safeRemoveItem(TOUR_PROGRESS_KEY);
 }

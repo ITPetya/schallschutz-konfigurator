@@ -1,4 +1,5 @@
 import { isStorageAllowed } from "./storageConsent";
+import { safeGetItem, safeSetItem } from "../utils/safeLocalStorage";
 import type { LengthUnit } from "../utils/lengthUnits";
 
 // Merkt sich die im Messwerkzeug gewaehlten Einheiten (Jonas' Vorgabe
@@ -24,7 +25,7 @@ function isLengthUnit(v: unknown): v is LengthUnit {
 }
 
 export function loadUnitPreferences(): UnitPreferences {
-  const raw = localStorage.getItem(UNIT_PREFS_KEY);
+  const raw = safeGetItem(UNIT_PREFS_KEY);
   if (!raw) return DEFAULT_PREFS;
   try {
     const parsed = JSON.parse(raw) as Partial<UnitPreferences>;
@@ -39,10 +40,5 @@ export function loadUnitPreferences(): UnitPreferences {
 
 export function saveUnitPreferences(prefs: UnitPreferences) {
   if (!isStorageAllowed()) return;
-  try {
-    localStorage.setItem(UNIT_PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    // Speicher voll/deaktiviert - Einstellung gilt dann nur fuer die
-    // laufende Sitzung.
-  }
+  safeSetItem(UNIT_PREFS_KEY, JSON.stringify(prefs));
 }
