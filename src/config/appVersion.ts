@@ -12,4 +12,4 @@
 // das Datum die tatsaechliche Veroeffentlichung EINER bestimmten Version
 // festhalten soll, nicht den Moment, in dem irgendwer die Seite gerade
 // aufruft.
-export const APP_VERSION = "V.1.1.25.08.26";
+export const APP_VERSION = "V.1.2.25.08.26";
